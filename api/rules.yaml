@@ -1,0 +1,25 @@
+mechanisms:
+  CYP3A4_inhibition:
+    delta: 0.6
+  CYP3A4_induction:
+    delta: 0.6
+  QT_prolong:
+    delta: 1.0
+  serotonergic:
+    delta: 1.2
+weights:
+  severity: 1.0
+  evidence: 0.6
+  mechanism: 0.4
+map:
+  severity:
+    None: 0
+    Mild: 1
+    Moderate: 2
+    Severe: 3
+  evidence:
+    A: 1
+    B: 2
+    C: 3
+    D: 4
+formula: "severity*weights.severity + (1/evidence)*weights.evidence + mech_sum*weights.mechanism"
