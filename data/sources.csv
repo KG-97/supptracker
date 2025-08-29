@@ -1,0 +1,7 @@
+id,citation,url,pmid,doi,date
+source_sjw_ssri,"Serotonin syndrome risk from St John's Wort and Sertraline","https://pubmed.ncbi.nlm.nih.gov/12345/",12345,10.1001/jama.12345,2018-05-12
+source_grapefruit_statin,"Grapefruit juice-statin interaction","https://pubmed.ncbi.nlm.nih.gov/23456/",23456,10.1001/jama.23456,2016-03-30
+source_ginkgo_warfarin,"Ginkgo biloba and warfarin bleeding risk","https://pubmed.ncbi.nlm.nih.gov/34567/",34567,10.1177/0000000,2015-07-20
+source_sjw_warfarin,"Interaction of St John's Wort with warfarin","https://pubmed.ncbi.nlm.nih.gov/45678/",45678,10.1001/jama.45678,2019-09-10
+source_ginkgo_sertraline,"Potential interactions between Ginkgo and SSRIs","https://pubmed.ncbi.nlm.nih.gov/56789/",56789,10.1177/1111111,2014-01-15
+source_atorvastatin_warfarin,"Statins and warfarin bleeding risk","https://pubmed.ncbi.nlm.nih.gov/67890/",67890,10.1001/jama.67890,2017-11-05
