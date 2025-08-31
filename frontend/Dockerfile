@@ -7,5 +7,8 @@ RUN npm run build
 
 FROM nginx:stable-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
+COPY frontend/wait-for-health.sh /usr/local/bin/wait-for-health.sh
+RUN chmod +x /usr/local/bin/wait-for-health.sh
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# Wait for backend health then start nginx
+CMD ["/bin/sh", "-c", "/usr/local/bin/wait-for-health.sh backend 8000 /health 30 && exec nginx -g 'daemon off;'"]
