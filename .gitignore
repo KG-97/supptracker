@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.vscode/*.history
+*.log
+__pycache__/
+*.pyc
+.DS_Store

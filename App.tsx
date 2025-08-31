@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { search, getInteraction, checkStack } from '../api'
+import { search, getInteraction, checkStack } from './api'
 
 export default function App(){
   const [q,setQ]=useState('')
