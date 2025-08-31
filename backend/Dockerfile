@@ -1,24 +1,11 @@
-FROM python:3.12-slim
+FROM python:3.12
 
 WORKDIR /app
 
-# Install runtime deps
+# Copy requirements and install Python deps
 COPY requirements.txt ./requirements.txt
-
-# Install system build deps required for some Python packages (wheel compilation)
-RUN apt-get update \
-	&& apt-get install -y --no-install-recommends \
-	   build-essential \
-	   gcc \
-	   python3-dev \
-	   libyaml-dev \
-	   libffi-dev \
-	   libssl-dev \
-	   ca-certificates \
-	 && python -m pip install --upgrade pip setuptools wheel \
-	 && pip install --no-cache-dir -r requirements.txt \
-	 && apt-get purge -y --auto-remove build-essential gcc \
-	 && rm -rf /var/lib/apt/lists/*
+RUN python -m pip install --upgrade pip setuptools wheel && \
+	pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 # Copy app and data
 COPY app.py ./app.py
