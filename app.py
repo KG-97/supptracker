@@ -28,6 +28,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+def health():
+    """Lightweight health endpoint for probes."""
+    return {"status": "ok", "service": "supptracker-backend", "version": app.version}
+
 COMPOUNDS_DF = load_csv("compounds.csv")
 INTERACTIONS_DF = load_csv("interactions.csv")
 SOURCES_DF = load_csv("sources.csv")

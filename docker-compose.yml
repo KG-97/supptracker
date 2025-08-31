@@ -7,6 +7,11 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   frontend:
     build:
