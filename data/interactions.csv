@@ -1,7 +1,2 @@
-id,a,b,bidirectional,mechanism,severity,evidence,effect,action,sources
-sjw_sertraline,st_johns_wort,sertraline,true,"serotonergic|CYP3A4_induction","Severe","B","Additive serotonergic effect and CYP3A4 induction; risk of serotonin syndrome","Avoid","source_sjw_ssri"
-grapefruit_atorvastatin,grapefruit,atorvastatin,true,"CYP3A4_inhibition","Moderate","B","Grapefruit inhibits CYP3A4 leading to increased statin levels and risk of myopathy","Monitor","source_grapefruit_statin"
-ginkgo_warfarin,ginkgo,warfarin,true,"Bleeding","Moderate","C","Ginkgo may increase bleeding risk when combined with warfarin","Monitor","source_ginkgo_warfarin"
-sjw_warfarin,st_johns_wort,warfarin,true,"CYP3A4_induction","Moderate","C","St John's Wort may reduce warfarin levels leading to decreased anticoagulant effect","Monitor","source_sjw_warfarin"
-ginkgo_sertraline,ginkgo,sertraline,true,"serotonergic","Moderate","D","Potential increased serotonergic activity and bleeding risk","Monitor","source_ginkgo_sertraline"
-atorvastatin_warfarin,atorvastatin,warfarin,true,"Bleeding","Moderate","C","Possible increased bleeding risk due to additive anticoagulant effects","Monitor","source_atorvastatin_warfarin"
+compound_a,compound_b,severity,evidence_grade,mechanism_tags,source_ids
+caffeine,aspirin,Moderate,B,,source1
