@@ -6,7 +6,10 @@ import yaml, os
 import re
 
 HERE = os.path.dirname(__file__)
-DATA = os.path.join(HERE, "data")
+# Allow tests or deployments to override the data directory location. This
+# enables the application to be exercised against temporary fixtures without
+# mutating the repository's checked-in data files.
+DATA = os.environ.get("SUPPTRACKER_DATA", os.path.join(HERE, "data"))
 
 def load_csv(name: str) -> pd.DataFrame:
     p = os.path.join(DATA, name)
