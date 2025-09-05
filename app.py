@@ -4,8 +4,13 @@ from typing import List, Dict, Any, Optional
 import pandas as pd
 import yaml, os
 
+# Allow tests (or deployments) to override the default data directory via an
+# environment variable.  In normal operation the CSV/YAML data files live in the
+# repository's ``data`` directory.  During testing we want to use lightweight
+# fixtures instead, so the path can be pointed elsewhere by setting
+# ``SUPPTRACKER_DATA`` before importing this module.
 HERE = os.path.dirname(__file__)
-DATA = os.path.join(HERE, "data")
+DATA = os.environ.get("SUPPTRACKER_DATA", os.path.join(HERE, "data"))
 
 def load_csv(name: str) -> pd.DataFrame:
     p = os.path.join(DATA, name)
