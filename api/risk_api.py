@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Literal, Dict, Optional
+from typing import List, Literal, Dict, Optional, Tuple
 import os
 import csv
 
@@ -50,15 +50,17 @@ def load_compounds() -> Dict[str, dict]:
             }
     return compounds
 
-def load_interactions() -> List[dict]:
+def load_interactions() -> Tuple[List[dict], Dict[Tuple[str, str], dict]]:
+    """Load interactions and build a lookup dictionary."""
     interactions: List[dict] = []
+    inter_map: Dict[Tuple[str, str], dict] = {}
     path = os.path.join(DATA_DIR, "interactions.csv")
     with open(path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             mechanisms = [m.strip() for m in row["mechanism"].split("|")] if row.get("mechanism") else []
             sources = [s.strip() for s in row["sources"].split("|")] if row.get("sources") else []
-            interactions.append({
+            inter = {
                 "id": row["id"],
                 "a": row["a"],
                 "b": row["b"],
@@ -69,8 +71,12 @@ def load_interactions() -> List[dict]:
                 "effect": row["effect"],
                 "action": row["action"],
                 "sources": sources,
-            })
-    return interactions
+            }
+            interactions.append(inter)
+            inter_map[(inter["a"], inter["b"])] = inter
+            if inter["bidirectional"]:
+                inter_map[(inter["b"], inter["a"])] = inter
+    return interactions, inter_map
 
 def load_sources() -> Dict[str, dict]:
     sources: Dict[str, dict] = {}
@@ -82,7 +88,7 @@ def load_sources() -> Dict[str, dict]:
     return sources
 
 COMPOUNDS = load_compounds()
-INTERACTIONS = load_interactions()
+INTERACTIONS, INTERACTION_MAP = load_interactions()
 SOURCES = load_sources()
 
 # Risk model parameters (from rules.yaml)
@@ -135,11 +141,11 @@ def interaction(a: str, b: str):
     b_id = resolve_compound(b)
     if not a_id or not b_id:
         raise HTTPException(status_code=404, detail="One or both compounds not found")
-    for inter in INTERACTIONS:
-        if (inter["a"] == a_id and inter["b"] == b_id) or (inter["bidirectional"] and inter["a"] == b_id and inter["b"] == a_id):
-            risk_score = compute_risk(inter)
-            sources_detail = [SOURCES[sid] for sid in inter["sources"] if sid in SOURCES]
-            return {"interaction": inter, "risk_score": risk_score, "sources": sources_detail}
+    inter = INTERACTION_MAP.get((a_id, b_id))
+    if inter:
+        risk_score = compute_risk(inter)
+        sources_detail = [SOURCES[sid] for sid in inter["sources"] if sid in SOURCES]
+        return {"interaction": inter, "risk_score": risk_score, "sources": sources_detail}
     return {"message": "No known interaction"}
 
 class StackRequest(BaseModel):
@@ -159,15 +165,15 @@ def check_stack(payload: StackRequest):
         for j in range(i+1, len(ids)):
             a_id = ids[i]
             b_id = ids[j]
-            for inter in INTERACTIONS:
-                if (inter["a"] == a_id and inter["b"] == b_id) or (inter["bidirectional"] and inter["a"] == b_id and inter["b"] == a_id):
-                    interactions_out.append({
-                        "a": a_id,
-                        "b": b_id,
-                        "severity": inter["severity"],
-                        "evidence": inter["evidence"],
-                        "effect": inter["effect"],
-                        "action": inter["action"],
-                        "risk_score": compute_risk(inter),
-                    })
+            inter = INTERACTION_MAP.get((a_id, b_id))
+            if inter:
+                interactions_out.append({
+                    "a": a_id,
+                    "b": b_id,
+                    "severity": inter["severity"],
+                    "evidence": inter["evidence"],
+                    "effect": inter["effect"],
+                    "action": inter["action"],
+                    "risk_score": compute_risk(inter),
+                })
     return {"interactions": interactions_out}
