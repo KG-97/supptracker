@@ -35,6 +35,16 @@ def health():
 
 COMPOUNDS_DF = load_csv("compounds.csv")
 INTERACTIONS_DF = load_csv("interactions.csv")
+# Normalise column names so downstream code can rely on a consistent schema
+INTERACTIONS_DF = INTERACTIONS_DF.rename(
+    columns={
+        "a": "compound_a",
+        "b": "compound_b",
+        "mechanism": "mechanism_tags",
+        "evidence": "evidence_grade",
+        "sources": "source_ids",
+    }
+)
 SOURCES_DF = load_csv("sources.csv")
 RULES = load_yaml("risk_rules.yaml")
 
