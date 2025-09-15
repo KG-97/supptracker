@@ -3,9 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Any, Optional
 import pandas as pd
 import yaml, os
+import re
 
 HERE = os.path.dirname(__file__)
-DATA = os.path.join(HERE, "data")
+# Allow tests or deployments to override the data directory location. This
+# enables the application to be exercised against temporary fixtures without
+# mutating the repository's checked-in data files.
+DATA = os.environ.get("SUPPTRACKER_DATA", os.path.join(HERE, "data"))
 
 def load_csv(name: str) -> pd.DataFrame:
     p = os.path.join(DATA, name)
@@ -49,9 +53,15 @@ SOURCES_DF = load_csv("sources.csv")
 RULES = load_yaml("risk_rules.yaml")
 
 def to_synonyms(s: str):
-    if pd.isna(s) or s.strip() == "":
+    """Split a synonym string into a list.
+
+    The production data sometimes separates synonyms with commas while the
+    lightweight test fixtures use semicolons.  To support both sources we
+    split on either delimiter and normalise whitespace.
+    """
+    if pd.isna(s) or str(s).strip() == "":
         return []
-    return [x.strip() for x in str(s).split(";")]
+    return [x.strip() for x in re.split(r"[;,]", str(s)) if x.strip()]
 
 COMPOUNDS = []
 for _, row in COMPOUNDS_DF.iterrows():
@@ -101,10 +111,21 @@ def compute_score(interaction: Dict[str,Any], doses: Optional[str]=None, flags: 
     return round(float(score), 3), bucket_label, action
 
 def find_interaction(a: str, b: str):
+    """Lookup an interaction entry for two compounds.
+
+    Real-world datasets may label the compound columns differently.  Earlier
+    revisions used ``compound_a``/``compound_b`` while the sample production
+    data uses shorter ``a``/``b`` headers.  To make the helper resilient we
+    try several possible keys when extracting the compound identifiers.
+    """
     a, b = a.strip().lower(), b.strip().lower()
     for row in INTERACTIONS:
-        ca = str(row["compound_a"]).lower()
-        cb = str(row["compound_b"]).lower()
+        ca = row.get("compound_a") or row.get("a") or row.get("compound1")
+        cb = row.get("compound_b") or row.get("b") or row.get("compound2")
+        if ca is None or cb is None:
+            continue
+        ca = str(ca).lower()
+        cb = str(cb).lower()
         if (ca == a and cb == b) or (ca == b and cb == a):
             return row
     return None
