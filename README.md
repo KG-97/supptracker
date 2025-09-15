@@ -30,7 +30,7 @@ Run the backend (FastAPI):
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app:app --reload --port 8000
+uvicorn api.risk_api:app --reload --port 8000
 ```
 
 During development the Vite dev server proxies API requests to `http://localhost:8000`.
@@ -61,7 +61,7 @@ This project provides a minimal supplement–drug interaction checker. It consis
 
 - `api/` – FastAPI application with endpoints to search compounds and compute interaction risk.
 - `api/models.py` – Pydantic models for Compound and Interaction entities.
-- `api/main.py` – API entry point (FastAPI) with sample endpoints (`/api/health`, `/api/search`, `/api/interaction`, `/api/stack/check`).
+- `api/risk_api.py` – API entry point (FastAPI) with endpoints (`/api/health`, `/api/search`, `/api/interaction`, `/api/stack/check`).
 - `api/rules.yaml` – Risk scoring configuration (mechanism deltas, weights, severity/evidence mappings).
 - `data/` – CSV seed data:
   - `compounds.csv` – list of compounds and typical doses.
@@ -82,7 +82,7 @@ This project provides a minimal supplement–drug interaction checker. It consis
    ```
 2. Run the development server:
    ```bash
-   uvicorn main:app --reload
+    uvicorn risk_api:app --reload
    ```
    The API will be available at `http://127.0.0.1:8000/api/`. The interactive docs are at `/docs`.
 
