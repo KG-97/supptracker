@@ -1,10 +1,10 @@
 #!/bin/sh
-# wait-for-health.sh - wait until backend /health returns 200
+# wait-for-health.sh - wait until backend /api/health returns 200
 # usage: wait-for-health.sh <host> <port> [path] [timeout_seconds]
 
 HOST=${1:-backend}
 PORT=${2:-8000}
-PATH_CHECK=${3:-/health}
+PATH_CHECK=${3:-/api/health}
 TIMEOUT=${4:-30}
 
 URL="http://$HOST:$PORT$PATH_CHECK"
