@@ -1,7 +1,7 @@
 import sys
 import os
 import pytest
-from fastapi.testclient import TestClient
+import httpx
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
@@ -11,7 +11,12 @@ import api.risk_api as app_module
 
 
 @pytest.fixture
-def client():
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture
+async def client():
     app_module.COMPOUNDS = {
         "caffeine": {"id": "caffeine", "name": "Caffeine", "synonyms": ["coffee", "tea"]},
         "aspirin": {"id": "aspirin", "name": "Aspirin", "synonyms": ["acetylsalicylic acid"]},
@@ -31,24 +36,29 @@ def client():
         }
     ]
     app_module.SOURCES = {"s1": {"id": "s1", "citation": "Example source"}}
-    return TestClient(app_module.app)
+    transport = httpx.ASGITransport(app=app_module.app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as async_client:
+        yield async_client
 
 
-def test_search_success(client):
-    resp = client.get("/api/search", params={"q": "caffeine"})
+pytestmark = pytest.mark.anyio("asyncio")
+
+
+async def test_search_success(client):
+    resp = await client.get("/api/search", params={"q": "caffeine"})
     assert resp.status_code == 200
     data = resp.json()
     assert "results" in data
     assert any(item["id"] == "caffeine" for item in data["results"])
 
 
-def test_search_missing_query_param(client):
-    resp = client.get("/api/search")
+async def test_search_missing_query_param(client):
+    resp = await client.get("/api/search")
     assert resp.status_code == 422
 
 
-def test_interaction_success(client):
-    resp = client.get("/api/interaction", params={"a": "caffeine", "b": "aspirin"})
+async def test_interaction_success(client):
+    resp = await client.get("/api/interaction", params={"a": "caffeine", "b": "aspirin"})
     assert resp.status_code == 200
     data = resp.json()
     assert data["interaction"]["a"] == "caffeine"
@@ -56,25 +66,25 @@ def test_interaction_success(client):
     assert "risk_score" in data
 
 
-def test_interaction_missing_parameter(client):
-    resp = client.get("/api/interaction", params={"a": "caffeine"})
+async def test_interaction_missing_parameter(client):
+    resp = await client.get("/api/interaction", params={"a": "caffeine"})
     assert resp.status_code == 422
 
 
-def test_interaction_not_found(client):
-    resp = client.get("/api/interaction", params={"a": "caffeine", "b": "unknown"})
+async def test_interaction_not_found(client):
+    resp = await client.get("/api/interaction", params={"a": "caffeine", "b": "unknown"})
     assert resp.status_code == 404
 
 
-def test_stack_check_success(client):
+async def test_stack_check_success(client):
     payload = {"compounds": ["caffeine", "aspirin"]}
-    resp = client.post("/api/stack/check", json=payload)
+    resp = await client.post("/api/stack/check", json=payload)
     assert resp.status_code == 200
     data = resp.json()
     assert any(inter["a"] == "caffeine" and inter["b"] == "aspirin" for inter in data["interactions"])
 
 
-def test_stack_check_missing_items(client):
-    resp = client.post("/api/stack/check", json={})
+async def test_stack_check_missing_items(client):
+    resp = await client.post("/api/stack/check", json={})
     assert resp.status_code == 422
 
