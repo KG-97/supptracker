@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Literal, Dict, Optional
 import os
 import csv
@@ -8,7 +8,7 @@ import csv
 class Compound(BaseModel):
     id: str
     name: str
-    synonyms: List[str] = []
+    synonyms: List[str] = Field(default_factory=list)
     cls: Optional[str] = None
     typicalDoseAmount: Optional[str] = None
     typicalDoseUnit: Optional[str] = None
@@ -19,12 +19,12 @@ class Interaction(BaseModel):
     a: str
     b: str
     bidirectional: bool = True
-    mechanism: List[str] = []
+    mechanism: List[str] = Field(default_factory=list)
     severity: Literal['None','Mild','Moderate','Severe']
     evidence: Literal['A','B','C','D']
     effect: str
     action: str
-    sources: List[str] = []
+    sources: List[str] = Field(default_factory=list)
 
 app = FastAPI()
 

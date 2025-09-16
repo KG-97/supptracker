@@ -1,5 +1,6 @@
 /.venv
-/data
+/data/*
+!/data/risk_rules.yaml
 uvicorn.pid
 node_modules/
 dist/

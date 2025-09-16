@@ -4,19 +4,24 @@ import { search, getInteraction, checkStack } from './api'
 export default function App() {
   const [q, setQ] = useState('')
   const [results, setResults] = useState<any[]>([])
+  const [pairA, setPairA] = useState('')
+  const [pairB, setPairB] = useState('')
   const [pairData, setPairData] = useState<any | null>(null)
   const [stackText, setStackText] = useState('creatine, caffeine, magnesium')
   const [stack, setStack] = useState<any[] | null>(null)
 
   const doSearch = async () => {
     const data = await search(q)
-    setResults(data.results || [])
+    setResults(data.results || data.compounds || [])
   }
 
   const openPair = async () => {
-    const a = (document.getElementById('a') as HTMLInputElement).value.trim()
-    const b = (document.getElementById('b') as HTMLInputElement).value.trim()
-    if (!a || !b) return
+    const a = pairA.trim()
+    const b = pairB.trim()
+    if (!a || !b) {
+      setPairData(null)
+      return
+    }
     const data = await getInteraction(a, b)
     setPairData(data)
   }
@@ -24,7 +29,7 @@ export default function App() {
   const doStack = async () => {
     const items = stackText.split(',').map(s => s.trim()).filter(Boolean)
     const data = await checkStack(items)
-    setStack(data.interactions || [])
+    setStack(data.interactions || data.cells || [])
   }
 
   return (
@@ -43,10 +48,20 @@ export default function App() {
       <section style={{ marginTop: 16, padding: 16, border: '1px solid #ccc', borderRadius: 12 }}>
         <h2>Pair Checker</h2>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input id='a' placeholder='compound A' style={{ padding: 8 }} />
+          <input
+            value={pairA}
+            onChange={e => setPairA(e.target.value)}
+            placeholder='compound A'
+            style={{ padding: 8 }}
+          />
           <span>×</span>
-          <input id='b' placeholder='compound B' style={{ padding: 8 }} />
-          <button onClick={openPair}>Check</button>
+          <input
+            value={pairB}
+            onChange={e => setPairB(e.target.value)}
+            placeholder='compound B'
+            style={{ padding: 8 }}
+          />
+          <button onClick={openPair} disabled={!pairA.trim() || !pairB.trim()}>Check</button>
         </div>
         {pairData && (
           <div style={{ marginTop: 12, padding: 12, border: '1px solid #eee', borderRadius: 12 }}>

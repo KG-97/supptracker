@@ -1,6 +1,8 @@
+from collections import defaultdict
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, conlist, root_validator, validator
+from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import yaml, os
 
@@ -66,7 +68,22 @@ for _, row in COMPOUNDS_DF.iterrows():
         "notes": row.get("notes",""),
     })
 
-INTERACTIONS = INTERACTIONS_DF.to_dict(orient="records")
+def _normalise_compound(value: Any) -> str:
+    return str(value).strip().lower()
+
+
+def _interaction_key(a: Any, b: Any) -> Tuple[str, str]:
+    return tuple(sorted((_normalise_compound(a), _normalise_compound(b))))
+
+
+INTERACTIONS: List[Dict[str, Any]] = []
+INTERACTION_INDEX: Dict[Tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
+for row in INTERACTIONS_DF.to_dict(orient="records"):
+    record = {**row}
+    record["bidirectional"] = str(row.get("bidirectional", "")).strip().lower() in {"true", "1", "yes", "y"}
+    INTERACTIONS.append(record)
+    INTERACTION_INDEX[_interaction_key(record["compound_a"], record["compound_b"])].append(record)
+
 SOURCES = {row["id"]: row for _, row in SOURCES_DF.iterrows()}
 
 sev_map = RULES.get("severity_map", {"None":0,"Mild":1,"Moderate":2,"Severe":3})
@@ -101,13 +118,36 @@ def compute_score(interaction: Dict[str,Any], doses: Optional[str]=None, flags: 
     return round(float(score), 3), bucket_label, action
 
 def find_interaction(a: str, b: str):
-    a, b = a.strip().lower(), b.strip().lower()
-    for row in INTERACTIONS:
-        ca = str(row["compound_a"]).lower()
-        cb = str(row["compound_b"]).lower()
-        if (ca == a and cb == b) or (ca == b and cb == a):
+    a_norm = _normalise_compound(a)
+    b_norm = _normalise_compound(b)
+    candidates = INTERACTION_INDEX.get(_interaction_key(a, b), [])
+    for row in candidates:
+        ca = _normalise_compound(row["compound_a"])
+        cb = _normalise_compound(row["compound_b"])
+        if ca == a_norm and cb == b_norm:
+            return row
+        if row.get("bidirectional") and ca == b_norm and cb == a_norm:
             return row
     return None
+
+
+class StackCheckRequest(BaseModel):
+    items: conlist(str, min_items=2)
+
+    @root_validator(pre=True)
+    def alias_items(cls, values: Dict[str, Any]):
+        if "items" not in values and "compounds" in values:
+            values["items"] = values.pop("compounds")
+        return values
+
+    @validator("items", pre=True)
+    def validate_items(cls, value: Any):
+        if not isinstance(value, list):
+            raise ValueError("items must be provided as a list of compounds")
+        cleaned = [str(item).strip() for item in value if str(item).strip()]
+        if len(cleaned) < 2:
+            raise ValueError("items must include at least two compounds")
+        return cleaned
 
 def search_compounds(q: str):
     ql = q.lower()
@@ -144,23 +184,31 @@ def interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str
     }
 
 @app.post("/stack/check")
-def stack_check(payload: Dict[str, Any]):
-    items = payload.get("items", [])
-    if not isinstance(items, list) or len(items) == 0:
-        raise HTTPException(status_code=400, detail="items must be a non-empty list")
+def stack_check(payload: StackCheckRequest):
+    items = payload.items
     n = len(items)
     matrix = [[None for _ in range(n)] for __ in range(n)]
-    cells = []
+    interactions: List[Dict[str, Any]] = []
     for i in range(n):
-        for j in range(n):
-            if i == j:
-                continue
+        for j in range(i + 1, n):
             a, b = items[i], items[j]
             inter = find_interaction(a, b)
-            if inter:
-                score, bucket, action = compute_score(inter, doses=None, flags=None)
-                matrix[i][j] = score
-                cells.append({"a": a, "b": b, "score": score, "bucket": bucket, "action": action})
-            else:
-                matrix[i][j] = None
-    return {"items": items, "matrix": matrix, "cells": cells}
+            if not inter:
+                continue
+            score, bucket, action = compute_score(inter, doses=None, flags=None)
+            matrix[i][j] = score
+            matrix[j][i] = score
+            entry = {
+                "a": a,
+                "b": b,
+                "severity": inter.get("severity"),
+                "evidence": inter.get("evidence_grade"),
+                "effect": inter.get("effect"),
+                "action": inter.get("action"),
+                "action_resolved": action,
+                "bucket": bucket,
+                "score": score,
+                "risk_score": score,
+            }
+            interactions.append(entry)
+    return {"items": items, "matrix": matrix, "cells": interactions, "interactions": interactions}
