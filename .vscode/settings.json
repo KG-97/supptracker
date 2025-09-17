@@ -1,0 +1,13 @@
+{
+    "github.copilot.chat.languageContext.fix.typescript.enabled": true,
+    "github.copilot.chat.languageContext.inline.typescript.enabled": true,
+    "github.copilot.chat.languageContext.typescript.enabled": true,
+    "git.autofetch": "all",
+    "git.autoStash": true,
+    "git.enableSmartCommit": true,
+    "git.enableCommitSigning": true,
+    "git.fetchOnPull": true,
+    "git.openRepositoryInParentFolders": "always",
+    "git.postCommitCommand": "sync",
+    "github.copilot.nextEditSuggestions.enabled": true
+}
