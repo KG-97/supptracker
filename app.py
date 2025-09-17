@@ -33,6 +33,13 @@ def health():
     """Lightweight health endpoint for probes."""
     return {"status": "ok", "service": "supptracker-backend", "version": app.version}
 
+
+@app.get("/info")
+def info():
+    """Service info: version and basic environment details."""
+    commit = os.environ.get("GIT_COMMIT", None)
+    return {"service": "supptracker-backend", "version": app.version, "commit": commit}
+
 COMPOUNDS_DF = load_csv("compounds.csv")
 INTERACTIONS_DF = load_csv("interactions.csv")
 SOURCES_DF = load_csv("sources.csv")
