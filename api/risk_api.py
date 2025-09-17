@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List, Literal, Dict, Optional
 import os
 import csv
+import re
 
 # Define data models
 class Compound(BaseModel):
@@ -38,7 +39,12 @@ def load_compounds() -> Dict[str, dict]:
     with open(path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            synonyms = [s.strip() for s in row["synonyms"].split("|")] if row.get("synonyms") else []
+            raw_synonyms = row.get("synonyms") or ""
+            if raw_synonyms:
+                parts = re.split(r"[\|,;]", raw_synonyms)
+                synonyms = [s.strip() for s in parts if s.strip()]
+            else:
+                synonyms = []
             compounds[row["id"]] = {
                 "id": row["id"],
                 "name": row["name"],
