@@ -107,23 +107,43 @@ def find_interaction(a: str, b: str):
     return None
 
 def search_compounds(q: str):
-    ql = q.lower()
+    # Support simple prefix matching and return up to 20 results
+    ql = (q or "").strip().lower()
+    if ql == "":
+        return []
     hits = []
     for c in COMPOUNDS:
-        if ql in c["id"].lower() or ql in c["name"].lower() or any(ql in s.lower() for s in c["synonyms"]):
+        if c["id"] and c["id"].lower().startswith(ql):
+            hits.append({"id": c["id"], "name": c["name"], "synonyms": c["synonyms"]})
+            continue
+        if ql in c["name"].lower() or any(ql in s.lower() for s in c["synonyms"]):
             hits.append({"id": c["id"], "name": c["name"], "synonyms": c["synonyms"]})
     hits.sort(key=lambda x: len(x["name"]))
     return hits[:20]
 
 @app.get("/search")
-def search(q: str = Query(..., description="Compound name or synonym")):
-    return {"compounds": search_compounds(q)}
+def search(q: str = Query(..., description="Compound name or synonym"), page: int = 1, per_page: int = 20):
+    """Search compounds with paging. Returns total and page of results."""
+    all_hits = search_compounds(q)
+    per_page = max(1, min(100, per_page))
+    page = max(1, page)
+    start = (page - 1) * per_page
+    end = start + per_page
+    return {"total": len(all_hits), "page": page, "per_page": per_page, "compounds": all_hits[start:end]}
 
 @app.get("/interaction")
 def interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str] = None):
-    inter = find_interaction(a, b)
+    if not a or not b:
+        raise HTTPException(status_code=400, detail="Both 'a' and 'b' must be provided")
+    # normalize inputs (allow IDs or names)
+    a_n = str(a).strip().lower()
+    b_n = str(b).strip().lower()
+    inter = find_interaction(a_n, b_n)
     if not inter:
-        raise HTTPException(status_code=404, detail="No interaction found for pair")
+        # try swapping or searching by name/id mapping
+        inter = find_interaction(b_n, a_n)
+    if not inter:
+        raise HTTPException(status_code=404, detail=f"No interaction found for pair: {a}/{b}")
     score, bucket, action = compute_score(inter, doses=doses, flags=flags)
     src_ids = []
     if inter.get("source_ids"):
