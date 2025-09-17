@@ -177,7 +177,19 @@ def stack_check(payload: Dict[str, Any]):
             if inter:
                 score, bucket, action = compute_score(inter, doses=None, flags=None)
                 matrix[i][j] = score
-                cells.append({"a": a, "b": b, "score": score, "bucket": bucket, "action": action})
+                # include resolved interaction details to help clients render stacks
+                src_ids = [s.strip() for s in str(inter.get("source_ids", "")).split(";") if s.strip()]
+                sources_list = [SOURCES[s] for s in src_ids if s in SOURCES]
+                cells.append({
+                    "a": a,
+                    "b": b,
+                    "score": score,
+                    "bucket": bucket,
+                    "action": action,
+                    "interaction_id": inter.get("id"),
+                    "mechanism_tags": inter.get("mechanism_tags"),
+                    "sources": sources_list,
+                })
             else:
                 matrix[i][j] = None
     return {"items": items, "matrix": matrix, "cells": cells}
