@@ -1,9 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Literal, Dict, Optional
+from typing import List, Literal, Dict, Optional, Tuple
 import os
 import csv
 import re
+import yaml
 
 # Define data models
 class Compound(BaseModel):
@@ -92,15 +93,95 @@ INTERACTIONS = load_interactions()
 SOURCES = load_sources()
 
 # Risk model parameters (from rules.yaml)
-MECHANISM_DELTAS = {
+DEFAULT_MECHANISM_DELTAS = {
     "CYP3A4_inhibition": 0.6,
     "CYP3A4_induction": 0.6,
     "QT_prolong": 1.0,
     "serotonergic": 1.2,
 }
-WEIGHTS = {"severity": 1.0, "evidence": 0.6, "mechanism": 0.4}
-SEVERITY_MAP = {"None": 0, "Mild": 1, "Moderate": 2, "Severe": 3}
-EVIDENCE_MAP = {"A": 1, "B": 2, "C": 3, "D": 4}
+DEFAULT_WEIGHTS = {"severity": 1.0, "evidence": 0.6, "mechanism": 0.4}
+DEFAULT_SEVERITY_MAP = {"None": 0, "Mild": 1, "Moderate": 2, "Severe": 3}
+DEFAULT_EVIDENCE_MAP = {"A": 1, "B": 2, "C": 3, "D": 4}
+
+RULES_PATH = os.path.join(os.path.dirname(__file__), "rules.yaml")
+
+
+def load_rules(path: Optional[str] = None) -> Tuple[Dict[str, float], Dict[str, float], Dict[str, int], Dict[str, int]]:
+    """Load risk model parameters from YAML configuration."""
+
+    path = path or RULES_PATH
+    mechanisms = DEFAULT_MECHANISM_DELTAS.copy()
+    weights = DEFAULT_WEIGHTS.copy()
+    severity_map = DEFAULT_SEVERITY_MAP.copy()
+    evidence_map = DEFAULT_EVIDENCE_MAP.copy()
+
+    if not path:
+        return mechanisms, weights, severity_map, evidence_map
+
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        return mechanisms, weights, severity_map, evidence_map
+    except (yaml.YAMLError, OSError):
+        return mechanisms, weights, severity_map, evidence_map
+
+    if not isinstance(data, dict):
+        return mechanisms, weights, severity_map, evidence_map
+
+    mechanisms_cfg = data.get("mechanisms")
+    if isinstance(mechanisms_cfg, dict):
+        for name, entry in mechanisms_cfg.items():
+            delta = None
+            if isinstance(entry, dict):
+                delta = entry.get("delta")
+            else:
+                delta = entry
+            if delta is None:
+                continue
+            try:
+                mechanisms[name] = float(delta)
+            except (TypeError, ValueError):
+                continue
+
+    weights_cfg = data.get("weights")
+    if isinstance(weights_cfg, dict):
+        for key, value in weights_cfg.items():
+            if key not in weights:
+                continue
+            try:
+                weights[key] = float(value)
+            except (TypeError, ValueError):
+                continue
+
+    map_cfg = data.get("map")
+    if isinstance(map_cfg, dict):
+        severity_cfg = map_cfg.get("severity")
+        if isinstance(severity_cfg, dict):
+            for key, value in severity_cfg.items():
+                try:
+                    severity_map[key] = int(value)
+                except (TypeError, ValueError):
+                    continue
+        evidence_cfg = map_cfg.get("evidence")
+        if isinstance(evidence_cfg, dict):
+            for key, value in evidence_cfg.items():
+                try:
+                    evidence_map[key] = int(value)
+                except (TypeError, ValueError):
+                    continue
+
+    return mechanisms, weights, severity_map, evidence_map
+
+
+def apply_rules(path: Optional[str] = None) -> None:
+    """Apply rule configuration from the provided path or defaults."""
+
+    global MECHANISM_DELTAS, WEIGHTS, SEVERITY_MAP, EVIDENCE_MAP
+    MECHANISM_DELTAS, WEIGHTS, SEVERITY_MAP, EVIDENCE_MAP = load_rules(path)
+
+
+apply_rules()
 
 def resolve_compound(identifier: str) -> Optional[str]:
     """Resolve a compound id or name/synonym to its id."""
@@ -114,10 +195,21 @@ def resolve_compound(identifier: str) -> Optional[str]:
 
 def compute_risk(inter: dict) -> float:
     """Compute risk score for an interaction."""
-    severity_score = SEVERITY_MAP.get(inter["severity"], 0)
-    evidence_score = EVIDENCE_MAP.get(inter["evidence"], 4)
-    mech_sum = sum(MECHANISM_DELTAS.get(m, 0) for m in inter["mechanism"])
-    risk = severity_score * WEIGHTS["severity"] + (1.0 / evidence_score) * WEIGHTS["evidence"] + mech_sum * WEIGHTS["mechanism"]
+
+    severity_score = SEVERITY_MAP.get(inter.get("severity"), 0)
+    evidence_score = EVIDENCE_MAP.get(inter.get("evidence"), DEFAULT_EVIDENCE_MAP["D"])
+    mech_sum = sum(MECHANISM_DELTAS.get(m, 0.0) for m in inter.get("mechanism", []))
+
+    severity_weight = WEIGHTS.get("severity", DEFAULT_WEIGHTS["severity"])
+    evidence_weight = WEIGHTS.get("evidence", DEFAULT_WEIGHTS["evidence"])
+    mechanism_weight = WEIGHTS.get("mechanism", DEFAULT_WEIGHTS["mechanism"])
+
+    if evidence_score:
+        evidence_component = (1.0 / evidence_score) * evidence_weight
+    else:
+        evidence_component = 0.0
+
+    risk = severity_score * severity_weight + evidence_component + mech_sum * mechanism_weight
     return round(risk, 2)
 
 @app.get("/api/health")
