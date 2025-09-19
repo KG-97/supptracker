@@ -88,3 +88,28 @@ async def test_stack_check_missing_items(client):
     resp = await client.post("/api/stack/check", json={})
     assert resp.status_code == 422
 
+
+async def test_api_with_missing_rules_config(client, tmp_path):
+    missing_path = tmp_path / "does_not_exist.yaml"
+    try:
+        app_module.apply_rules(str(missing_path))
+        resp = await client.get("/api/interaction", params={"a": "caffeine", "b": "aspirin"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "risk_score" in data
+    finally:
+        app_module.apply_rules()
+
+
+async def test_api_with_malformed_rules_config(client, tmp_path):
+    bad_path = tmp_path / "rules.yaml"
+    bad_path.write_text("mechanisms: [\n", encoding="utf-8")
+    try:
+        app_module.apply_rules(str(bad_path))
+        resp = await client.get("/api/interaction", params={"a": "caffeine", "b": "aspirin"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "risk_score" in data
+    finally:
+        app_module.apply_rules()
+
