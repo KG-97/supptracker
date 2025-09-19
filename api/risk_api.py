@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Literal, Dict, Optional, Tuple
+from typing import List, Literal, Dict, Optional, Tuple, Callable, Any
 import os
 import csv
 import re
 import yaml
+import ast
+from types import SimpleNamespace
 
 # Define data models
 class Compound(BaseModel):
@@ -106,7 +108,105 @@ DEFAULT_EVIDENCE_MAP = {"A": 1, "B": 2, "C": 3, "D": 4}
 RULES_PATH = os.path.join(os.path.dirname(__file__), "rules.yaml")
 
 
-def load_rules(path: Optional[str] = None) -> Tuple[Dict[str, float], Dict[str, float], Dict[str, int], Dict[str, int]]:
+DEFAULT_FORMULA_SOURCE = "severity * weights.severity + evidence_component + mech_sum * weights.mechanism"
+
+
+def _default_formula(**context: Any) -> float:
+    """Fallback risk calculation mirroring the legacy logic."""
+
+    weights = context.get("weights") or SimpleNamespace(**DEFAULT_WEIGHTS)
+    severity_component = context.get("severity", 0.0) * getattr(weights, "severity", DEFAULT_WEIGHTS["severity"])
+    mech_component = context.get("mech_sum", 0.0) * getattr(weights, "mechanism", DEFAULT_WEIGHTS["mechanism"])
+    return severity_component + context.get("evidence_component", 0.0) + mech_component
+
+
+SAFE_AST_NODES = (
+    ast.Expression,
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.Num,
+    ast.Name,
+    ast.Load,
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.Pow,
+    ast.Mod,
+    ast.USub,
+    ast.UAdd,
+    ast.Constant,
+    ast.Attribute,
+    ast.Compare,
+    ast.Gt,
+    ast.GtE,
+    ast.Lt,
+    ast.LtE,
+    ast.Eq,
+    ast.NotEq,
+    ast.BoolOp,
+    ast.And,
+    ast.Or,
+    ast.IfExp,
+    ast.Call,
+    ast.Tuple,
+    ast.List,
+    ast.Subscript,
+)
+
+SAFE_FUNCTIONS: Dict[str, Callable[..., Any]] = {
+    "min": min,
+    "max": max,
+    "abs": abs,
+    "round": round,
+}
+
+
+def compile_formula(expr: Optional[str]) -> Tuple[Callable[..., float], str]:
+    """Compile a risk score formula into a safe callable.
+
+    Returns a tuple of the compiled callable (accepting keyword context) and the
+    source string that was ultimately used. Invalid expressions fall back to the
+    default formula.
+    """
+
+    if not expr or not str(expr).strip():
+        return _default_formula, DEFAULT_FORMULA_SOURCE
+
+    try:
+        tree = ast.parse(str(expr), mode="eval")
+    except SyntaxError:
+        return _default_formula, DEFAULT_FORMULA_SOURCE
+
+    for node in ast.walk(tree):
+        if not isinstance(node, SAFE_AST_NODES):
+            return _default_formula, DEFAULT_FORMULA_SOURCE
+        if isinstance(node, ast.Call):
+            func = node.func
+            if not isinstance(func, ast.Name) or func.id not in SAFE_FUNCTIONS:
+                return _default_formula, DEFAULT_FORMULA_SOURCE
+        if isinstance(node, ast.Attribute) and node.attr.startswith("__"):
+            return _default_formula, DEFAULT_FORMULA_SOURCE
+
+    code = compile(tree, "<risk_formula>", "eval")
+
+    def _formula(**context: Any) -> float:
+        env: Dict[str, Any] = {**SAFE_FUNCTIONS, **context}
+        return float(eval(code, {"__builtins__": {}}, env))
+
+    return _formula, str(expr)
+
+
+def load_rules(
+    path: Optional[str] = None,
+) -> Tuple[
+    Dict[str, float],
+    Dict[str, float],
+    Dict[str, int],
+    Dict[str, int],
+    Callable[..., float],
+    str,
+]:
     """Load risk model parameters from YAML configuration."""
 
     path = path or RULES_PATH
@@ -116,18 +216,18 @@ def load_rules(path: Optional[str] = None) -> Tuple[Dict[str, float], Dict[str, 
     evidence_map = DEFAULT_EVIDENCE_MAP.copy()
 
     if not path:
-        return mechanisms, weights, severity_map, evidence_map
+        return mechanisms, weights, severity_map, evidence_map, _default_formula, DEFAULT_FORMULA_SOURCE
 
     try:
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
     except FileNotFoundError:
-        return mechanisms, weights, severity_map, evidence_map
+        return mechanisms, weights, severity_map, evidence_map, _default_formula, DEFAULT_FORMULA_SOURCE
     except (yaml.YAMLError, OSError):
-        return mechanisms, weights, severity_map, evidence_map
+        return mechanisms, weights, severity_map, evidence_map, _default_formula, DEFAULT_FORMULA_SOURCE
 
     if not isinstance(data, dict):
-        return mechanisms, weights, severity_map, evidence_map
+        return mechanisms, weights, severity_map, evidence_map, _default_formula, DEFAULT_FORMULA_SOURCE
 
     mechanisms_cfg = data.get("mechanisms")
     if isinstance(mechanisms_cfg, dict):
@@ -171,14 +271,27 @@ def load_rules(path: Optional[str] = None) -> Tuple[Dict[str, float], Dict[str, 
                 except (TypeError, ValueError):
                     continue
 
-    return mechanisms, weights, severity_map, evidence_map
+    formula_callable, formula_source = compile_formula(data.get("formula"))
+
+    return mechanisms, weights, severity_map, evidence_map, formula_callable, formula_source
 
 
 def apply_rules(path: Optional[str] = None) -> None:
     """Apply rule configuration from the provided path or defaults."""
 
-    global MECHANISM_DELTAS, WEIGHTS, SEVERITY_MAP, EVIDENCE_MAP
-    MECHANISM_DELTAS, WEIGHTS, SEVERITY_MAP, EVIDENCE_MAP = load_rules(path)
+    global MECHANISM_DELTAS, WEIGHTS, SEVERITY_MAP, EVIDENCE_MAP, RISK_FORMULA, RISK_FORMULA_SOURCE
+    (
+        MECHANISM_DELTAS,
+        WEIGHTS,
+        SEVERITY_MAP,
+        EVIDENCE_MAP,
+        RISK_FORMULA,
+        RISK_FORMULA_SOURCE,
+    ) = load_rules(path)
+
+
+RISK_FORMULA: Callable[..., float] = _default_formula
+RISK_FORMULA_SOURCE: str = DEFAULT_FORMULA_SOURCE
 
 
 apply_rules()
@@ -209,8 +322,31 @@ def compute_risk(inter: dict) -> float:
     else:
         evidence_component = 0.0
 
-    risk = severity_score * severity_weight + evidence_component + mech_sum * mechanism_weight
-    return round(risk, 2)
+    weights_ns = SimpleNamespace(**{**DEFAULT_WEIGHTS, **WEIGHTS})
+    mechanisms_ns = SimpleNamespace(**MECHANISM_DELTAS)
+    interaction_ns = SimpleNamespace(**{k: v for k, v in inter.items()})
+
+    context = {
+        "severity": severity_score,
+        "evidence": evidence_score,
+        "mech_sum": mech_sum,
+        "mechanism_sum": mech_sum,
+        "weights": weights_ns,
+        "mechanisms": mechanisms_ns,
+        "interaction": interaction_ns,
+        "evidence_component": evidence_component,
+        "severity_component": severity_score * getattr(weights_ns, "severity", severity_weight),
+        "mechanism_component": mech_sum * getattr(weights_ns, "mechanism", mechanism_weight),
+        "mechanism_count": len(inter.get("mechanism", [])),
+        "sources_count": len(inter.get("sources", [])),
+    }
+
+    try:
+        risk_value = float(RISK_FORMULA(**context))
+    except Exception:
+        risk_value = float(_default_formula(**context))
+
+    return round(risk_value, 2)
 
 @app.get("/api/health")
 def health():

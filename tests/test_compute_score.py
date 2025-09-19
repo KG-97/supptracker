@@ -22,7 +22,7 @@ def test_compute_risk_order():
     assert high > low
 
 
-def test_load_rules_custom_values(monkeypatch, tmp_path):
+def test_load_rules_custom_values(tmp_path):
     config_path = tmp_path / "rules.yaml"
     config_path.write_text(
         """
@@ -38,53 +38,59 @@ map:
     Severe: 5
   evidence:
     A: 1
+formula: "severity * weights.severity + mech_sum + max(0, evidence_component)"
 """,
         encoding="utf-8",
     )
 
-    mechs, weights, severity_map, evidence_map = risk_api.load_rules(str(config_path))
+    mechs, weights, severity_map, evidence_map, formula, formula_source = risk_api.load_rules(str(config_path))
     assert mechs["custom"] == 2.5
     assert weights["severity"] == 2.0
     assert severity_map["Severe"] == 5
     assert evidence_map["A"] == 1
+    assert callable(formula)
+    assert formula_source.strip().startswith("severity * weights.severity")
 
-    monkeypatch.setattr(risk_api, "MECHANISM_DELTAS", mechs)
-    monkeypatch.setattr(risk_api, "WEIGHTS", weights)
-    monkeypatch.setattr(risk_api, "SEVERITY_MAP", severity_map)
-    monkeypatch.setattr(risk_api, "EVIDENCE_MAP", evidence_map)
-
-    score = risk_api.compute_risk(
-        {
-            "severity": "Severe",
-            "evidence": "A",
-            "mechanism": ["custom"],
-        }
-    )
+    try:
+        risk_api.apply_rules(str(config_path))
+        score = risk_api.compute_risk(
+            {
+                "severity": "Severe",
+                "evidence": "A",
+                "mechanism": ["custom"],
+            }
+        )
+    finally:
+        risk_api.apply_rules()
 
     expected = (
         severity_map["Severe"] * weights["severity"]
-        + (1 / evidence_map["A"]) * weights["evidence"]
-        + mechs["custom"] * weights["mechanism"]
+        + mechs["custom"]
+        + max(0, (1 / evidence_map["A"]) * weights["evidence"])
     )
     assert score == round(expected, 2)
 
 
 def test_load_rules_missing_file(tmp_path):
     missing_path = tmp_path / "missing.yaml"
-    mechs, weights, severity_map, evidence_map = risk_api.load_rules(str(missing_path))
+    mechs, weights, severity_map, evidence_map, formula, formula_source = risk_api.load_rules(str(missing_path))
     assert mechs == risk_api.DEFAULT_MECHANISM_DELTAS
     assert weights == risk_api.DEFAULT_WEIGHTS
     assert severity_map == risk_api.DEFAULT_SEVERITY_MAP
     assert evidence_map == risk_api.DEFAULT_EVIDENCE_MAP
+    assert formula is risk_api._default_formula
+    assert formula_source == risk_api.DEFAULT_FORMULA_SOURCE
 
 
 def test_load_rules_malformed_file(tmp_path):
     bad_path = tmp_path / "rules.yaml"
     bad_path.write_text("mechanisms: [\n", encoding="utf-8")
-    mechs, weights, severity_map, evidence_map = risk_api.load_rules(str(bad_path))
+    mechs, weights, severity_map, evidence_map, formula, formula_source = risk_api.load_rules(str(bad_path))
     assert mechs == risk_api.DEFAULT_MECHANISM_DELTAS
     assert weights == risk_api.DEFAULT_WEIGHTS
     assert severity_map == risk_api.DEFAULT_SEVERITY_MAP
     assert evidence_map == risk_api.DEFAULT_EVIDENCE_MAP
+    assert formula is risk_api._default_formula
+    assert formula_source == risk_api.DEFAULT_FORMULA_SOURCE
 
 
