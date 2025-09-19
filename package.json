@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node scripts/run-vite.js dev",
     "build": "node scripts/run-vite.js build",
-    "preview": "node scripts/run-vite.js preview"
+    "preview": "node scripts/run-vite.js preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "react": "18.2.0",
