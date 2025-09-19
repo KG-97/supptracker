@@ -88,3 +88,28 @@ def test_load_rules_malformed_file(tmp_path):
     assert evidence_map == risk_api.DEFAULT_EVIDENCE_MAP
 
 
+def test_compute_risk_uses_overridden_default_evidence(monkeypatch, tmp_path):
+    config_path = tmp_path / "rules.yaml"
+    config_path.write_text(
+        """
+map:
+  evidence:
+    D: 10
+""",
+        encoding="utf-8",
+    )
+
+    _, _, _, evidence_map = risk_api.load_rules(str(config_path))
+    assert evidence_map["D"] == 10
+    assert "Z" not in evidence_map
+
+    monkeypatch.setattr(risk_api, "EVIDENCE_MAP", evidence_map)
+
+    score = risk_api.compute_risk(make_inter(severity="None", evidence="Z"))
+    evidence_weight = risk_api.WEIGHTS.get(
+        "evidence", risk_api.DEFAULT_WEIGHTS["evidence"]
+    )
+    expected = round((1 / evidence_map["D"]) * evidence_weight, 2)
+    assert score == expected
+
+

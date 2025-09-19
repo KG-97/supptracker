@@ -197,7 +197,8 @@ def compute_risk(inter: dict) -> float:
     """Compute risk score for an interaction."""
 
     severity_score = SEVERITY_MAP.get(inter.get("severity"), 0)
-    evidence_score = EVIDENCE_MAP.get(inter.get("evidence"), DEFAULT_EVIDENCE_MAP["D"])
+    evidence_default = EVIDENCE_MAP.get("D", DEFAULT_EVIDENCE_MAP["D"])
+    evidence_score = EVIDENCE_MAP.get(inter.get("evidence"), evidence_default)
     mech_sum = sum(MECHANISM_DELTAS.get(m, 0.0) for m in inter.get("mechanism", []))
 
     severity_weight = WEIGHTS.get("severity", DEFAULT_WEIGHTS["severity"])
