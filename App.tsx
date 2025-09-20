@@ -4,15 +4,24 @@ import { search, getInteraction, checkStack } from './api'
 export default function App() {
   const [q, setQ] = useState('')
   const [results, setResults] = useState<any[]>([])
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [pairA, setPairA] = useState('')
   const [pairB, setPairB] = useState('')
   const [pairData, setPairData] = useState<any | null>(null)
+  const [pairError, setPairError] = useState<string | null>(null)
   const [stackText, setStackText] = useState('creatine, caffeine, magnesium')
   const [stack, setStack] = useState<any[] | null>(null)
+  const [stackError, setStackError] = useState<string | null>(null)
 
   const doSearch = async () => {
-    const data = await search(q)
-    setResults(data.results || data.compounds || [])
+    try {
+      setSearchError(null)
+      const data = await search(q)
+      setResults(data.results || data.compounds || [])
+    } catch (err) {
+      setResults([])
+      setSearchError(err instanceof Error ? err.message : 'Search failed')
+    }
   }
 
   const openPair = async () => {
@@ -20,16 +29,34 @@ export default function App() {
     const b = pairB.trim()
     if (!a || !b) {
       setPairData(null)
+      setPairError('Enter two compounds to check for an interaction.')
       return
     }
-    const data = await getInteraction(a, b)
-    setPairData(data)
+    try {
+      setPairError(null)
+      const data = await getInteraction(a, b)
+      setPairData(data)
+    } catch (err) {
+      setPairData(null)
+      setPairError(err instanceof Error ? err.message : 'Interaction lookup failed')
+    }
   }
 
   const doStack = async () => {
     const items = stackText.split(',').map(s => s.trim()).filter(Boolean)
-    const data = await checkStack(items)
-    setStack(data.interactions || data.cells || [])
+    if (items.length === 0) {
+      setStack(null)
+      setStackError('Enter at least one compound to check the stack.')
+      return
+    }
+    try {
+      setStackError(null)
+      const data = await checkStack(items)
+      setStack(data.interactions || data.cells || [])
+    } catch (err) {
+      setStack(null)
+      setStackError(err instanceof Error ? err.message : 'Stack check failed')
+    }
   }
 
   return (
@@ -40,6 +67,9 @@ export default function App() {
         <h2>Search</h2>
         <input value={q} onChange={e => setQ(e.target.value)} placeholder='search compound' style={{ padding: 8, width: '70%' }} />
         <button onClick={doSearch} style={{ marginLeft: 8, padding: '8px 12px' }}>Search</button>
+        {searchError && (
+          <div style={{ marginTop: 8, color: 'crimson' }}>{searchError}</div>
+        )}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
           {results.map(r => (<span key={r.id} style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 16 }}>{r.name}</span>))}
         </div>
@@ -63,6 +93,9 @@ export default function App() {
           />
           <button onClick={openPair} disabled={!pairA.trim() || !pairB.trim()}>Check</button>
         </div>
+        {pairError && (
+          <div style={{ marginTop: 8, color: 'crimson' }}>{pairError}</div>
+        )}
         {pairData && (
           <div style={{ marginTop: 12, padding: 12, border: '1px solid #eee', borderRadius: 12 }}>
             <h3>{pairData.interaction.a} × {pairData.interaction.b}</h3>
@@ -81,6 +114,9 @@ export default function App() {
         <h2>Stack Checker</h2>
         <textarea value={stackText} onChange={e => setStackText(e.target.value)} rows={3} style={{ width: '100%', padding: 8 }} />
         <div style={{ marginTop: 8 }}><button onClick={doStack}>Check Stack</button></div>
+        {stackError && (
+          <div style={{ marginTop: 8, color: 'crimson' }}>{stackError}</div>
+        )}
         {stack && stack.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <table style={{ borderCollapse: 'collapse' }}>
