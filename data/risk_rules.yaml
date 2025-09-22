@@ -1,19 +1,26 @@
+# Default risk scoring configuration for the supplement interaction engine.
+# Values mirror the fallback constants in app.py so the service starts with
+# an explicit, version-controlled ruleset.
+
 severity_map:
   None: 0
   Mild: 1
   Moderate: 2
   Severe: 3
+
 evidence_grade_map:
   A: 1
   B: 2
   C: 3
   D: 4
+
 weights:
   w_sev: 0.9
   w_evd: 0.4
   w_mech: 0.2
   w_dose: 0.3
   w_user: 0.3
+
 buckets:
   low:
     max: 0.7
@@ -27,4 +34,3 @@ buckets:
   high:
     min: 1.51
     label: "High"
-    action: "Avoid"
