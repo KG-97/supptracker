@@ -59,6 +59,27 @@ export default function App() {
     }
   }
 
+  const pair = pairData?.pair || {}
+  const interaction = pairData?.interaction || {}
+  const compoundA = pair?.a ?? interaction?.compound_a ?? interaction?.a ?? ''
+  const compoundB = pair?.b ?? interaction?.compound_b ?? interaction?.b ?? ''
+  const evidence = interaction?.evidence_grade ?? interaction?.evidence ?? 'Unknown'
+  const severity = interaction?.severity ?? 'Unknown'
+  const effect = interaction?.effect ?? 'Not specified'
+  const action = interaction?.action_resolved ?? interaction?.action ?? 'No specific action'
+  const rawRiskScore = interaction?.score ?? pairData?.risk_score
+  const riskScore =
+    typeof rawRiskScore === 'number'
+      ? rawRiskScore
+      : typeof rawRiskScore === 'string'
+        ? Number.parseFloat(rawRiskScore)
+        : undefined
+  const formattedRiskScore =
+    riskScore !== undefined && !Number.isNaN(riskScore)
+      ? riskScore.toFixed(2)
+      : rawRiskScore ?? 'N/A'
+  const sources = (interaction?.sources ?? pairData?.sources ?? []) as any[]
+
   return (
     <div style={{ fontFamily: 'Inter, system-ui, sans-serif', margin: '24px', maxWidth: 960 }}>
       <h1>Supplement Interaction Tracker</h1>
@@ -98,14 +119,26 @@ export default function App() {
         )}
         {pairData && (
           <div style={{ marginTop: 12, padding: 12, border: '1px solid #eee', borderRadius: 12 }}>
-            <h3>{pairData.interaction.a} × {pairData.interaction.b}</h3>
-            <p><b>Severity:</b> {pairData.interaction.severity} | <b>Evidence:</b> {pairData.interaction.evidence}</p>
-            <p><b>Risk score:</b> {pairData.risk_score}</p>
-            <p><b>Effect:</b> {pairData.interaction.effect}</p>
-            <p><b>Action:</b> {pairData.interaction.action}</p>
-            <details><summary>Sources</summary><ul>
-              {(pairData.sources || []).map((s: any) => (<li key={s.id}>{s.citation || s.id}</li>))}
-            </ul></details>
+            <h3>{compoundA || 'Compound A'} × {compoundB || 'Compound B'}</h3>
+            <p><b>Severity:</b> {severity} | <b>Evidence:</b> {evidence}</p>
+            <p><b>Risk score:</b> {formattedRiskScore}</p>
+            <p><b>Effect:</b> {effect}</p>
+            <p><b>Action:</b> {action}</p>
+            <details>
+              <summary>Sources</summary>
+              <ul>
+                {sources.length === 0 && <li>No cited sources</li>}
+                {sources.map((s: any, idx: number) => {
+                  if (!s) return null
+                  if (typeof s === 'string') {
+                    return <li key={s}>{s}</li>
+                  }
+                  const label = s.citation || s.title || s.reference || s.id || `Source ${idx + 1}`
+                  const key = s.id || `${label}-${idx}`
+                  return <li key={key}>{label}</li>
+                })}
+              </ul>
+            </details>
           </div>
         )}
       </section>
