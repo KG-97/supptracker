@@ -98,13 +98,21 @@ export default function App() {
         )}
         {pairData && (
           <div style={{ marginTop: 12, padding: 12, border: '1px solid #eee', borderRadius: 12 }}>
-            <h3>{pairData.interaction.a} × {pairData.interaction.b}</h3>
-            <p><b>Severity:</b> {pairData.interaction.severity} | <b>Evidence:</b> {pairData.interaction.evidence}</p>
-            <p><b>Risk score:</b> {pairData.risk_score}</p>
-            <p><b>Effect:</b> {pairData.interaction.effect}</p>
-            <p><b>Action:</b> {pairData.interaction.action}</p>
+            <h3>
+              {(pairData.pair?.a ?? pairData.interaction?.compound_a ?? pairData.interaction?.a ?? '—')}
+              {' × '}
+              {(pairData.pair?.b ?? pairData.interaction?.compound_b ?? pairData.interaction?.b ?? '—')}
+            </h3>
+            <p>
+              <b>Severity:</b> {pairData.interaction?.severity}
+              {' | '}
+              <b>Evidence:</b> {pairData.interaction?.evidence_grade ?? pairData.interaction?.evidence}
+            </p>
+            <p><b>Risk score:</b> {pairData.interaction?.score ?? pairData.risk_score}</p>
+            <p><b>Effect:</b> {pairData.interaction?.effect}</p>
+            <p><b>Action:</b> {pairData.interaction?.action}</p>
             <details><summary>Sources</summary><ul>
-              {(pairData.sources || []).map((s: any) => (<li key={s.id}>{s.citation || s.id}</li>))}
+              {(pairData.interaction?.sources || pairData.sources || []).map((s: any) => (<li key={s.id}>{s.citation || s.id}</li>))}
             </ul></details>
           </div>
         )}
