@@ -375,7 +375,7 @@ def interaction(a: str, b: str):
             risk_score = compute_risk(inter)
             sources_detail = [SOURCES[sid] for sid in inter["sources"] if sid in SOURCES]
             return {"interaction": inter, "risk_score": risk_score, "sources": sources_detail}
-    return {"message": "No known interaction"}
+    raise HTTPException(status_code=404, detail="No known interaction")
 
 class StackRequest(BaseModel):
     compounds: List[str]
