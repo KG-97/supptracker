@@ -1,6 +1,21 @@
 import React, { useState } from 'react'
 import { search, getInteraction, checkStack } from './api'
 
+// Helper function to resolve sources from API response
+function resolveSources(pairData: any): any[] {
+  // Prefer detailed source objects over raw IDs
+  const detailedSources = pairData.sources || []
+  const interactionSources = pairData.interaction?.sources || []
+  
+  // Check if interaction.sources contains objects with citation info
+  if (interactionSources.length > 0 && typeof interactionSources[0] === 'object' && interactionSources[0].citation) {
+    return interactionSources
+  }
+  
+  // Otherwise fall back to the detailed sources array
+  return detailedSources
+}
+
 export default function App() {
   const [q, setQ] = useState('')
   const [results, setResults] = useState<any[]>([])
@@ -60,41 +75,46 @@ export default function App() {
   }
 
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, sans-serif', margin: '24px', maxWidth: 960 }}>
+    <div style={{ fontFamily: 'system-ui, sans-serif', margin: 'auto', maxWidth: 800, padding: 20 }}>
       <h1>Supplement Interaction Tracker</h1>
-
-      <section style={{ marginTop: 16, padding: 16, border: '1px solid #ccc', borderRadius: 12 }}>
+      
+      <section style={{ marginTop: 20, padding: 12, border: '1px solid #ccc', borderRadius: 8 }}>
         <h2>Search</h2>
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder='search compound' style={{ padding: 8, width: '70%' }} />
-        <button onClick={doSearch} style={{ marginLeft: 8, padding: '8px 12px' }}>Search</button>
+        <input
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          placeholder='search compound'
+          style={{ padding: 8, width: '70%' }}
+        />
+        <button onClick={doSearch} style={{ marginLeft: 8, padding: 8 }}>Search</button>
         {searchError && (
-          <div style={{ marginTop: 8, color: 'crimson' }}>{searchError}</div>
+          <div style={{ color: 'red', marginTop: 8 }}>{searchError}</div>
         )}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-          {results.map(r => (<span key={r.id} style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 16 }}>{r.name}</span>))}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+          {results.map(r => <span key={r.id} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 4 }}>{r.name}</span>)}
         </div>
       </section>
-
-      <section style={{ marginTop: 16, padding: 16, border: '1px solid #ccc', borderRadius: 12 }}>
+      
+      <section style={{ marginTop: 20, padding: 12, border: '1px solid #ccc', borderRadius: 8 }}>
         <h2>Pair Checker</h2>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input
             value={pairA}
             onChange={e => setPairA(e.target.value)}
             placeholder='compound A'
             style={{ padding: 8 }}
           />
-          <span>×</span>
+          ×
           <input
             value={pairB}
             onChange={e => setPairB(e.target.value)}
             placeholder='compound B'
             style={{ padding: 8 }}
           />
-          <button onClick={openPair} disabled={!pairA.trim() || !pairB.trim()}>Check</button>
+          <button disabled={!pairA.trim() || !pairB.trim()} onClick={openPair}>Check</button>
         </div>
         {pairError && (
-          <div style={{ marginTop: 8, color: 'crimson' }}>{pairError}</div>
+          <div style={{ color: 'red', marginTop: 8 }}>{pairError}</div>
         )}
         {pairData && (
           <div style={{ marginTop: 12, padding: 12, border: '1px solid #eee', borderRadius: 12 }}>
@@ -112,39 +132,46 @@ export default function App() {
             <p><b>Effect:</b> {pairData.interaction?.effect}</p>
             <p><b>Action:</b> {pairData.interaction?.action}</p>
             <details><summary>Sources</summary><ul>
-              {(pairData.interaction?.sources || pairData.sources || []).map((s: any) => (<li key={s.id}>{s.citation || s.id}</li>))}
+              {resolveSources(pairData).map((s: any, idx: number) => (
+                <li key={s.id || idx}>{s.citation || s.id || s}</li>
+              ))}
             </ul></details>
           </div>
         )}
       </section>
-
-      <section style={{ marginTop: 16, padding: 16, border: '1px solid #ccc', borderRadius: 12 }}>
+      
+      <section style={{ marginTop: 20, padding: 12, border: '1px solid #ccc', borderRadius: 8 }}>
         <h2>Stack Checker</h2>
-        <textarea value={stackText} onChange={e => setStackText(e.target.value)} rows={3} style={{ width: '100%', padding: 8 }} />
+        <textarea
+          value={stackText}
+          onChange={e => setStackText(e.target.value)}
+          rows={3}
+          style={{ width: '100%', padding: 8 }}
+        />
         <div style={{ marginTop: 8 }}><button onClick={doStack}>Check Stack</button></div>
         {stackError && (
-          <div style={{ marginTop: 8, color: 'crimson' }}>{stackError}</div>
+          <div style={{ color: 'red', marginTop: 8 }}>{stackError}</div>
         )}
         {stack && stack.length > 0 && (
           <div style={{ marginTop: 12 }}>
-            <table style={{ borderCollapse: 'collapse' }}>
+            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
               <thead>
                 <tr>
-                  <th style={{ border: '1px solid #ddd', padding: '4px 8px' }}>A</th>
-                  <th style={{ border: '1px solid #ddd', padding: '4px 8px' }}>B</th>
-                  <th style={{ border: '1px solid #ddd', padding: '4px 8px' }}>Severity</th>
-                  <th style={{ border: '1px solid #ddd', padding: '4px 8px' }}>Evidence</th>
-                  <th style={{ border: '1px solid #ddd', padding: '4px 8px' }}>Risk</th>
+                  <th style={{ border: '1px solid #ccc', padding: 8 }}>A</th>
+                  <th style={{ border: '1px solid #ccc', padding: 8 }}>B</th>
+                  <th style={{ border: '1px solid #ccc', padding: 8 }}>Severity</th>
+                  <th style={{ border: '1px solid #ccc', padding: 8 }}>Evidence</th>
+                  <th style={{ border: '1px solid #ccc', padding: 8 }}>Risk</th>
                 </tr>
               </thead>
               <tbody>
                 {stack.map((inter: any, i: number) => (
                   <tr key={i}>
-                    <td style={{ border: '1px solid #ddd', padding: '4px 8px' }}>{inter.a}</td>
-                    <td style={{ border: '1px solid #ddd', padding: '4px 8px' }}>{inter.b}</td>
-                    <td style={{ border: '1px solid #ddd', padding: '4px 8px' }}>{inter.severity}</td>
-                    <td style={{ border: '1px solid #ddd', padding: '4px 8px' }}>{inter.evidence}</td>
-                    <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'center' }}>{inter.risk_score.toFixed(2)}</td>
+                    <td style={{ border: '1px solid #ccc', padding: 8 }}>{inter.a}</td>
+                    <td style={{ border: '1px solid #ccc', padding: 8 }}>{inter.b}</td>
+                    <td style={{ border: '1px solid #ccc', padding: 8 }}>{inter.severity}</td>
+                    <td style={{ border: '1px solid #ccc', padding: 8 }}>{inter.evidence}</td>
+                    <td style={{ border: '1px solid #ccc', padding: 8, textAlign: 'right' }}>{inter.risk_score.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
