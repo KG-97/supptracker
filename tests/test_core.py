@@ -39,3 +39,11 @@ def test_compute_risk_returns_float():
     score = app_module.compute_risk(inter)
     assert isinstance(score, float)
 
+
+def test_loaders_handle_missing_files(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DATA_DIR", str(tmp_path))
+
+    assert app_module.load_compounds() == {}
+    assert app_module.load_interactions() == []
+    assert app_module.load_sources() == {}
+

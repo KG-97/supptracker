@@ -34,60 +34,99 @@ app = FastAPI()
 
 # Load data from CSV files at startup
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+DATA_DIR = os.environ.get("SUPPTRACKER_DATA") or os.path.join(BASE_DIR, "data")
 
 def load_compounds() -> Dict[str, dict]:
     compounds: Dict[str, dict] = {}
     path = os.path.join(DATA_DIR, "compounds.csv")
-    with open(path, encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            raw_synonyms = row.get("synonyms") or ""
-            if raw_synonyms:
-                parts = re.split(r"[\|,;]", raw_synonyms)
-                synonyms = [s.strip() for s in parts if s.strip()]
-            else:
-                synonyms = []
-            compounds[row["id"]] = {
-                "id": row["id"],
-                "name": row["name"],
-                "synonyms": synonyms,
-                "class": row.get("class") or None,
-                "typicalDoseAmount": row.get("typicalDoseAmount") or None,
-                "typicalDoseUnit": row.get("typicalDoseUnit") or None,
-                "route": row.get("route") or None,
-            }
+    if not os.path.exists(path):
+        return compounds
+
+    try:
+        with open(path, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                compound_id = (row.get("id") or "").strip()
+                name = (row.get("name") or "").strip()
+                if not compound_id or not name:
+                    continue
+
+                raw_synonyms = row.get("synonyms") or ""
+                if raw_synonyms:
+                    parts = re.split(r"[\|,;]", raw_synonyms)
+                    synonyms = [s.strip() for s in parts if s.strip()]
+                else:
+                    synonyms = []
+
+                compounds[compound_id] = {
+                    "id": compound_id,
+                    "name": name,
+                    "synonyms": synonyms,
+                    "class": (row.get("class") or None),
+                    "typicalDoseAmount": (row.get("typicalDoseAmount") or None),
+                    "typicalDoseUnit": (row.get("typicalDoseUnit") or None),
+                    "route": (row.get("route") or None),
+                }
+    except (OSError, csv.Error):
+        return {}
+
     return compounds
+
 
 def load_interactions() -> List[dict]:
     interactions: List[dict] = []
     path = os.path.join(DATA_DIR, "interactions.csv")
-    with open(path, encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            mechanisms = [m.strip() for m in row["mechanism"].split("|")] if row.get("mechanism") else []
-            sources = [s.strip() for s in row["sources"].split("|")] if row.get("sources") else []
-            interactions.append({
-                "id": row["id"],
-                "a": row["a"],
-                "b": row["b"],
-                "bidirectional": row.get("bidirectional", "").lower() == "true",
-                "mechanism": mechanisms,
-                "severity": row["severity"],
-                "evidence": row["evidence"],
-                "effect": row["effect"],
-                "action": row["action"],
-                "sources": sources,
-            })
+    if not os.path.exists(path):
+        return interactions
+
+    try:
+        with open(path, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                interaction_id = (row.get("id") or "").strip()
+                a = (row.get("a") or "").strip()
+                b = (row.get("b") or "").strip()
+                if not interaction_id or not a or not b:
+                    continue
+
+                mechanisms = [m.strip() for m in row.get("mechanism", "").split("|") if m.strip()] if row.get("mechanism") else []
+                sources = [s.strip() for s in row.get("sources", "").split("|") if s.strip()] if row.get("sources") else []
+
+                interactions.append({
+                    "id": interaction_id,
+                    "a": a,
+                    "b": b,
+                    "bidirectional": str(row.get("bidirectional", "")).lower() == "true",
+                    "mechanism": mechanisms,
+                    "severity": row.get("severity", "None"),
+                    "evidence": row.get("evidence", "D"),
+                    "effect": row.get("effect", ""),
+                    "action": row.get("action", ""),
+                    "sources": sources,
+                })
+    except (OSError, csv.Error):
+        return []
+
     return interactions
+
 
 def load_sources() -> Dict[str, dict]:
     sources: Dict[str, dict] = {}
     path = os.path.join(DATA_DIR, "sources.csv")
-    with open(path, encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            sources[row["id"]] = row
+    if not os.path.exists(path):
+        return sources
+
+    try:
+        with open(path, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                source_id = (row.get("id") or "").strip()
+                if not source_id:
+                    continue
+                sources[source_id] = row
+    except (OSError, csv.Error):
+        return {}
+
     return sources
 
 COMPOUNDS = load_compounds()
