@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Literal, Dict, Optional, Tuple, Callable, Any
+from pathlib import Path
+import logging
 import os
 import csv
 import re
@@ -30,108 +32,124 @@ class Interaction(BaseModel):
     action: str
     sources: List[str] = Field(default_factory=list)
 
+logger = logging.getLogger("supptracker")
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO)
+
 app = FastAPI()
 
-# Load data from CSV files at startup
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-DATA_DIR = os.environ.get("SUPPTRACKER_DATA") or os.path.join(BASE_DIR, "data")
+# Paths and data helpers
+BASE_DIR: Path = Path(__file__).resolve().parent.parent
+# Support both legacy and new env vars, with new one taking precedence
+DATA_DIR: Path = Path(
+    os.environ.get("SUPPTRACKER_DATA_DIR",
+                   os.environ.get("SUPPTRACKER_DATA", BASE_DIR / "data"))
+).expanduser().resolve()
 
-def load_compounds() -> Dict[str, dict]:
-    compounds: Dict[str, dict] = {}
-    path = os.path.join(DATA_DIR, "compounds.csv")
-    if not os.path.exists(path):
-        return compounds
+def get_data_dir(override: Optional[str] = None) -> Path:
+    """Return the directory that contains the seed CSV files."""
+    base = Path(override) if override else Path(DATA_DIR)
+    return base.expanduser().resolve()
 
+def _read_csv_rows(path: Path) -> List[Dict[str, str]]:
+    if not path.exists():
+        logger.warning("Data file missing: %s", path)
+        return []
     try:
-        with open(path, encoding="utf-8") as f:
+        with path.open(encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            for row in reader:
-                compound_id = (row.get("id") or "").strip()
-                name = (row.get("name") or "").strip()
-                if not compound_id or not name:
-                    continue
-
-                raw_synonyms = row.get("synonyms") or ""
-                if raw_synonyms:
-                    parts = re.split(r"[\|,;]", raw_synonyms)
-                    synonyms = [s.strip() for s in parts if s.strip()]
-                else:
-                    synonyms = []
-
-                compounds[compound_id] = {
-                    "id": compound_id,
-                    "name": name,
-                    "synonyms": synonyms,
-                    "class": (row.get("class") or None),
-                    "typicalDoseAmount": (row.get("typicalDoseAmount") or None),
-                    "typicalDoseUnit": (row.get("typicalDoseUnit") or None),
-                    "route": (row.get("route") or None),
-                }
-    except (OSError, csv.Error):
-        return {}
-
-    return compounds
-
-
-def load_interactions() -> List[dict]:
-    interactions: List[dict] = []
-    path = os.path.join(DATA_DIR, "interactions.csv")
-    if not os.path.exists(path):
-        return interactions
-
-    try:
-        with open(path, encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                interaction_id = (row.get("id") or "").strip()
-                a = (row.get("a") or "").strip()
-                b = (row.get("b") or "").strip()
-                if not interaction_id or not a or not b:
-                    continue
-
-                mechanisms = [m.strip() for m in row.get("mechanism", "").split("|") if m.strip()] if row.get("mechanism") else []
-                sources = [s.strip() for s in row.get("sources", "").split("|") if s.strip()] if row.get("sources") else []
-
-                interactions.append({
-                    "id": interaction_id,
-                    "a": a,
-                    "b": b,
-                    "bidirectional": str(row.get("bidirectional", "")).lower() == "true",
-                    "mechanism": mechanisms,
-                    "severity": row.get("severity", "None"),
-                    "evidence": row.get("evidence", "D"),
-                    "effect": row.get("effect", ""),
-                    "action": row.get("action", ""),
-                    "sources": sources,
-                })
-    except (OSError, csv.Error):
+            return [dict(row) for row in reader]
+    except Exception as exc:  # pragma: no cover - defensive guard
+        logger.error("Failed to read CSV %s: %s", path, exc)
         return []
 
+def load_compounds(data_dir: Optional[Path] = None) -> Dict[str, dict]:
+    compounds: Dict[str, dict] = {}
+    base_dir = Path(data_dir) if data_dir is not None else get_data_dir()
+    path = base_dir / "compounds.csv"
+    for row in _read_csv_rows(path):
+        raw_synonyms = row.get("synonyms") or ""
+        if raw_synonyms:
+            parts = re.split(r"[\|,;]", raw_synonyms)
+            synonyms = [s.strip() for s in parts if s.strip()]
+        else:
+            synonyms = []
+        cid = (row.get("id") or "").strip()
+        name = (row.get("name") or "").strip()
+        if not cid or not name:
+            continue
+        compounds[cid] = {
+            "id": cid,
+            "name": name,
+            "synonyms": synonyms,
+            "class": row.get("class") or None,
+            "typicalDoseAmount": row.get("typicalDoseAmount") or None,
+            "typicalDoseUnit": row.get("typicalDoseUnit") or None,
+            "route": row.get("route") or None,
+        }
+    return compounds
+
+def load_interactions(data_dir: Optional[Path] = None) -> List[dict]:
+    interactions: List[dict] = []
+    base_dir = Path(data_dir) if data_dir is not None else get_data_dir()
+    path = base_dir / "interactions.csv"
+    for row in _read_csv_rows(path):
+        interaction_id = (row.get("id") or "").strip()
+        a = (row.get("a") or "").strip()
+        b = (row.get("b") or "").strip()
+        if not interaction_id or not a or not b:
+            continue
+        mechanisms = [m.strip() for m in (row.get("mechanism") or "").split("|") if m.strip()]
+        sources = [s.strip() for s in (row.get("sources") or "").split("|") if s.strip()]
+        raw_bidirectional = str(row.get("bidirectional", "")).strip().lower()
+        bidirectional = True
+        if raw_bidirectional:
+            bidirectional = raw_bidirectional in {"true", "1", "yes", "y"}
+        interactions.append({
+            "id": interaction_id,
+            "a": a,
+            "b": b,
+            "bidirectional": bidirectional,
+            "mechanism": mechanisms,
+            "severity": row.get("severity", "None"),
+            "evidence": row.get("evidence", "D"),
+            "effect": row.get("effect", ""),
+            "action": row.get("action", ""),
+            "sources": sources,
+        })
     return interactions
 
-
-def load_sources() -> Dict[str, dict]:
+def load_sources(data_dir: Optional[Path] = None) -> Dict[str, dict]:
     sources: Dict[str, dict] = {}
-    path = os.path.join(DATA_DIR, "sources.csv")
-    if not os.path.exists(path):
-        return sources
-
-    try:
-        with open(path, encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                source_id = (row.get("id") or "").strip()
-                if not source_id:
-                    continue
-                sources[source_id] = row
-    except (OSError, csv.Error):
-        return {}
-
+    base_dir = Path(data_dir) if data_dir is not None else get_data_dir()
+    path = base_dir / "sources.csv"
+    for row in _read_csv_rows(path):
+        sid = (row.get("id") or "").strip()
+        if sid:
+            sources[sid] = row
     return sources
 
-COMPOUNDS = load_compounds()
-INTERACTIONS = load_interactions()
-SOURCES = load_sources()
+def load_all_data(data_dir: Optional[str] = None) -> None:
+    """Populate the in-memory data stores from CSV files."""
+    data_path = get_data_dir(data_dir)
+    logger.info("Loading seed data from %s", data_path)
+    global COMPOUNDS, INTERACTIONS, SOURCES, DATA_DIR
+    COMPOUNDS = load_compounds(data_path)
+    INTERACTIONS = load_interactions(data_path)
+    SOURCES = load_sources(data_path)
+    DATA_DIR = data_path
+    logger.info(
+        "Loaded %d compounds, %d interactions, %d sources",
+        len(COMPOUNDS),
+        len(INTERACTIONS),
+        len(SOURCES),
+    )
+
+COMPOUNDS: Dict[str, dict] = {}
+INTERACTIONS: List[dict] = []
+SOURCES: Dict[str, dict] = {}
+
+load_all_data()
 
 # Risk model parameters (from rules.yaml)
 DEFAULT_MECHANISM_DELTAS = {
@@ -144,20 +162,19 @@ DEFAULT_WEIGHTS = {"severity": 1.0, "evidence": 0.6, "mechanism": 0.4}
 DEFAULT_SEVERITY_MAP = {"None": 0, "Mild": 1, "Moderate": 2, "Severe": 3}
 DEFAULT_EVIDENCE_MAP = {"A": 1, "B": 2, "C": 3, "D": 4}
 
-RULES_PATH = os.path.join(os.path.dirname(__file__), "rules.yaml")
-
+RULES_PATH = os.environ.get(
+    "RISK_RULES_PATH",
+    os.path.join(os.path.dirname(__file__), "rules.yaml"),
+)
 
 DEFAULT_FORMULA_SOURCE = "severity * weights.severity + evidence_component + mech_sum * weights.mechanism"
 
-
 def _default_formula(**context: Any) -> float:
     """Fallback risk calculation mirroring the legacy logic."""
-
     weights = context.get("weights") or SimpleNamespace(**DEFAULT_WEIGHTS)
     severity_component = context.get("severity", 0.0) * getattr(weights, "severity", DEFAULT_WEIGHTS["severity"])
     mech_component = context.get("mech_sum", 0.0) * getattr(weights, "mechanism", DEFAULT_WEIGHTS["mechanism"])
     return severity_component + context.get("evidence_component", 0.0) + mech_component
-
 
 SAFE_AST_NODES = (
     ast.Expression,
@@ -200,23 +217,14 @@ SAFE_FUNCTIONS: Dict[str, Callable[..., Any]] = {
     "round": round,
 }
 
-
 def compile_formula(expr: Optional[str]) -> Tuple[Callable[..., float], str]:
-    """Compile a risk score formula into a safe callable.
-
-    Returns a tuple of the compiled callable (accepting keyword context) and the
-    source string that was ultimately used. Invalid expressions fall back to the
-    default formula.
-    """
-
+    """Compile a risk score formula into a safe callable."""
     if not expr or not str(expr).strip():
         return _default_formula, DEFAULT_FORMULA_SOURCE
-
     try:
         tree = ast.parse(str(expr), mode="eval")
     except SyntaxError:
         return _default_formula, DEFAULT_FORMULA_SOURCE
-
     for node in ast.walk(tree):
         if not isinstance(node, SAFE_AST_NODES):
             return _default_formula, DEFAULT_FORMULA_SOURCE
@@ -226,37 +234,23 @@ def compile_formula(expr: Optional[str]) -> Tuple[Callable[..., float], str]:
                 return _default_formula, DEFAULT_FORMULA_SOURCE
         if isinstance(node, ast.Attribute) and node.attr.startswith("__"):
             return _default_formula, DEFAULT_FORMULA_SOURCE
-
     code = compile(tree, "<risk_formula>", "eval")
-
     def _formula(**context: Any) -> float:
         env: Dict[str, Any] = {**SAFE_FUNCTIONS, **context}
         return float(eval(code, {"__builtins__": {}}, env))
-
     return _formula, str(expr)
 
-
-def load_rules(
-    path: Optional[str] = None,
-) -> Tuple[
-    Dict[str, float],
-    Dict[str, float],
-    Dict[str, int],
-    Dict[str, int],
-    Callable[..., float],
-    str,
+def load_rules(path: Optional[str] = None) -> Tuple[
+    Dict[str, float], Dict[str, float], Dict[str, int], Dict[str, int], Callable[..., float], str
 ]:
     """Load risk model parameters from YAML configuration."""
-
     path = path or RULES_PATH
     mechanisms = DEFAULT_MECHANISM_DELTAS.copy()
     weights = DEFAULT_WEIGHTS.copy()
     severity_map = DEFAULT_SEVERITY_MAP.copy()
     evidence_map = DEFAULT_EVIDENCE_MAP.copy()
-
     if not path:
         return mechanisms, weights, severity_map, evidence_map, _default_formula, DEFAULT_FORMULA_SOURCE
-
     try:
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
@@ -264,25 +258,18 @@ def load_rules(
         return mechanisms, weights, severity_map, evidence_map, _default_formula, DEFAULT_FORMULA_SOURCE
     except (yaml.YAMLError, OSError):
         return mechanisms, weights, severity_map, evidence_map, _default_formula, DEFAULT_FORMULA_SOURCE
-
     if not isinstance(data, dict):
         return mechanisms, weights, severity_map, evidence_map, _default_formula, DEFAULT_FORMULA_SOURCE
-
     mechanisms_cfg = data.get("mechanisms")
     if isinstance(mechanisms_cfg, dict):
         for name, entry in mechanisms_cfg.items():
-            delta = None
-            if isinstance(entry, dict):
-                delta = entry.get("delta")
-            else:
-                delta = entry
+            delta = entry.get("delta") if isinstance(entry, dict) else entry
             if delta is None:
                 continue
             try:
                 mechanisms[name] = float(delta)
             except (TypeError, ValueError):
                 continue
-
     weights_cfg = data.get("weights")
     if isinstance(weights_cfg, dict):
         for key, value in weights_cfg.items():
@@ -292,7 +279,6 @@ def load_rules(
                 weights[key] = float(value)
             except (TypeError, ValueError):
                 continue
-
     map_cfg = data.get("map")
     if isinstance(map_cfg, dict):
         severity_cfg = map_cfg.get("severity")
@@ -309,15 +295,11 @@ def load_rules(
                     evidence_map[key] = int(value)
                 except (TypeError, ValueError):
                     continue
-
     formula_callable, formula_source = compile_formula(data.get("formula"))
-
     return mechanisms, weights, severity_map, evidence_map, formula_callable, formula_source
-
 
 def apply_rules(path: Optional[str] = None) -> None:
     """Apply rule configuration from the provided path or defaults."""
-
     global MECHANISM_DELTAS, WEIGHTS, SEVERITY_MAP, EVIDENCE_MAP, RISK_FORMULA, RISK_FORMULA_SOURCE
     (
         MECHANISM_DELTAS,
@@ -328,10 +310,8 @@ def apply_rules(path: Optional[str] = None) -> None:
         RISK_FORMULA_SOURCE,
     ) = load_rules(path)
 
-
 RISK_FORMULA: Callable[..., float] = _default_formula
 RISK_FORMULA_SOURCE: str = DEFAULT_FORMULA_SOURCE
-
 
 apply_rules()
 
@@ -347,7 +327,6 @@ def resolve_compound(identifier: str) -> Optional[str]:
 
 def compute_risk(inter: dict) -> float:
     """Compute risk score for an interaction."""
-
     severity_score = SEVERITY_MAP.get(inter.get("severity"), 0)
     evidence_default = EVIDENCE_MAP.get("D", DEFAULT_EVIDENCE_MAP["D"])
     evidence_score = EVIDENCE_MAP.get(inter.get("evidence"), evidence_default)
@@ -380,12 +359,10 @@ def compute_risk(inter: dict) -> float:
         "mechanism_count": len(inter.get("mechanism", [])),
         "sources_count": len(inter.get("sources", [])),
     }
-
     try:
         risk_value = float(RISK_FORMULA(**context))
     except Exception:
         risk_value = float(_default_formula(**context))
-
     return round(risk_value, 2)
 
 @app.get("/api/health")
@@ -404,44 +381,4 @@ def search(q: str):
 
 @app.get("/api/interaction")
 def interaction(a: str, b: str):
-    """Get interaction details between two compounds by id or name."""
-    a_id = resolve_compound(a)
-    b_id = resolve_compound(b)
-    if not a_id or not b_id:
-        raise HTTPException(status_code=404, detail="One or both compounds not found")
-    for inter in INTERACTIONS:
-        if (inter["a"] == a_id and inter["b"] == b_id) or (inter["bidirectional"] and inter["a"] == b_id and inter["b"] == a_id):
-            risk_score = compute_risk(inter)
-            sources_detail = [SOURCES[sid] for sid in inter["sources"] if sid in SOURCES]
-            return {"interaction": inter, "risk_score": risk_score, "sources": sources_detail}
-    raise HTTPException(status_code=404, detail="No known interaction")
-
-class StackRequest(BaseModel):
-    compounds: List[str]
-
-@app.post("/api/stack/check")
-def check_stack(payload: StackRequest):
-    """Check interactions within a stack of compounds."""
-    ids: List[str] = []
-    for ident in payload.compounds:
-        cid = resolve_compound(ident)
-        if not cid:
-            raise HTTPException(status_code=404, detail=f"Compound not found: {ident}")
-        ids.append(cid)
-    interactions_out: List[dict] = []
-    for i in range(len(ids)):
-        for j in range(i+1, len(ids)):
-            a_id = ids[i]
-            b_id = ids[j]
-            for inter in INTERACTIONS:
-                if (inter["a"] == a_id and inter["b"] == b_id) or (inter["bidirectional"] and inter["a"] == b_id and inter["b"] == a_id):
-                    interactions_out.append({
-                        "a": a_id,
-                        "b": b_id,
-                        "severity": inter["severity"],
-                        "evidence": inter["evidence"],
-                        "effect": inter["effect"],
-                        "action": inter["action"],
-                        "risk_score": compute_risk(inter),
-                    })
-    return {"interactions": interactions_out}
+    """Get interaction details between two compounds by id or name.""
