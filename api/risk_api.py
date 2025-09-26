@@ -148,7 +148,6 @@ def load_all_data(data_dir: Optional[str] = None) -> None:
 COMPOUNDS: Dict[str, dict] = {}
 INTERACTIONS: List[dict] = []
 SOURCES: Dict[str, dict] = {}
-
 load_all_data()
 
 # Risk model parameters (from rules.yaml)
@@ -235,9 +234,11 @@ def compile_formula(expr: Optional[str]) -> Tuple[Callable[..., float], str]:
         if isinstance(node, ast.Attribute) and node.attr.startswith("__"):
             return _default_formula, DEFAULT_FORMULA_SOURCE
     code = compile(tree, "<risk_formula>", "eval")
+
     def _formula(**context: Any) -> float:
         env: Dict[str, Any] = {**SAFE_FUNCTIONS, **context}
         return float(eval(code, {"__builtins__": {}}, env))
+
     return _formula, str(expr)
 
 def load_rules(path: Optional[str] = None) -> Tuple[
@@ -260,6 +261,7 @@ def load_rules(path: Optional[str] = None) -> Tuple[
         return mechanisms, weights, severity_map, evidence_map, _default_formula, DEFAULT_FORMULA_SOURCE
     if not isinstance(data, dict):
         return mechanisms, weights, severity_map, evidence_map, _default_formula, DEFAULT_FORMULA_SOURCE
+
     mechanisms_cfg = data.get("mechanisms")
     if isinstance(mechanisms_cfg, dict):
         for name, entry in mechanisms_cfg.items():
@@ -270,6 +272,7 @@ def load_rules(path: Optional[str] = None) -> Tuple[
                 mechanisms[name] = float(delta)
             except (TypeError, ValueError):
                 continue
+
     weights_cfg = data.get("weights")
     if isinstance(weights_cfg, dict):
         for key, value in weights_cfg.items():
@@ -279,6 +282,7 @@ def load_rules(path: Optional[str] = None) -> Tuple[
                 weights[key] = float(value)
             except (TypeError, ValueError):
                 continue
+
     map_cfg = data.get("map")
     if isinstance(map_cfg, dict):
         severity_cfg = map_cfg.get("severity")
@@ -295,6 +299,7 @@ def load_rules(path: Optional[str] = None) -> Tuple[
                     evidence_map[key] = int(value)
                 except (TypeError, ValueError):
                     continue
+
     formula_callable, formula_source = compile_formula(data.get("formula"))
     return mechanisms, weights, severity_map, evidence_map, formula_callable, formula_source
 
@@ -312,7 +317,6 @@ def apply_rules(path: Optional[str] = None) -> None:
 
 RISK_FORMULA: Callable[..., float] = _default_formula
 RISK_FORMULA_SOURCE: str = DEFAULT_FORMULA_SOURCE
-
 apply_rules()
 
 def resolve_compound(identifier: str) -> Optional[str]:
@@ -331,7 +335,6 @@ def compute_risk(inter: dict) -> float:
     evidence_default = EVIDENCE_MAP.get("D", DEFAULT_EVIDENCE_MAP["D"])
     evidence_score = EVIDENCE_MAP.get(inter.get("evidence"), evidence_default)
     mech_sum = sum(MECHANISM_DELTAS.get(m, 0.0) for m in inter.get("mechanism", []))
-
     severity_weight = WEIGHTS.get("severity", DEFAULT_WEIGHTS["severity"])
     evidence_weight = WEIGHTS.get("evidence", DEFAULT_WEIGHTS["evidence"])
     mechanism_weight = WEIGHTS.get("mechanism", DEFAULT_WEIGHTS["mechanism"])
@@ -381,4 +384,5 @@ def search(q: str):
 
 @app.get("/api/interaction")
 def interaction(a: str, b: str):
-    """Get interaction details between two compounds by id or name.""
+    """Get interaction details between two compounds by id or name."""
+   
