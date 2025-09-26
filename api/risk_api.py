@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Literal, Dict, Optional, Tuple, Callable, Any
+from pathlib import Path
+import logging
 import os
 import csv
 import re
@@ -30,69 +32,127 @@ class Interaction(BaseModel):
     action: str
     sources: List[str] = Field(default_factory=list)
 
+logger = logging.getLogger("supptracker")
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO)
+
 app = FastAPI()
 
-# Load data from CSV files at startup
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
 
-def load_compounds() -> Dict[str, dict]:
+# Load data from CSV files at startup
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR: Path = Path(
+    os.environ.get("SUPPTRACKER_DATA_DIR", BASE_DIR / "data")
+).expanduser().resolve()
+
+
+def get_data_dir(override: Optional[str] = None) -> Path:
+    """Return the directory that contains the seed CSV files."""
+
+    if override:
+        base = Path(override)
+    else:
+        base = Path(DATA_DIR)
+    return base.expanduser().resolve()
+
+
+def _read_csv_rows(path: Path) -> List[Dict[str, str]]:
+    if not path.exists():
+        logger.warning("Data file missing: %s", path)
+        return []
+
+    try:
+        with path.open(encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            return [dict(row) for row in reader]
+    except Exception as exc:  # pragma: no cover - defensive guard
+        logger.error("Failed to read CSV %s: %s", path, exc)
+        return []
+
+
+def load_compounds(data_dir: Optional[Path] = None) -> Dict[str, dict]:
     compounds: Dict[str, dict] = {}
-    path = os.path.join(DATA_DIR, "compounds.csv")
-    with open(path, encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            raw_synonyms = row.get("synonyms") or ""
-            if raw_synonyms:
-                parts = re.split(r"[\|,;]", raw_synonyms)
-                synonyms = [s.strip() for s in parts if s.strip()]
-            else:
-                synonyms = []
-            compounds[row["id"]] = {
-                "id": row["id"],
-                "name": row["name"],
-                "synonyms": synonyms,
-                "class": row.get("class") or None,
-                "typicalDoseAmount": row.get("typicalDoseAmount") or None,
-                "typicalDoseUnit": row.get("typicalDoseUnit") or None,
-                "route": row.get("route") or None,
-            }
+    base_dir = Path(data_dir) if data_dir is not None else get_data_dir()
+    path = base_dir / "compounds.csv"
+    for row in _read_csv_rows(path):
+        raw_synonyms = row.get("synonyms") or ""
+        if raw_synonyms:
+            parts = re.split(r"[\|,;]", raw_synonyms)
+            synonyms = [s.strip() for s in parts if s.strip()]
+        else:
+            synonyms = []
+        compounds[row["id"]] = {
+            "id": row["id"],
+            "name": row["name"],
+            "synonyms": synonyms,
+            "class": row.get("class") or None,
+            "typicalDoseAmount": row.get("typicalDoseAmount") or None,
+            "typicalDoseUnit": row.get("typicalDoseUnit") or None,
+            "route": row.get("route") or None,
+        }
     return compounds
 
-def load_interactions() -> List[dict]:
+
+def load_interactions(data_dir: Optional[Path] = None) -> List[dict]:
     interactions: List[dict] = []
-    path = os.path.join(DATA_DIR, "interactions.csv")
-    with open(path, encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            mechanisms = [m.strip() for m in row["mechanism"].split("|")] if row.get("mechanism") else []
-            sources = [s.strip() for s in row["sources"].split("|")] if row.get("sources") else []
-            interactions.append({
-                "id": row["id"],
-                "a": row["a"],
-                "b": row["b"],
-                "bidirectional": row.get("bidirectional", "").lower() == "true",
-                "mechanism": mechanisms,
-                "severity": row["severity"],
-                "evidence": row["evidence"],
-                "effect": row["effect"],
-                "action": row["action"],
-                "sources": sources,
-            })
+    base_dir = Path(data_dir) if data_dir is not None else get_data_dir()
+    path = base_dir / "interactions.csv"
+    for row in _read_csv_rows(path):
+        mechanisms = [m.strip() for m in (row.get("mechanism") or "").split("|") if m.strip()]
+        sources = [s.strip() for s in (row.get("sources") or "").split("|") if s.strip()]
+        raw_bidirectional = str(row.get("bidirectional", "")).strip().lower()
+        bidirectional = True
+        if raw_bidirectional:
+            bidirectional = raw_bidirectional in {"true", "1", "yes", "y"}
+        interactions.append({
+            "id": row["id"],
+            "a": row["a"],
+            "b": row["b"],
+            "bidirectional": bidirectional,
+            "mechanism": mechanisms,
+            "severity": row["severity"],
+            "evidence": row["evidence"],
+            "effect": row["effect"],
+            "action": row["action"],
+            "sources": sources,
+        })
     return interactions
 
-def load_sources() -> Dict[str, dict]:
+
+def load_sources(data_dir: Optional[Path] = None) -> Dict[str, dict]:
     sources: Dict[str, dict] = {}
-    path = os.path.join(DATA_DIR, "sources.csv")
-    with open(path, encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
+    base_dir = Path(data_dir) if data_dir is not None else get_data_dir()
+    path = base_dir / "sources.csv"
+    for row in _read_csv_rows(path):
+        if row.get("id"):
             sources[row["id"]] = row
     return sources
 
-COMPOUNDS = load_compounds()
-INTERACTIONS = load_interactions()
-SOURCES = load_sources()
+
+def load_all_data(data_dir: Optional[str] = None) -> None:
+    """Populate the in-memory data stores from CSV files."""
+
+    data_path = get_data_dir(data_dir)
+    logger.info("Loading seed data from %s", data_path)
+    global COMPOUNDS, INTERACTIONS, SOURCES, DATA_DIR
+    COMPOUNDS = load_compounds(data_path)
+    INTERACTIONS = load_interactions(data_path)
+    SOURCES = load_sources(data_path)
+    DATA_DIR = data_path
+    logger.info(
+        "Loaded %d compounds, %d interactions, %d sources",
+        len(COMPOUNDS),
+        len(INTERACTIONS),
+        len(SOURCES),
+    )
+
+
+COMPOUNDS: Dict[str, dict] = {}
+INTERACTIONS: List[dict] = []
+SOURCES: Dict[str, dict] = {}
+
+
+load_all_data()
 
 # Risk model parameters (from rules.yaml)
 DEFAULT_MECHANISM_DELTAS = {
@@ -105,7 +165,10 @@ DEFAULT_WEIGHTS = {"severity": 1.0, "evidence": 0.6, "mechanism": 0.4}
 DEFAULT_SEVERITY_MAP = {"None": 0, "Mild": 1, "Moderate": 2, "Severe": 3}
 DEFAULT_EVIDENCE_MAP = {"A": 1, "B": 2, "C": 3, "D": 4}
 
-RULES_PATH = os.path.join(os.path.dirname(__file__), "rules.yaml")
+RULES_PATH = os.environ.get(
+    "RISK_RULES_PATH",
+    os.path.join(os.path.dirname(__file__), "rules.yaml"),
+)
 
 
 DEFAULT_FORMULA_SOURCE = "severity * weights.severity + evidence_component + mech_sum * weights.mechanism"
