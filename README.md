@@ -1,110 +1,91 @@
 # supptracker
 
-Supplement interactions
+Supplement interaction tracking for launch night. The project pairs a FastAPI backend (risk scoring + search) with a polished React/Vite frontend that lets you:
 
-Run the frontend (Vite + React):
+- search for compounds by name or synonym
+- inspect the risk profile for a specific pair
+- paste a stack of supplements and review all risky combinations at once
 
-```bash
-npm install
-npm run dev
-```
+The repository includes a small reference dataset under `data/` so the app can boot out of the box. Swap in your own CSV/YAML files before going live.
 
-Build frontend:
-
-```bash
-npm run build
-npm run preview
-```
-
-Run the backend (FastAPI):
-
-1. Create a `data/` directory with the CSV/YAML data files the backend expects:
-	- `compounds.csv`
-	- `interactions.csv`
-	- `sources.csv`
-	- `risk_rules.yaml`
-
-2. Install Python requirements and run Uvicorn:
+## Backend (FastAPI)
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn api.risk_api:app --reload --port 8000
+uvicorn api.risk_api:app --reload --host 0.0.0.0 --port 8000
 ```
 
-During development the Vite dev server proxies API requests to `http://localhost:8000`.
+Key environment variables:
 
-Notes:
-- If you run the frontend and backend on different hosts, set `VITE_API_BASE` in an `.env` or in your environment.
-- The `data/` folder is intentionally not included; add real data files before starting the backend.
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `SUPPTRACKER_DATA_DIR` | Override the folder that contains `compounds.csv`, `interactions.csv`, `sources.csv`, and `risk_rules.yaml`. | `<repo>/data` |
+| `RISK_RULES_PATH` | Alternative path to the YAML rule set used for risk scoring. | `api/rules.yaml` |
 
-Docker (optional)
+The backend now loads data safely even if the files are missing, logging a warning instead of crashing. This makes container starts resilient while still allowing you to provide real data before launch.
 
-Build and run both services with Docker Compose:
+Run tests with:
+
+```bash
+pytest
+```
+
+## Frontend (React + Vite)
+
+From the repository root:
+
+```bash
+npm install
+npm run dev     # Vite dev server with API proxying
+npm run build   # Production build in dist/
+npm run preview # Preview the production bundle locally
+```
+
+Configuration:
+
+- `VITE_API_BASE` – optional. When unset the frontend automatically talks to `/api` on the same origin in production builds and `http://localhost:8000/api` when running on `localhost:5173`.
+
+The refreshed UI (see `App.tsx`/`App.css`) includes accessible forms, clear loading/error states, severity badges, and a modern responsive layout suitable for a same-day launch.
+
+## Docker / deployment
+
+Two Dockerfiles (`backend/` and `frontend/`) are provided plus a `docker-compose.yml` for local orchestration:
 
 ```bash
 docker compose build
 docker compose up
 ```
 
-The frontend will be available at http://localhost:5173 (served by nginx) and proxies to the backend at http://backend:8000 inside the compose network.
-# supptracker
-Supplement interactions
+Notable updates:
 
+- The backend image now copies the `data/` directory so the API boots with seed content even without a bind mount.
+- The frontend nginx image waits for the backend health endpoint before serving traffic.
 
-# supptracker
-
-This project provides a minimal supplement–drug interaction checker. It consists of a FastAPI backend and a Vite/React frontend.
+Access the UI at http://localhost:5173 (nginx) and the API at http://localhost:8000.
 
 ## Project structure
 
-- `api/` – FastAPI application with endpoints to search compounds and compute interaction risk.
-- `api/models.py` – Pydantic models for Compound and Interaction entities.
-- `api/risk_api.py` – API entry point (FastAPI) with endpoints (`/api/health`, `/api/search`, `/api/interaction`, `/api/stack/check`).
-- `api/rules.yaml` – Risk scoring configuration (mechanism deltas, weights, severity/evidence mappings).
-- `data/` – CSV seed data:
-  - `compounds.csv` – list of compounds and typical doses.
-  - `interactions.csv` – known interactions between pairs of compounds and their severity/action.
-  - `sources.csv` – references for interactions.
-- `web/` – (to be added) minimal React frontend to search compounds and view interactions.
-
-## Getting started
-
-### Backend
-
-1. Navigate to the `api` directory and create a virtual environment:
-   ```bash
-   cd api
-   python -m venv .venv
-   source .venv/bin/activate  # on Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-2. Run the development server:
-   ```bash
-    uvicorn risk_api:app --reload
-   ```
-   The API will be available at `http://127.0.0.1:8000/api/`. The interactive docs are at `/docs`.
-
-### Frontend (optional)
-
-The frontend scaffold will live under the `web` directory. To run it:
-
-```bash
-cd web
-npm install
-npm run dev
+```
+api/              FastAPI application, risk engine, rule loader
+backend/          Backend Dockerfile
+frontend/         Frontend Dockerfile and helper scripts
+scripts/          Vite wrapper used by npm scripts
+data/             Seed CSV/YAML files (replace with production data)
+App.tsx, App.css  React entrypoint with launch-ready UI
+api.ts, types.ts  Typed frontend API client + shared types
 ```
 
-### Data
+## Launch checklist
 
-The CSV files in `data/` provide a starting dataset. You can modify or extend them and reload the API to reflect changes.
+- [x] Backend boots successfully with bundled data (`uvicorn api.risk_api:app`).
+- [x] Frontend renders search, pair, and stack flows with helpful error states.
+- [x] Docker images include the required dataset.
+- [x] `pytest` passes locally.
 
-### Contributing
+## Contributing / next steps
 
-This is an MVP scaffold. Feel free to open issues or pull requests to add features such as:
-
-- Parsing the CSVs and serving them via the API.
-- Computing risk scores based on the rules in `rules.yaml`.
-- A React UI for selecting compounds, viewing interactions, and inspecting sources.
-- Tests for the API and risk engine.
+- Expand the dataset before launch night and verify citations.
+- Expose authentication/roles if you need editing controls.
+- Tighten TypeScript strictness and extract more reusable components as the UI grows.

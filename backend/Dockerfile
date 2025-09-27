@@ -10,6 +10,7 @@ RUN python -m pip install --upgrade pip setuptools wheel && \
 # Copy app and data
 # Copy API module
 COPY api ./api
+COPY data ./data
 
 EXPOSE 8000
 

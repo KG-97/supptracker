@@ -1,12 +1,9 @@
 import sys
 import os
-
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
-
 import api.risk_api as risk_api
-
 
 def make_inter(severity="Moderate", evidence="B", mechanism=None):
     return {
@@ -15,12 +12,10 @@ def make_inter(severity="Moderate", evidence="B", mechanism=None):
         "mechanism": mechanism or [],
     }
 
-
 def test_compute_risk_order():
     high = risk_api.compute_risk(make_inter(severity="Severe", evidence="A"))
     low = risk_api.compute_risk(make_inter(severity="Mild", evidence="D"))
     assert high > low
-
 
 def test_load_rules_custom_values(tmp_path):
     config_path = tmp_path / "rules.yaml"
@@ -42,7 +37,6 @@ formula: "severity * weights.severity + mech_sum + max(0, evidence_component)"
 """,
         encoding="utf-8",
     )
-
     mechs, weights, severity_map, evidence_map, formula, formula_source = risk_api.load_rules(str(config_path))
     assert mechs["custom"] == 2.5
     assert weights["severity"] == 2.0
@@ -50,7 +44,6 @@ formula: "severity * weights.severity + mech_sum + max(0, evidence_component)"
     assert evidence_map["A"] == 1
     assert callable(formula)
     assert formula_source.strip().startswith("severity * weights.severity")
-
     try:
         risk_api.apply_rules(str(config_path))
         score = risk_api.compute_risk(
@@ -62,14 +55,12 @@ formula: "severity * weights.severity + mech_sum + max(0, evidence_component)"
         )
     finally:
         risk_api.apply_rules()
-
     expected = (
         severity_map["Severe"] * weights["severity"]
         + mechs["custom"]
         + max(0, (1 / evidence_map["A"]) * weights["evidence"])
     )
     assert score == round(expected, 2)
-
 
 def test_load_rules_missing_file(tmp_path):
     missing_path = tmp_path / "missing.yaml"
@@ -80,7 +71,6 @@ def test_load_rules_missing_file(tmp_path):
     assert evidence_map == risk_api.DEFAULT_EVIDENCE_MAP
     assert formula is risk_api._default_formula
     assert formula_source == risk_api.DEFAULT_FORMULA_SOURCE
-
 
 def test_load_rules_malformed_file(tmp_path):
     bad_path = tmp_path / "rules.yaml"
@@ -93,7 +83,6 @@ def test_load_rules_malformed_file(tmp_path):
     assert formula is risk_api._default_formula
     assert formula_source == risk_api.DEFAULT_FORMULA_SOURCE
 
-
 def test_compute_risk_uses_overridden_default_evidence(monkeypatch, tmp_path):
     config_path = tmp_path / "rules.yaml"
     config_path.write_text(
@@ -104,18 +93,13 @@ map:
 """,
         encoding="utf-8",
     )
-
-    _, _, _, evidence_map = risk_api.load_rules(str(config_path))
+    _, _, _, evidence_map, _, _ = risk_api.load_rules(str(config_path))
     assert evidence_map["D"] == 10
     assert "Z" not in evidence_map
-
     monkeypatch.setattr(risk_api, "EVIDENCE_MAP", evidence_map)
-
     score = risk_api.compute_risk(make_inter(severity="None", evidence="Z"))
     evidence_weight = risk_api.WEIGHTS.get(
         "evidence", risk_api.DEFAULT_WEIGHTS["evidence"]
     )
     expected = round((1 / evidence_map["D"]) * evidence_weight, 2)
     assert score == expected
-
-
