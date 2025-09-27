@@ -24,6 +24,10 @@ COPY --from=build-frontend /app/dist /usr/share/nginx/html
 # Install nginx and curl (curl used by start.sh for health checks)
 RUN apt-get update && apt-get install -y nginx curl && rm -rf /var/lib/apt/lists/*
 
+# Remove default site and default conf to avoid duplicate/conflicting server blocks
+RUN rm -f /etc/nginx/sites-enabled/default || true
+RUN rm -f /etc/nginx/conf.d/default.conf || true
+
 # Copy nginx site config and start script
 COPY docker/supptracker.conf /etc/nginx/conf.d/supptracker.conf
 COPY docker/start.sh /start.sh
