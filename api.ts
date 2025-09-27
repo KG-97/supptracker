@@ -19,7 +19,6 @@ async function parseError(res: Response, fallback: string) {
   try {
     const text = (await res.text()).trim();
     if (!text) return fallback;
-
     try {
       const data = JSON.parse(text);
       if (typeof data === 'string') return data;

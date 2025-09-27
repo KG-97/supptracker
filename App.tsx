@@ -8,6 +8,21 @@ import type {
   StackInteraction,
 } from './types'
 
+// Helper function to resolve sources from API response
+function resolveSources(pairData: any): any[] {
+  // Prefer detailed source objects over raw IDs
+  const detailedSources = pairData.sources || []
+  const interactionSources = pairData.interaction?.sources || []
+  
+  // Check if interaction.sources contains objects with citation info
+  if (interactionSources.length > 0 && typeof interactionSources[0] === 'object' && interactionSources[0].citation) {
+    return interactionSources
+  }
+  
+  // Otherwise fall back to the detailed sources array
+  return detailedSources
+}
+
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
 const DEFAULT_STACK_EXAMPLE = 'creatine, caffeine, magnesium'
@@ -252,10 +267,10 @@ export default function App(): JSX.Element {
                 </div>
               </dl>
               <details className="sources">
-                <summary>Evidence sources ({pairSources.length})</summary>
+                <summary>Evidence sources ({resolveSources(pairData).length})</summary>
                 <ul>
-                  {pairSources.length === 0 && <li>No citations provided.</li>}
-                  {pairSources.map((source, index) => (
+                  {resolveSources(pairData).length === 0 && <li>No citations provided.</li>}
+                  {resolveSources(pairData).map((source, index) => (
                     <li key={source.id ?? index}>{sourceLabel(source, index)}</li>
                   ))}
                 </ul>
@@ -306,7 +321,8 @@ export default function App(): JSX.Element {
               <h3>
                 {stackHasInteractions
                   ? `Interactions found for ${stackCompounds.join(', ')}`
-                  : 'No interactions detected in this stack'}
+                  : 'No interactions detected in this stack'
+                }
               </h3>
               {stackHasInteractions && (
                 <table>
