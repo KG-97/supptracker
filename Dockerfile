@@ -1,3 +1,37 @@
+# Multi-stage build: build frontend with Node, then package with Python+nginx
+FROM node:20-alpine AS build-frontend
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY . ./
+RUN npm run build
+
+FROM python:3.12-slim
+WORKDIR /app
+
+# Install python deps
+COPY requirements.txt ./requirements.txt
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy backend app and data
+COPY api ./api
+COPY data ./data
+
+# Copy built frontend from previous stage into nginx default html
+COPY --from=build-frontend /app/dist /usr/share/nginx/html
+
+# Install nginx and curl (curl used by start.sh for health checks)
+RUN apt-get update && apt-get install -y nginx curl && rm -rf /var/lib/apt/lists/*
+
+# Copy nginx site config and start script
+COPY docker/supptracker.conf /etc/nginx/conf.d/supptracker.conf
+COPY docker/start.sh /start.sh
+RUN chmod +x /start.sh
+
+EXPOSE 80 8000
+
+CMD ["/start.sh"]
 FROM node:20-alpine AS frontend-build
 WORKDIR /app
 
