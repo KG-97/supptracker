@@ -17,53 +17,28 @@ npm run dev
 
 ```bash
 npm run build
-npm run preview
 ```
-
-Set `VITE_API_BASE` in an `.env` file or your shell when the backend runs on a different host than the dev server.
 
 ## Backend (FastAPI)
 
-1. Create a Python virtual environment inside the `api/` directory.
-2. Install requirements and start the API.
-
 ```bash
-cd api
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn risk_api:app --reload --port 8000
+uvicorn api.risk_api:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The API exposes `/api/health`, `/api/search`, `/api/interaction`, and `/api/stack/check`. During development the Vite dev server proxies requests to `http://localhost:8000`.
+Key environment variables:
 
-## Data
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `SUPPTRACKER_DATA_DIR` | Override the folder that contains `compounds.csv`, `interactions.csv`, `sources.csv`, and `risk_rules.yaml`. | `<repo>/data` |
+| `RISK_RULES_PATH` | Alternative path to the YAML rule set used for risk scoring. | `api/rules.yaml` |
 
-Sample CSV/YAML data files live under `data/`:
+The backend now loads data safely even if the files are missing, logging a warning instead of crashing. This makes container starts resilient while still allowing you to provide real data before launch.
 
-- `compounds.csv`
-- `interactions.csv`
-- `sources.csv`
-- `risk_rules.yaml`
-
-Provide real data before starting the backend.
-
-## Project structure
-
-- `App.tsx`, `main.tsx`, `api.ts` – React application entry points.
-- `api/` – FastAPI app, Pydantic models, and risk scoring logic.
-- `backend/` – Docker assets for the backend service.
-- `frontend/` – Docker assets for building and serving the frontend (includes the nginx health check script).
-- `scripts/run-vite.js` – Wrapper used by the npm scripts to invoke Vite with the current environment.
-- `tests/` – Backend test suite.
-
-## Docker
-
-An optional Docker Compose setup is provided:
+Run tests with:
 
 ```bash
-docker compose build
-docker compose up
+pytest
 ```
-
-The frontend is served by nginx on port `5173` and proxies to the backend service on port `8000` inside the Compose network.
