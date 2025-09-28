@@ -3,7 +3,6 @@ import type { Compound, InteractionResponse, StackResponse } from './types'
 const API_BASE = (() => {
   const envBase = import.meta.env.VITE_API_BASE?.trim()
   if (envBase) return envBase.replace(/\/$/, '')
-
   if (typeof window !== 'undefined') {
     const origin = window.location.origin
     if (/localhost:(5173|4173)/.test(origin)) {
@@ -11,7 +10,6 @@ const API_BASE = (() => {
     }
     return '/api'
   }
-
   return 'http://localhost:8000/api'
 })()
 
@@ -50,7 +48,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export async function searchCompounds(query: string): Promise<Compound[]> {
   if (!query.trim()) return []
   const data = await request<{ results?: Compound[]; compounds?: Compound[] }>(
-    `/search?q=${encodeURIComponent(query)}`
+    `/search?query=${encodeURIComponent(query)}`
   )
   return data.results ?? data.compounds ?? []
 }
