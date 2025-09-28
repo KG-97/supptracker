@@ -17,6 +17,30 @@ def test_compute_risk_order():
     low = risk_api.compute_risk(make_inter(severity="Mild", evidence="D"))
     assert high > low
 
+
+def test_compute_risk_splits_pipe_delimited_mechanisms(monkeypatch):
+    mechanism_weight = 1.0
+    monkeypatch.setattr(
+        risk_api,
+        "WEIGHTS",
+        {**risk_api.WEIGHTS, "severity": 0.0, "evidence": 0.0, "mechanism": mechanism_weight},
+    )
+    inter = make_inter(
+        severity="None",
+        evidence="D",
+        mechanism=["serotonergic|CYP3A4_induction"],
+    )
+    score = risk_api.compute_risk(inter)
+    expected = round(
+        (
+            risk_api.MECHANISM_DELTAS["serotonergic"]
+            + risk_api.MECHANISM_DELTAS["CYP3A4_induction"]
+        )
+        * mechanism_weight,
+        2,
+    )
+    assert score == expected
+
 def test_load_rules_custom_values(tmp_path):
     config_path = tmp_path / "rules.yaml"
     config_path.write_text(
