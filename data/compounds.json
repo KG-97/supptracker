@@ -1,0 +1,17 @@
+[
+  {
+    "id": "creatine",
+    "name": "Creatine",
+    "aliases": ["creatine monohydrate"]
+  },
+  {
+    "id": "caffeine",
+    "name": "Caffeine",
+    "aliases": ["coffee"]
+  },
+  {
+    "id": "magnesium",
+    "name": "Magnesium",
+    "aliases": ["mg"]
+  }
+]
