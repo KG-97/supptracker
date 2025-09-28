@@ -9,7 +9,6 @@ import re
 import yaml
 import ast
 from types import SimpleNamespace
-
 # Define data models
 class Compound(BaseModel):
     id: str
@@ -19,7 +18,6 @@ class Compound(BaseModel):
     typicalDoseAmount: Optional[str] = None
     typicalDoseUnit: Optional[str] = None
     route: Optional[str] = None
-
 class Interaction(BaseModel):
     id: str
     a: str
@@ -31,16 +29,12 @@ class Interaction(BaseModel):
     effect: str
     action: str
     sources: List[str] = Field(default_factory=list)
-
 class StackRequest(BaseModel):
     items: List[str] = Field(..., description="List of compound IDs or names")
-
 logger = logging.getLogger("supptracker")
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO)
-
 app = FastAPI()
-
 # Paths and data helpers
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 # Support both legacy and new env vars, with new one taking precedence
@@ -48,20 +42,15 @@ DATA_DIR: Path = Path(
     os.environ.get("SUPPTRACKER_DATA_DIR",
                    os.environ.get("SUPPTRACKER_DATA", BASE_DIR / "data"))
 ).expanduser().resolve()
-
-
 def get_data_dir(override: Optional[str] = None) -> Path:
     """Return the directory that contains the seed CSV files."""
     base = Path(override) if override else Path(DATA_DIR)
     return base.expanduser().resolve()
-
 # Load rules/config
 DEFAULT_WEIGHTS = {"severity": 1.0, "evidence": 1.0, "mechanism": 1.0}
 MECHANISM_DELTAS: Dict[str, float] = {}
 WEIGHTS: Dict[str, float] = {}
 RISK_FORMULA: Optional[Callable[..., float]] = None
-
-
 def _load_rules():
     global MECHANISM_DELTAS, WEIGHTS, RISK_FORMULA
     rules_path = get_data_dir() / "rules.yaml"
@@ -86,23 +75,15 @@ def _load_rules():
         MECHANISM_DELTAS = {}
         WEIGHTS = {**DEFAULT_WEIGHTS}
         RISK_FORMULA = None
-
-
 def _default_formula(**ctx: Any) -> float:
     # Simple additive model
     return float(ctx.get("severity_component", 0.0) + ctx.get("evidence_component", 0.0) + ctx.get("mechanism_component", 0.0))
-
-
 # Load datasets
 COMPOUNDS: Dict[str, Dict[str, Any]] = {}
 INTERACTIONS: Dict[Tuple[str, str], Dict[str, Any]] = {}
-
-
 def _normalise_name(s: str) -> str:
     # normalise delimiters like '|' in synonyms elsewhere, but for name lookup, lower and strip spaces
     return re.sub(r"\s+", " ", s).strip().lower()
-
-
 def _load_compounds():
     path = get_data_dir() / "compounds.csv"
     if not path.exists():
@@ -137,8 +118,6 @@ def _load_compounds():
             COMPOUNDS[_normalise_name(name)] = comp
             for s in parts:
                 COMPOUNDS[_normalise_name(s)] = comp
-
-
 def _load_interactions():
     path = get_data_dir() / "interactions.csv"
     if not path.exists():
@@ -170,18 +149,12 @@ def _load_interactions():
             INTERACTIONS[key] = inter
             if inter["bidirectional"]:
                 INTERACTIONS[(b, a)] = inter
-
-
 _load_rules()
 _load_compounds()
 _load_interactions()
-
-
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
-
-
 @app.get("/api/search")
 def search(q: str):
     """Search compounds by name or synonym."""
@@ -198,38 +171,28 @@ def search(q: str):
                 results.append(comp)
                 seen.add(cid)
     return {"results": results}
-
-
 def _severity_score(sev: str) -> float:
     mapping = {"None": 0.0, "Mild": 1.0, "Moderate": 2.0, "Severe": 3.0}
     return mapping.get(sev, 0.0)
-
-
 def _evidence_score(ev: str) -> float:
     mapping = {"A": 1.0, "B": 1.2, "C": 1.5, "D": 2.0}
     # Higher means less strong evidence, invert later
     return mapping.get(ev, 2.0)
-
-
 def _compute_risk(inter: Dict[str, Any]) -> float:
     severity_score = _severity_score(inter.get("severity", "None"))
     evidence_score = _evidence_score(inter.get("evidence", "D"))
     mechanisms = inter.get("mechanism", [])
     mech_sum = sum(MECHANISM_DELTAS.get(m, 0.0) for m in mechanisms)
-
     severity_weight = WEIGHTS.get("severity", DEFAULT_WEIGHTS["severity"])
     evidence_weight = WEIGHTS.get("evidence", DEFAULT_WEIGHTS["evidence"])
     mechanism_weight = WEIGHTS.get("mechanism", DEFAULT_WEIGHTS["mechanism"])
-
     if evidence_score:
         evidence_component = (1.0 / evidence_score) * evidence_weight
     else:
         evidence_component = 0.0
-
     weights_ns = SimpleNamespace(**{**DEFAULT_WEIGHTS, **WEIGHTS})
     mechanisms_ns = SimpleNamespace(**MECHANISM_DELTAS)
     interaction_ns = SimpleNamespace(**{k: v for k, v in inter.items()})
-
     context = {
         "severity": severity_score,
         "evidence": evidence_score,
@@ -244,15 +207,11 @@ def _compute_risk(inter: Dict[str, Any]) -> float:
         "mechanism_count": len(mechanisms),
         "sources_count": len(inter.get("sources", [])),
     }
-
     try:
         risk_value = float(RISK_FORMULA(**context)) if RISK_FORMULA else float(_default_formula(**context))
     except Exception:
         risk_value = float(_default_formula(**context))
-
     return round(risk_value, 2)
-
-
 def _resolve_compound(token: str) -> Optional[Dict[str, Any]]:
     if token in COMPOUNDS:
         comp = COMPOUNDS[token]
@@ -260,8 +219,6 @@ def _resolve_compound(token: str) -> Optional[Dict[str, Any]]:
         return COMPOUNDS.get(comp.get("id"), comp)
     key = _normalise_name(token)
     return COMPOUNDS.get(key)
-
-
 @app.get("/api/interaction")
 def interaction(a: str, b: str):
     """Get interaction details between two compounds by id or name."""
@@ -271,7 +228,6 @@ def interaction(a: str, b: str):
         raise HTTPException(status_code=404, detail=f"Unknown compound: {a}")
     if not comp_b:
         raise HTTPException(status_code=404, detail=f"Unknown compound: {b}")
-
     key = (comp_a["id"], comp_b["id"])
     inter = INTERACTIONS.get(key)
     if not inter:
@@ -279,12 +235,9 @@ def interaction(a: str, b: str):
         inter = INTERACTIONS.get((comp_b["id"], comp_a["id"]))
     if not inter:
         raise HTTPException(status_code=404, detail="No interaction found for the given pair")
-
     risk = _compute_risk(inter)
     payload = {**inter, "a_compound": comp_a, "b_compound": comp_b, "risk": risk}
     return payload
-
-
 @app.post("/api/stack/check")
 def stack_check(req: StackRequest):
     """Check pairwise interactions across a stack of compounds."""
@@ -298,7 +251,6 @@ def stack_check(req: StackRequest):
             raise HTTPException(status_code=404, detail=f"Unknown compound: {t}")
         if comp["id"] not in {c.get("id") for c in resolved}:
             resolved.append(comp)
-
     results: List[Dict[str, Any]] = []
     for i in range(len(resolved)):
         for j in range(i + 1, len(resolved)):
@@ -309,3 +261,6 @@ def stack_check(req: StackRequest):
                 risk = _compute_risk(inter)
                 results.append({**inter, "a_compound": resolved[i], "b_compound": resolved[j], "risk": risk})
     return {"results": results, "count": len(results)}
+
+# Export alias for compatibility with test_stack.py
+check_stack = stack_check
