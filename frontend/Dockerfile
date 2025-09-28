@@ -11,4 +11,4 @@ COPY frontend/wait-for-health.sh /usr/local/bin/wait-for-health.sh
 RUN chmod +x /usr/local/bin/wait-for-health.sh
 EXPOSE 80
 # Wait for backend health then start nginx
-CMD ["/bin/sh", "-c", "/usr/local/bin/wait-for-health.sh backend 8000 /health 30 && exec nginx -g 'daemon off;'"]
+CMD ["/bin/sh", "-c", "/usr/local/bin/wait-for-health.sh backend 8000 /api/health 30 && exec nginx -g 'daemon off;'"]

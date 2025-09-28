@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    
+    "dev": "node scripts/run-vite.js dev",
+    "build": "node scripts/run-vite.js build",
+    "preview": "node scripts/run-vite.js preview"
   },
   "dependencies": {
     "react": "18.2.0",

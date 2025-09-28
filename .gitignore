@@ -9,3 +9,4 @@ dist/
 __pycache__/
 *.pyc
 .DS_Store
+tests/test_data/

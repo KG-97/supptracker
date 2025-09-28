@@ -2,34 +2,48 @@ import sys
 import os
 import pytest
 
-# Ensure repo root is on sys.path so tests can import top-level modules like `app`
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from app import compute_score, search_compounds, find_interaction, COMPOUNDS, INTERACTIONS
+import api.risk_api as app_module
 
-def test_search_compounds_found():
-    # Expect that the stub data contains 'caffeine' per earlier setup
-    hits = search_compounds('caffeine')
-    assert isinstance(hits, list)
-    assert any(h['id'] == 'caffeine' for h in hits)
 
-def test_search_compounds_notfound():
-    hits = search_compounds('nonexistent-xyz')
-    assert hits == []
+def test_resolve_compound(monkeypatch):
+    monkeypatch.setattr(
+        app_module,
+        "COMPOUNDS",
+        {"caffeine": {"id": "caffeine", "name": "Caffeine", "synonyms": ["coffee"]}},
+    )
+    assert app_module.resolve_compound("coffee") == "caffeine"
+    assert app_module.resolve_compound("unknown") is None
 
-def test_find_interaction_none():
-    # Use two items unlikely to have an interaction in stub data
-    assert find_interaction('caffeine', 'nonexistent-xyz') is None
 
-def test_compute_score_returns_tuple():
-    # If there is at least one interaction in INTERACTIONS, test compute_score shape
-    if len(INTERACTIONS) > 0:
-        inter = INTERACTIONS[0]
-        score, bucket, action = compute_score(inter)
-        assert isinstance(score, float)
-        assert isinstance(bucket, str)
-        assert isinstance(action, str)
-    else:
-        pytest.skip("No interactions available in stub data")
+def test_resolve_compound_with_comma_synonyms(tmp_path, monkeypatch):
+    csv_content = (
+        "id,name,synonyms\n"
+        "st_johns_wort,St. John's Wort,\"St. John's Wort, Hypericum\"\n"
+    )
+    (tmp_path / "compounds.csv").write_text(csv_content)
+
+    monkeypatch.setattr(app_module, "DATA_DIR", str(tmp_path))
+    compounds = app_module.load_compounds()
+    monkeypatch.setattr(app_module, "COMPOUNDS", compounds)
+
+    assert compounds["st_johns_wort"]["synonyms"] == ["St. John's Wort", "Hypericum"]
+    assert app_module.resolve_compound("hypericum") == "st_johns_wort"
+
+
+def test_compute_risk_returns_float():
+    inter = {"severity": "Mild", "evidence": "C", "mechanism": []}
+    score = app_module.compute_risk(inter)
+    assert isinstance(score, float)
+
+
+def test_loaders_handle_missing_files(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DATA_DIR", str(tmp_path))
+
+    assert app_module.load_compounds() == {}
+    assert app_module.load_interactions() == []
+    assert app_module.load_sources() == {}
+

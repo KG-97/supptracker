@@ -1,72 +1,359 @@
-import React, { useState } from 'react'
-import { search, getInteraction, checkStack } from './api'
+import React, { FormEvent, useMemo, useState } from 'react'
+import './App.css'
+import { checkStack, fetchInteraction, searchCompounds } from './api'
+import type {
+  Compound,
+  InteractionResponse,
+  Source,
+  StackInteraction,
+} from './types'
 
-export default function App(){
-  const [q,setQ]=useState('')
-  const [results,setResults]=useState<any[]>([])
-  const [pairData,setPairData]=useState<any|null>(null)
-  const [stackText,setStackText]=useState('creatine, caffeine, magnesium')
-  const [stack,setStack]=useState<any|null>(null)
-
-  const doSearch=async()=>{ const data=await search(q); setResults(data.compounds||[]) }
-  const openPair=async()=>{
-    const a=(document.getElementById('a') as HTMLInputElement).value.trim()
-    const b=(document.getElementById('b') as HTMLInputElement).value.trim()
-    if(!a||!b) return
-    const data=await getInteraction(a,b); setPairData(data)
+// Helper function to resolve sources from API response
+function resolveSources(pairData: any): any[] {
+  // Prefer detailed source objects over raw IDs
+  const detailedSources = pairData.sources || []
+  const interactionSources = pairData.interaction?.sources || []
+  
+  // Check if interaction.sources contains objects with citation info
+  if (interactionSources.length > 0 && typeof interactionSources[0] === 'object' && interactionSources[0].citation) {
+    return interactionSources
   }
-  const doStack=async()=>{
-    const items=stackText.split(',').map(s=>s.trim()).filter(Boolean)
-    const data=await checkStack(items); setStack(data)
+  
+  // Otherwise fall back to the detailed sources array
+  return detailedSources
+}
+
+type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
+
+const DEFAULT_STACK_EXAMPLE = 'creatine, caffeine, magnesium'
+
+function parseStackInput(value: string): string[] {
+  return value
+    .split(/[\n,]+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+}
+
+function sourceLabel(source: Source, index: number): string {
+  return (
+    source.citation ||
+    source.title ||
+    source.reference ||
+    source.url ||
+    source.id ||
+    `Source ${index + 1}`
+  )
+}
+
+function severityClass(severity: string): string {
+  const normalized = severity?.toLowerCase() || 'unknown'
+  return `badge badge-${normalized}`
+}
+
+export default function App(): JSX.Element {
+  const [query, setQuery] = useState('')
+  const [searchStatus, setSearchStatus] = useState<AsyncStatus>('idle')
+  const [searchResults, setSearchResults] = useState<Compound[]>([])
+  const [searchError, setSearchError] = useState<string | null>(null)
+
+  const [pairA, setPairA] = useState('')
+  const [pairB, setPairB] = useState('')
+  const [pairStatus, setPairStatus] = useState<AsyncStatus>('idle')
+  const [pairError, setPairError] = useState<string | null>(null)
+  const [pairData, setPairData] = useState<InteractionResponse | null>(null)
+
+  const [stackText, setStackText] = useState(DEFAULT_STACK_EXAMPLE)
+  const [stackStatus, setStackStatus] = useState<AsyncStatus>('idle')
+  const [stackError, setStackError] = useState<string | null>(null)
+  const [stackInteractions, setStackInteractions] = useState<StackInteraction[] | null>(null)
+  const [stackCompounds, setStackCompounds] = useState<string[]>([])
+
+  const hasSearchResults = searchResults.length > 0
+  const stackHasInteractions = !!stackInteractions && stackInteractions.length > 0
+
+  const compoundLookup = useMemo(() => {
+    return searchResults.reduce<Record<string, Compound>>((acc, compound) => {
+      acc[compound.id] = compound
+      return acc
+    }, {})
+  }, [searchResults])
+
+  async function handleSearch(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
+    const trimmed = query.trim()
+    if (!trimmed) {
+      setSearchResults([])
+      setSearchStatus('idle')
+      setSearchError('Enter a compound name to search.')
+      return
+    }
+
+    setSearchStatus('loading')
+    setSearchError(null)
+    try {
+      const results = await searchCompounds(trimmed)
+      setSearchResults(results)
+      setSearchStatus('success')
+      if (results.length === 0) {
+        setSearchError('No compounds matched your search.')
+      }
+    } catch (error) {
+      setSearchStatus('error')
+      setSearchResults([])
+      setSearchError(error instanceof Error ? error.message : 'Search failed')
+    }
   }
 
-  return (<div style={{fontFamily:'Inter, system-ui, sans-serif', margin:'24px', maxWidth:960}}>
-    <h1>Supplement Interaction Tracker</h1>
+  async function handlePairSubmit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
+    const a = pairA.trim()
+    const b = pairB.trim()
 
-    <section style={{marginTop:16,padding:16,border:'1px solid #ccc',borderRadius:12}}>
-      <h2>Search</h2>
-      <input value={q} onChange={e=>setQ(e.target.value)} placeholder='search compound' style={{padding:8,width:'70%'}} />
-      <button onClick={doSearch} style={{marginLeft:8,padding:'8px 12px'}}>Search</button>
-      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12}}>
-        {results.map(r=>(<span key={r.id} style={{padding:'6px 10px',border:'1px solid #ddd',borderRadius:16}}>{r.name}</span>))}
-      </div>
-    </section>
+    if (!a || !b) {
+      setPairStatus('error')
+      setPairData(null)
+      setPairError('Enter two compounds to run a pair check.')
+      return
+    }
 
-    <section style={{marginTop:16,padding:16,border:'1px solid #ccc',borderRadius:12}}>
-      <h2>Pair Checker</h2>
-      <div style={{display:'flex',gap:8,alignItems:'center'}}>
-        <input id='a' placeholder='compound A' style={{padding:8}}/>
-        <span>×</span>
-        <input id='b' placeholder='compound B' style={{padding:8}}/>
-        <button onClick={openPair}>Check</button>
-      </div>
-      {pairData && (<div style={{marginTop:12,padding:12,border:'1px solid #eee',borderRadius:12}}>
-        <h3>{pairData.pair.a} × {pairData.pair.b}</h3>
-        <p><b>Severity:</b> {pairData.interaction.severity} | <b>Evidence:</b> {pairData.interaction.evidence_grade}</p>
-        <p><b>Score:</b> {pairData.interaction.score} | <b>Bucket:</b> {pairData.interaction.bucket}</p>
-        <p><b>Action:</b> {pairData.interaction.action_resolved}</p>
-        <p><b>Why:</b> {pairData.interaction.effect_summary}</p>
-        <details><summary>Sources</summary><ul>
-          {(pairData.interaction.sources||[]).map((s:any)=>(<li key={s.id}>{s.citation} {s.identifier?`(${s.identifier})`:''} {s.date?`— ${s.date}`:''}</li>))}
-        </ul></details>
-      </div>)}
-    </section>
+    setPairStatus('loading')
+    setPairError(null)
+    try {
+      const data = await fetchInteraction(a, b)
+      setPairData(data)
+      setPairStatus('success')
+    } catch (error) {
+      setPairData(null)
+      setPairStatus('error')
+      setPairError(error instanceof Error ? error.message : 'Interaction lookup failed')
+    }
+  }
 
-    <section style={{marginTop:16,padding:16,border:'1px solid #ccc',borderRadius:12}}>
-      <h2>Stack Checker</h2>
-      <textarea value={stackText} onChange={e=>setStackText(e.target.value)} rows={3} style={{width:'100%',padding:8}} />
-      <div style={{marginTop:8}}><button onClick={doStack}>Compute Matrix</button></div>
-      {stack && (<div style={{marginTop:12}}>
-        <table style={{borderCollapse:'collapse'}}>
-          <thead><tr><th></th>{stack.items.map((it:string,i:number)=>(<th key={i} style={{border:'1px solid #ddd',padding:'4px 8px'}}>{it}</th>))}</tr></thead>
-          <tbody>
-            {stack.items.map((row:string,i:number)=>(<tr key={i}>
-              <th style={{border:'1px solid #ddd',padding:'4px 8px',textAlign:'left'}}>{row}</th>
-              {stack.matrix[i].map((cell:number|null,j:number)=>(<td key={j} style={{border:'1px solid #ddd',padding:'4px 8px',textAlign:'center'}}>{cell===null?'—':cell.toFixed(2)}</td>))}
-            </tr>))}
-          </tbody>
-        </table>
-      </div>)}
-    </section>
-  </div>)
+  async function handleStackSubmit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
+    const compounds = parseStackInput(stackText)
+    if (compounds.length === 0) {
+      setStackStatus('error')
+      setStackInteractions(null)
+      setStackCompounds([])
+      setStackError('List at least one compound to evaluate the stack.')
+      return
+    }
+
+    setStackStatus('loading')
+    setStackError(null)
+    try {
+      const data = await checkStack(compounds)
+      setStackInteractions(data.interactions)
+      setStackCompounds(compounds)
+      setStackStatus('success')
+      setStackError(null)
+    } catch (error) {
+      setStackInteractions(null)
+      setStackCompounds([])
+      setStackStatus('error')
+      setStackError(error instanceof Error ? error.message : 'Stack check failed')
+    }
+  }
+
+  const pair = pairData?.interaction
+  const pairSources = pairData?.sources ?? []
+  const riskScore = pairData?.risk_score
+  const formattedRiskScore = typeof riskScore === 'number' ? riskScore.toFixed(2) : 'N/A'
+
+  const pairHeading = pair
+    ? `${pair.a || 'Compound A'} × ${pair.b || 'Compound B'}`
+    : 'Selected pair'
+
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <h1>Supplement Interaction Tracker</h1>
+        <p className="app-tagline">
+          Search compounds, review pair interactions, and evaluate supplement stacks before launch night.
+        </p>
+      </header>
+
+      <main className="grid">
+        <section className="card">
+          <div className="card-header">
+            <h2>Search compounds</h2>
+            <p>Use names or synonyms to locate supplements in the dataset.</p>
+          </div>
+          <form onSubmit={handleSearch} className="stacked">
+            <label className="sr-only" htmlFor="search-input">
+              Compound search query
+            </label>
+            <div className="input-row">
+              <input
+                id="search-input"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="e.g. creatine"
+                autoComplete="off"
+              />
+              <button type="submit" className="primary">Search</button>
+            </div>
+          </form>
+          {searchStatus === 'loading' && <p className="status">Searching…</p>}
+          {searchError && (
+            <p className={`status ${searchStatus === 'error' ? 'status-error' : 'status-info'}`}>
+              {searchError}
+            </p>
+          )}
+          {hasSearchResults && (
+            <ul className="pill-grid" aria-live="polite">
+              {searchResults.map((compound) => (
+                <li key={compound.id} className="pill">
+                  <span className="pill-name">{compound.name}</span>
+                  {compound.synonyms.length > 0 && (
+                    <span className="pill-meta">Also known as {compound.synonyms.join(', ')}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="card-header">
+            <h2>Pair checker</h2>
+            <p>Validate two compounds before combining them.</p>
+          </div>
+          <form onSubmit={handlePairSubmit} className="stacked">
+            <div className="pair-inputs">
+              <label className="sr-only" htmlFor="pair-a">Compound A</label>
+              <input
+                id="pair-a"
+                value={pairA}
+                onChange={(event) => setPairA(event.target.value)}
+                placeholder="First compound"
+                autoComplete="off"
+              />
+              <span className="pair-separator" aria-hidden="true">
+                ×
+              </span>
+              <label className="sr-only" htmlFor="pair-b">Compound B</label>
+              <input
+                id="pair-b"
+                value={pairB}
+                onChange={(event) => setPairB(event.target.value)}
+                placeholder="Second compound"
+                autoComplete="off"
+              />
+              <button type="submit" className="primary">
+                Check pair
+              </button>
+            </div>
+          </form>
+          {pairStatus === 'loading' && <p className="status">Checking interaction…</p>}
+          {pairError && <p className="status status-error">{pairError}</p>}
+          {pair && pairStatus === 'success' && (
+            <div className="pair-result" aria-live="polite">
+              <h3>{pairHeading}</h3>
+              <div className="badges">
+                <span className={severityClass(pair.severity)}>Severity: {pair.severity}</span>
+                <span className="badge badge-evidence">Evidence: {pair.evidence}</span>
+                <span className="badge badge-muted">Risk score: {formattedRiskScore}</span>
+              </div>
+              <dl className="description">
+                <div>
+                  <dt>Effect</dt>
+                  <dd>{pair.effect}</dd>
+                </div>
+                <div>
+                  <dt>Recommended action</dt>
+                  <dd>{pair.action}</dd>
+                </div>
+              </dl>
+              <details className="sources">
+                <summary>Evidence sources ({resolveSources(pairData).length})</summary>
+                <ul>
+                  {resolveSources(pairData).length === 0 && <li>No citations provided.</li>}
+                  {resolveSources(pairData).map((source, index) => (
+                    <li key={source.id ?? index}>{sourceLabel(source, index)}</li>
+                  ))}
+                </ul>
+              </details>
+            </div>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="card-header">
+            <h2>Stack checker</h2>
+            <p>Paste a stack to identify riskier combinations.</p>
+          </div>
+          <form onSubmit={handleStackSubmit} className="stacked">
+            <label className="sr-only" htmlFor="stack-input">
+              Supplement stack list
+            </label>
+            <textarea
+              id="stack-input"
+              rows={4}
+              value={stackText}
+              onChange={(event) => setStackText(event.target.value)}
+              placeholder={DEFAULT_STACK_EXAMPLE}
+            />
+            <div className="actions">
+              <button type="submit" className="primary">
+                Check stack
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStackText(DEFAULT_STACK_EXAMPLE)
+                }}
+                className="ghost"
+              >
+                Use example
+              </button>
+            </div>
+          </form>
+          {stackStatus === 'loading' && <p className="status">Evaluating stack…</p>}
+          {stackError && (
+            <p className={`status ${stackStatus === 'error' ? 'status-error' : 'status-info'}`}>
+              {stackError}
+            </p>
+          )}
+          {stackStatus === 'success' && stackInteractions && (
+            <div className="stack-results" aria-live="polite">
+              <h3>
+                {stackHasInteractions
+                  ? `Interactions found for ${stackCompounds.join(', ')}`
+                  : 'No interactions detected in this stack'
+                }
+              </h3>
+              {stackHasInteractions && (
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Compound A</th>
+                      <th scope="col">Compound B</th>
+                      <th scope="col">Severity</th>
+                      <th scope="col">Evidence</th>
+                      <th scope="col">Risk</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stackInteractions.map((interaction, index) => (
+                      <tr key={`${interaction.a}-${interaction.b}-${index}`}>
+                        <td>{compoundLookup[interaction.a]?.name ?? interaction.a}</td>
+                        <td>{compoundLookup[interaction.b]?.name ?? interaction.b}</td>
+                        <td>
+                          <span className={severityClass(interaction.severity)}>{interaction.severity}</span>
+                        </td>
+                        <td>{interaction.evidence}</td>
+                        <td>{interaction.risk_score.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </section>
+      </main>
+    </div>
+  )
 }

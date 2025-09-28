@@ -1,5 +1,8 @@
-id,name,synonyms
-caffeine,Caffeine,coffee;tea
-aspirin,Aspirin,acetylsalicylic acid
-ibuprofen,Ibuprofen,advil;motrin
-melatonin,Melatonin,sleep hormone;pineal hormone
+id,name,synonyms,class,typicalDoseAmount,typicalDoseUnit,route
+st_johns_wort,St John's Wort,"hypericum,st johns wort,hypericin","Herb",300,mg,oral
+sertraline,Sertraline,"Zoloft","SSRI",50,mg,oral
+grapefruit,Grapefruit,"grapefruit juice","Fruit",200,ml,oral
+atorvastatin,Atorvastatin,"Lipitor","Statin",10,mg,oral
+ginkgo,Ginkgo,"Ginkgo biloba","Herb",120,mg,oral
+warfarin,Warfarin,,"Anticoagulant",5,mg,oral
+caffeine,Caffeine,coffee,Stimulant,100,mg,oral
