@@ -1,6 +1,5 @@
-/.venv
-/data/*
-!/data/risk_rules.yaml
+.venv
+# data directory is tracked to include sample datasets
 uvicorn.pid
 node_modules/
 dist/
@@ -11,11 +10,3 @@ __pycache__/
 *.pyc
 .DS_Store
 tests/test_data/
-node_modules/
-dist/
-.env
-.vscode/*.history
-*.log
-__pycache__/
-*.pyc
-.DS_Store
