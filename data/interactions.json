@@ -1,0 +1,22 @@
+[
+  {
+    "a": "caffeine",
+    "b": "creatine",
+    "severity": "moderate",
+    "evidence": "studies",
+    "effect": "Increased heart rate",
+    "action": "Monitor",
+    "bidirectional": true,
+    "sources": ["src1"]
+  },
+  {
+    "a": "creatine",
+    "b": "magnesium",
+    "severity": "low",
+    "evidence": "theoretical",
+    "effect": "Minor synergy",
+    "action": "No concern",
+    "bidirectional": true,
+    "sources": ["src1"]
+  }
+]
