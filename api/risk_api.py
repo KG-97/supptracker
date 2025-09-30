@@ -1,15 +1,19 @@
-import os
+import csv
 import json
 import logging
+import os
+from collections.abc import Iterable
 from pathlib import Path
-from typing import List, Dict, Optional, Any, Union
+from types import SimpleNamespace
+from typing import Any, Dict, List, Optional, Tuple
+
 import yaml
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from api.models import Compound, Interaction
+
 
 # Configure logging
 logging.basicConfig(
@@ -34,94 +38,414 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve static files from frontend build
-app.mount("/static", StaticFiles(directory="frontend_dist/assets"), name="static")
+# Serve static files from frontend build if available
+FRONTEND_DIST = Path(os.getenv("SUPPTRACKER_FRONTEND_DIST", "frontend_dist"))
+STATIC_ASSETS_DIR = FRONTEND_DIST / "assets"
+
+if STATIC_ASSETS_DIR.exists():
+    app.mount("/static", StaticFiles(directory=STATIC_ASSETS_DIR), name="static")
+else:
+    logger.warning(
+        "Static assets directory not found at %s. Skipping static mount.",
+        STATIC_ASSETS_DIR,
+    )
+
+# Default scoring configuration ---------------------------------------------------------
+DATA_DIR = Path(os.getenv("SUPPTRACKER_DATA_DIR", "data"))
+
+DEFAULT_MECHANISM_DELTAS: Dict[str, float] = {
+    "pharmacokinetic": 0.6,
+    "pharmacodynamic": 0.8,
+    "additive": 0.5,
+    "synergistic": 1.0,
+    "unknown": 0.3,
+}
+
+DEFAULT_WEIGHTS: Dict[str, float] = {
+    "severity": 1.5,
+    "evidence": 0.8,
+    "mechanism": 0.4,
+}
+
+DEFAULT_SEVERITY_MAP: Dict[str, float] = {
+    "None": 0.0,
+    "Mild": 1.0,
+    "Moderate": 2.0,
+    "Severe": 3.0,
+}
+
+DEFAULT_EVIDENCE_MAP: Dict[str, float] = {
+    "A": 1.0,
+    "B": 2.0,
+    "C": 3.0,
+    "D": 4.0,
+}
+
+DEFAULT_FORMULA_SOURCE = (
+    "severity_component + mechanism_component + evidence_component"
+)
+
+
+def _default_formula(
+    *,
+    severity: float,
+    weights: SimpleNamespace,
+    mech_sum: float,
+    evidence_component: float,
+) -> float:
+    severity_weight = getattr(weights, "severity", DEFAULT_WEIGHTS["severity"])
+    mechanism_weight = getattr(weights, "mechanism", DEFAULT_WEIGHTS["mechanism"])
+    severity_component = severity * severity_weight
+    mechanism_component = mech_sum * mechanism_weight
+    return severity_component + mechanism_component + evidence_component
+
+
+MECHANISM_DELTAS: Dict[str, float] = DEFAULT_MECHANISM_DELTAS.copy()
+WEIGHTS: Dict[str, float] = DEFAULT_WEIGHTS.copy()
+SEVERITY_MAP: Dict[str, float] = DEFAULT_SEVERITY_MAP.copy()
+EVIDENCE_MAP: Dict[str, float] = DEFAULT_EVIDENCE_MAP.copy()
+RISK_FORMULA = _default_formula
+FORMULA_SOURCE = DEFAULT_FORMULA_SOURCE
+
+
+def _resolve_config_path(path: Optional[str]) -> Optional[Path]:
+    if path:
+        return Path(path)
+    env_path = os.getenv("RISK_RULES_PATH")
+    if env_path:
+        return Path(env_path)
+    candidate = DATA_DIR / "risk_rules.yaml"
+    return candidate if candidate.exists() else None
+
+
+def _parse_synonyms(value: str) -> List[str]:
+    if not value:
+        return []
+    reader = csv.reader([value])
+    try:
+        row = next(reader)
+    except StopIteration:
+        return []
+    if len(row) == 1:
+        row = [part.strip() for part in row[0].split(",")]
+    else:
+        row = [item.strip() for item in row]
+    return [item for item in row if item]
+
+
+def _coerce_iterable(value: Any) -> Iterable[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, Iterable):
+        return value
+    return []
+
+
+def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str, Any]]:
+    directory = Path(data_dir) if data_dir is not None else Path(DATA_DIR)
+    compounds: Dict[str, Dict[str, Any]] = {}
+
+    csv_path = directory / "compounds.csv"
+    json_path = directory / "compounds.json"
+
+    if csv_path.exists():
+        try:
+            with open(csv_path, newline="", encoding="utf-8") as fh:
+                reader = csv.DictReader(fh)
+                for row in reader:
+                    compound_id = row.get("id")
+                    if not compound_id:
+                        continue
+                    synonyms = _parse_synonyms(row.get("synonyms", ""))
+                    compounds[compound_id] = {
+                        **{k: v for k, v in row.items() if v not in (None, "")},
+                        "id": compound_id,
+                        "name": row.get("name") or compound_id,
+                        "synonyms": synonyms,
+                    }
+            return compounds
+        except Exception as exc:  # pragma: no cover - logged for diagnostics
+            logger.error("Failed to load compounds CSV: %s", exc)
+
+    if json_path.exists():
+        try:
+            with open(json_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            for entry in data:
+                compound_id = entry.get("id")
+                if not compound_id:
+                    continue
+                synonyms = entry.get("synonyms") or entry.get("aliases") or []
+                compounds[compound_id] = {
+                    **entry,
+                    "id": compound_id,
+                    "name": entry.get("name") or compound_id,
+                    "synonyms": list(_coerce_iterable(synonyms)),
+                }
+        except Exception as exc:  # pragma: no cover
+            logger.error("Failed to load compounds JSON: %s", exc)
+
+    return compounds
+
+
+def load_interactions(data_dir: Optional[str | Path] = None) -> List[Dict[str, Any]]:
+    directory = Path(data_dir) if data_dir is not None else Path(DATA_DIR)
+    csv_path = directory / "interactions.csv"
+    json_path = directory / "interactions.json"
+
+    if csv_path.exists():
+        interactions: List[Dict[str, Any]] = []
+        try:
+            with open(csv_path, newline="", encoding="utf-8") as fh:
+                reader = csv.DictReader(fh)
+                for row in reader:
+                    mechanisms = _parse_synonyms(row.get("mechanism", ""))
+                    interactions.append(
+                        {
+                            **{k: v for k, v in row.items() if v not in (None, "")},
+                            "mechanism": mechanisms,
+                        }
+                    )
+            return interactions
+        except Exception as exc:  # pragma: no cover
+            logger.error("Failed to load interactions CSV: %s", exc)
+
+    if json_path.exists():
+        try:
+            with open(json_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            return data if isinstance(data, list) else []
+        except Exception as exc:  # pragma: no cover
+            logger.error("Failed to load interactions JSON: %s", exc)
+    return []
+
+
+def load_sources(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str, Any]]:
+    directory = Path(data_dir) if data_dir is not None else Path(DATA_DIR)
+    csv_path = directory / "sources.csv"
+    json_path = directory / "sources.json"
+
+    if csv_path.exists():
+        sources: Dict[str, Dict[str, Any]] = {}
+        try:
+            with open(csv_path, newline="", encoding="utf-8") as fh:
+                reader = csv.DictReader(fh)
+                for row in reader:
+                    source_id = row.get("id")
+                    if not source_id:
+                        continue
+                    sources[source_id] = {
+                        **{k: v for k, v in row.items() if v not in (None, "")},
+                        "id": source_id,
+                    }
+            return sources
+        except Exception as exc:  # pragma: no cover
+            logger.error("Failed to load sources CSV: %s", exc)
+
+    if json_path.exists():
+        try:
+            with open(json_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            return {item["id"]: item for item in data if "id" in item}
+        except Exception as exc:  # pragma: no cover
+            logger.error("Failed to load sources JSON: %s", exc)
+    return {}
+
+
+def load_rules(path: Optional[str] = None) -> Tuple[
+    Dict[str, float],
+    Dict[str, float],
+    Dict[str, float],
+    Dict[str, float],
+    Any,
+    str,
+]:
+    config_path = _resolve_config_path(path)
+    mechanisms = DEFAULT_MECHANISM_DELTAS.copy()
+    weights = DEFAULT_WEIGHTS.copy()
+    severity_map = DEFAULT_SEVERITY_MAP.copy()
+    evidence_map = DEFAULT_EVIDENCE_MAP.copy()
+    formula = _default_formula
+    formula_source = DEFAULT_FORMULA_SOURCE
+
+    if not config_path or not config_path.exists():
+        return mechanisms, weights, severity_map, evidence_map, formula, formula_source
+
+    try:
+        with open(config_path, encoding="utf-8") as fh:
+            content = yaml.safe_load(fh) or {}
+    except Exception as exc:  # pragma: no cover
+        logger.error("Failed to load rules config %s: %s", config_path, exc)
+        return mechanisms, weights, severity_map, evidence_map, formula, formula_source
+
+    try:
+        raw_mechanisms = content.get("mechanisms", {}) or {}
+        for name, value in raw_mechanisms.items():
+            if isinstance(value, dict):
+                delta = value.get("delta")
+                if isinstance(delta, (int, float)):
+                    mechanisms[name] = float(delta)
+            elif isinstance(value, (int, float)):
+                mechanisms[name] = float(value)
+
+        weights.update(content.get("weights", {}) or {})
+
+        severity_section = content.get("map", {}).get("severity")
+        if isinstance(severity_section, dict):
+            severity_map.update(severity_section)
+
+        evidence_section = content.get("map", {}).get("evidence")
+        if isinstance(evidence_section, dict):
+            evidence_map.update(evidence_section)
+
+        formula_text = content.get("formula")
+        if isinstance(formula_text, str) and formula_text.strip():
+            compiled = compile(formula_text, "<risk-formula>", "eval")
+
+            def custom_formula(
+                *,
+                severity: float,
+                weights: SimpleNamespace,
+                mech_sum: float,
+                evidence_component: float,
+            ) -> float:
+                safe_globals = {"__builtins__": {"max": max, "min": min, "abs": abs}}
+                safe_locals = {
+                    "severity": severity,
+                    "weights": weights,
+                    "mech_sum": mech_sum,
+                    "evidence_component": evidence_component,
+                }
+                return eval(compiled, safe_globals, safe_locals)  # noqa: S307
+
+            formula = custom_formula
+            formula_source = formula_text
+    except Exception as exc:  # pragma: no cover
+        logger.error("Invalid rules config %s: %s", config_path, exc)
+        return (
+            DEFAULT_MECHANISM_DELTAS.copy(),
+            DEFAULT_WEIGHTS.copy(),
+            DEFAULT_SEVERITY_MAP.copy(),
+            DEFAULT_EVIDENCE_MAP.copy(),
+            _default_formula,
+            DEFAULT_FORMULA_SOURCE,
+        )
+
+    return mechanisms, weights, severity_map, evidence_map, formula, formula_source
+
+
+def apply_rules(path: Optional[str] = None) -> None:
+    global MECHANISM_DELTAS, WEIGHTS, SEVERITY_MAP, EVIDENCE_MAP, RISK_FORMULA, FORMULA_SOURCE
+    (
+        MECHANISM_DELTAS,
+        WEIGHTS,
+        SEVERITY_MAP,
+        EVIDENCE_MAP,
+        RISK_FORMULA,
+        FORMULA_SOURCE,
+    ) = load_rules(path)
+
+
 
 # Global data stores
 COMPOUNDS: Dict[str, Dict[str, Any]] = {}
 INTERACTIONS: List[Dict[str, Any]] = []
 SOURCES: Dict[str, Dict[str, Any]] = {}
 
-# Data loading functions
-def load_data():
-    """Load all data files."""
-    global COMPOUNDS, INTERACTIONS, SOURCES
-    
-    # Determine data directory
-    data_dir = Path(os.getenv("SUPPTRACKER_DATA_DIR", "data"))
-    
-    # Load compounds
-    compounds_file = data_dir / "compounds.json"
-    if compounds_file.exists():
-        try:
-            with open(compounds_file) as f:
-                compounds_data = json.load(f)
-            COMPOUNDS = {comp["id"]: comp for comp in compounds_data}
-            logger.info(f"Loaded {len(COMPOUNDS)} compounds")
-        except Exception as e:
-            logger.error(f"Failed to load compounds: {e}")
-    else:
-        logger.warning(f"Compounds file not found: {compounds_file}")
-    
-    # Load interactions
-    interactions_file = data_dir / "interactions.json"
-    if interactions_file.exists():
-        try:
-            with open(interactions_file) as f:
-                INTERACTIONS.clear()
-                INTERACTIONS.extend(json.load(f))
-            logger.info(f"Loaded {len(INTERACTIONS)} interactions")
-        except Exception as e:
-            logger.error(f"Failed to load interactions: {e}")
-    else:
-        logger.warning(f"Interactions file not found: {interactions_file}")
-    
-    # Load sources
-    sources_file = data_dir / "sources.json"
-    if sources_file.exists():
-        try:
-            with open(sources_file) as f:
-                sources_data = json.load(f)
-            SOURCES = {src["id"]: src for src in sources_data}
-            logger.info(f"Loaded {len(SOURCES)} sources")
-        except Exception as e:
-            logger.error(f"Failed to load sources: {e}")
-    else:
-        logger.warning(f"Sources file not found: {sources_file}")
 
-# Load data on startup
+def load_data() -> None:
+    """Load all data files into module-level caches."""
+    global COMPOUNDS, INTERACTIONS, SOURCES
+
+    COMPOUNDS = load_compounds()
+    INTERACTIONS = load_interactions()
+    SOURCES = load_sources()
+
+    logger.info(
+        "Loaded %s compounds, %s interactions, %s sources",
+        len(COMPOUNDS),
+        len(INTERACTIONS),
+        len(SOURCES),
+    )
+
+
+# Load data and rules on startup
 load_data()
+apply_rules()
 
 # Helper functions
 def resolve_compound(identifier: str) -> Optional[str]:
-    """Resolve compound by ID or name."""
+    """Resolve compound by ID, name, or synonym."""
+    if not identifier:
+        return None
+
     if identifier in COMPOUNDS:
         return identifier
-    
-    # Search by name and aliases
+
     identifier_lower = identifier.lower()
     for comp_id, comp in COMPOUNDS.items():
-        if comp.get("name", "").lower() == identifier_lower:
+        name = str(comp.get("name", "")).lower()
+        if name == identifier_lower:
             return comp_id
-        
-        # Check aliases
-        aliases = comp.get("aliases", [])
-        if isinstance(aliases, list):
-            for alias in aliases:
-                if isinstance(alias, str) and alias.lower() == identifier_lower:
-                    return comp_id
-    
+
+        for synonym in _coerce_iterable(comp.get("synonyms") or comp.get("aliases")):
+            if str(synonym).lower() == identifier_lower:
+                return comp_id
+
     return None
+
+def _lookup_score(mapping: Dict[str, float], label: Any, fallback: Dict[str, float]) -> float:
+    if label is None:
+        return 0.0
+    if isinstance(label, (int, float)):
+        return float(label)
+
+    label_str = str(label)
+    if label_str in mapping:
+        return float(mapping[label_str])
+
+    for key, value in mapping.items():
+        if key.lower() == label_str.lower():
+            return float(value)
+
+    for key, value in fallback.items():
+        if key.lower() == label_str.lower():
+            return float(value)
+
+    return 0.0
+
 
 def compute_risk(interaction: Dict[str, Any]) -> float:
     """Compute numerical risk score from interaction data."""
-    severity_map = {"low": 2.0, "moderate": 5.0, "high": 8.0}
-    evidence_map = {"theoretical": 0.5, "case_reports": 1.0, "studies": 1.5}
-    
-    severity_score = severity_map.get(interaction.get("severity", "moderate"), 5.0)
-    evidence_score = evidence_map.get(interaction.get("evidence", "studies"), 1.0)
-    
-    return min(10.0, severity_score * evidence_score)
+    severity_value = _lookup_score(SEVERITY_MAP, interaction.get("severity"), DEFAULT_SEVERITY_MAP)
+    mechanisms = [str(m) for m in _coerce_iterable(interaction.get("mechanism"))]
+    mech_sum = 0.0
+    for mechanism in mechanisms:
+        mech_sum += MECHANISM_DELTAS.get(
+            mechanism,
+            MECHANISM_DELTAS.get(mechanism.lower(), 0.0),
+        )
+
+    evidence_label = interaction.get("evidence")
+    evidence_value = _lookup_score(EVIDENCE_MAP, evidence_label, DEFAULT_EVIDENCE_MAP)
+    if evidence_value:
+        evidence_weight = WEIGHTS.get("evidence", DEFAULT_WEIGHTS["evidence"])
+        evidence_component = (1 / float(evidence_value)) * evidence_weight
+    else:
+        fallback_value = max(EVIDENCE_MAP.values() or [1.0])
+        evidence_weight = WEIGHTS.get("evidence", DEFAULT_WEIGHTS["evidence"])
+        evidence_component = (1 / float(fallback_value)) * evidence_weight
+
+    weights_ns = SimpleNamespace(**WEIGHTS)
+    raw_score = RISK_FORMULA(
+        severity=severity_value,
+        weights=weights_ns,
+        mech_sum=mech_sum,
+        evidence_component=evidence_component,
+    )
+    return round(float(raw_score), 2)
 
 # API Routes
 @app.get("/api/health")
@@ -147,12 +471,17 @@ def get_compound(compound_id: str):
     return COMPOUNDS[compound_id]
 
 @app.get("/api/search")
-def search(query: str, limit: int = 10):
-    """Search compounds by name or alias."""
-    if not query:
-        raise HTTPException(status_code=400, detail="Query parameter is required")
-    
-    query_lower = query.lower()
+def search(
+    q: Optional[str] = Query(None, min_length=1),
+    query: Optional[str] = Query(None, min_length=1),
+    limit: int = Query(10, ge=1, le=50),
+):
+    """Search compounds by name or synonym."""
+    search_term = query or q
+    if not search_term:
+        raise HTTPException(status_code=422, detail="Missing search parameter")
+
+    query_lower = search_term.lower()
     results = []
     
     for comp in COMPOUNDS.values():
@@ -235,9 +564,14 @@ async def spa_fallback(full_path: str, request: Request):
         raise HTTPException(status_code=404, detail="API endpoint not found")
     
     # Check if it's a static file request
-    static_file_path = Path("frontend_dist") / full_path
+    static_file_path = FRONTEND_DIST / full_path
     if static_file_path.is_file():
         return FileResponse(static_file_path)
-    
+
     # Serve index.html for all other routes (SPA)
-    return FileResponse("frontend_dist/index.html")
+    index_file = FRONTEND_DIST / "index.html"
+    if not index_file.is_file():
+        logger.warning("SPA index file not found at %s", index_file)
+        raise HTTPException(status_code=404, detail="Frontend not built")
+
+    return FileResponse(index_file)
