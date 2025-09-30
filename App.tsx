@@ -4,23 +4,15 @@ import { checkStack, fetchInteraction, searchCompounds } from './api'
 import type {
   Compound,
   InteractionResponse,
+  InteractionRecord,
   Source,
   StackInteraction,
 } from './types'
 
 // Helper function to resolve sources from API response
-function resolveSources(pairData: any): any[] {
-  // Prefer detailed source objects over raw IDs
-  const detailedSources = pairData.sources || []
-  const interactionSources = pairData.interaction?.sources || []
-  
-  // Check if interaction.sources contains objects with citation info
-  if (interactionSources.length > 0 && typeof interactionSources[0] === 'object' && interactionSources[0].citation) {
-    return interactionSources
-  }
-  
-  // Otherwise fall back to the detailed sources array
-  return detailedSources
+function resolveSources(interaction: InteractionRecord | null | undefined): Source[] {
+  if (!interaction) return []
+  return Array.isArray(interaction.sources) ? interaction.sources : []
 }
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
@@ -156,13 +148,13 @@ export default function App(): JSX.Element {
     }
   }
 
-  const pair = pairData?.interaction
-  const pairSources = pairData?.sources ?? []
-  const riskScore = pairData?.risk_score
+  const interaction = pairData?.interaction
+  const pairSources = resolveSources(interaction)
+  const riskScore = interaction?.score
   const formattedRiskScore = typeof riskScore === 'number' ? riskScore.toFixed(2) : 'N/A'
 
-  const pairHeading = pair
-    ? `${pair.a || 'Compound A'} × ${pair.b || 'Compound B'}`
+  const pairHeading = pairData?.pair
+    ? `${pairData.pair.a || 'Compound A'} × ${pairData.pair.b || 'Compound B'}`
     : 'Selected pair'
 
   return (
@@ -248,29 +240,29 @@ export default function App(): JSX.Element {
           </form>
           {pairStatus === 'loading' && <p className="status">Checking interaction…</p>}
           {pairError && <p className="status status-error">{pairError}</p>}
-          {pair && pairStatus === 'success' && (
+          {interaction && pairStatus === 'success' && (
             <div className="pair-result" aria-live="polite">
               <h3>{pairHeading}</h3>
               <div className="badges">
-                <span className={severityClass(pair.severity)}>Severity: {pair.severity}</span>
-                <span className="badge badge-evidence">Evidence: {pair.evidence}</span>
+                <span className={severityClass(interaction.severity)}>Severity: {interaction.severity}</span>
+                <span className="badge badge-evidence">Evidence grade: {interaction.evidence_grade}</span>
                 <span className="badge badge-muted">Risk score: {formattedRiskScore}</span>
               </div>
               <dl className="description">
                 <div>
                   <dt>Effect</dt>
-                  <dd>{pair.effect}</dd>
+                  <dd>{interaction.effect}</dd>
                 </div>
                 <div>
                   <dt>Recommended action</dt>
-                  <dd>{pair.action}</dd>
+                  <dd>{interaction.action_resolved || interaction.action}</dd>
                 </div>
               </dl>
               <details className="sources">
-                <summary>Evidence sources ({resolveSources(pairData).length})</summary>
+                <summary>Evidence sources ({pairSources.length})</summary>
                 <ul>
-                  {resolveSources(pairData).length === 0 && <li>No citations provided.</li>}
-                  {resolveSources(pairData).map((source, index) => (
+                  {pairSources.length === 0 && <li>No citations provided.</li>}
+                  {pairSources.map((source, index) => (
                     <li key={source.id ?? index}>{sourceLabel(source, index)}</li>
                   ))}
                 </ul>
@@ -344,7 +336,7 @@ export default function App(): JSX.Element {
                           <span className={severityClass(interaction.severity)}>{interaction.severity}</span>
                         </td>
                         <td>{interaction.evidence}</td>
-                        <td>{interaction.risk_score.toFixed(2)}</td>
+                        <td>{interaction.score.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
