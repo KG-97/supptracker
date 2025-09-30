@@ -36,6 +36,11 @@ def _ensure_test_data():
     # Point the application to the stub data directory before it is imported.
     os.environ["SUPPTRACKER_DATA"] = data_dir
 
+    # Ensure the static assets directory exists so FastAPI can mount it during tests.
+    project_root = os.path.dirname(root)
+    static_assets = os.path.join(project_root, "frontend_dist", "assets")
+    os.makedirs(static_assets, exist_ok=True)
+
 
 # Ensure data files exist before tests import app
 _ensure_test_data()

@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Optional, Any, Union
 import yaml
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -147,12 +147,20 @@ def get_compound(compound_id: str):
     return COMPOUNDS[compound_id]
 
 @app.get("/api/search")
-def search(query: str, limit: int = 10):
+def search(
+    q: Optional[str] = Query(default=None, description="Search term"),
+    query: Optional[str] = Query(
+        default=None,
+        description="Deprecated search parameter maintained for backward compatibility",
+    ),
+    limit: int = 10,
+):
     """Search compounds by name or alias."""
-    if not query:
+    term = (q or query or "").strip()
+    if not term:
         raise HTTPException(status_code=400, detail="Query parameter is required")
-    
-    query_lower = query.lower()
+
+    query_lower = term.lower()
     results = []
     
     for comp in COMPOUNDS.values():
