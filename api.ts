@@ -48,7 +48,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export async function searchCompounds(query: string): Promise<Compound[]> {
   if (!query.trim()) return []
   const data = await request<{ results?: Compound[]; compounds?: Compound[] }>(
-    `/search?query=${encodeURIComponent(query)}`
+    `/search?q=${encodeURIComponent(query)}`
   )
   return data.results ?? data.compounds ?? []
 }
