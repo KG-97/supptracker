@@ -16,7 +16,8 @@ A comprehensive supplement interaction tracking system that helps users make inf
 • 🔌 **Public API**: RESTful API for developers to integrate interaction checking  
 • 🤖 **ChatGPT Ready**: Structured data perfect for AI-powered health assistants  
 • ⚡ **Real-time**: Instant interaction analysis with severity scoring  
-• 📊 **Evidence-based**: Risk assessments based on research data  
+• 📊 **Evidence-based**: Risk assessments based on research data
+• 🧾 **Broader Coverage**: Includes cardiometabolic interactions like omega-3 with warfarin, calcium with levothyroxine, and melatonin with antihypertensives
 
 ## 🚀 Quick Start
 

@@ -5,4 +5,9 @@ grapefruit,Grapefruit,"grapefruit juice","Fruit",200,ml,oral
 atorvastatin,Atorvastatin,"Lipitor","Statin",10,mg,oral
 ginkgo,Ginkgo,"Ginkgo biloba","Herb",120,mg,oral
 warfarin,Warfarin,,"Anticoagulant",5,mg,oral
-caffeine,Caffeine,coffee,Stimulant,100,mg,oral
+caffeine,Caffeine,"coffee","Stimulant",100,mg,oral
+omega_3,Omega-3 Fatty Acids,"fish oil,omega-3 fatty acids,omega 3","Fatty acid",1000,mg,oral
+calcium_carbonate,Calcium Carbonate,"calcium carbonate,calcium supplement,calcium","Mineral",500,mg,oral
+levothyroxine,Levothyroxine,"Synthroid,levothyroxine sodium","Thyroid hormone",75,mcg,oral
+melatonin,Melatonin,"N-acetyl-5-methoxytryptamine","Hormone",5,mg,oral
+nifedipine,Nifedipine,"Adalat,Procardia","Calcium channel blocker",30,mg,oral
