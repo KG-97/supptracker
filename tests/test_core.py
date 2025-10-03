@@ -21,8 +21,8 @@ def test_resolve_compound(monkeypatch):
 
 def test_resolve_compound_with_comma_synonyms(tmp_path, monkeypatch):
     csv_content = (
-        "id,name,synonyms\n"
-        "st_johns_wort,St. John's Wort,\"St. John's Wort, Hypericum\"\n"
+        "id,name,synonyms,externalIds,referenceUrls\n"
+        "st_johns_wort,St. John's Wort,\"St. John's Wort, Hypericum\",,\n"
     )
     (tmp_path / "compounds.csv").write_text(csv_content)
 
@@ -32,6 +32,22 @@ def test_resolve_compound_with_comma_synonyms(tmp_path, monkeypatch):
 
     assert compounds["st_johns_wort"]["synonyms"] == ["St. John's Wort", "Hypericum"]
     assert app_module.resolve_compound("hypericum") == "st_johns_wort"
+
+
+def test_load_compounds_includes_external_metadata(tmp_path, monkeypatch):
+    csv_content = (
+        "id,name,synonyms,externalIds,referenceUrls\n"
+        'caffeine,Caffeine,coffee;tea,"{""pubchem"":""2519""}","{""pubchem"":""https://pubchem.ncbi.nlm.nih.gov/compound/2519""}"\n'
+    )
+    (tmp_path / "compounds.csv").write_text(csv_content)
+
+    monkeypatch.setattr(app_module, "DATA_DIR", str(tmp_path))
+    compounds = app_module.load_compounds()
+
+    assert compounds["caffeine"]["externalIds"] == {"pubchem": "2519"}
+    assert compounds["caffeine"]["referenceUrls"] == {
+        "pubchem": "https://pubchem.ncbi.nlm.nih.gov/compound/2519"
+    }
 
 
 def test_compute_risk_returns_float():

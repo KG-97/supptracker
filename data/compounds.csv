@@ -1,10 +1,15 @@
-id,name,synonyms,class,typicalDoseAmount,typicalDoseUnit,route
-st_johns_wort,St John's Wort,"hypericum,st johns wort,hypericin","Herb",300,mg,oral
-sertraline,Sertraline,"Zoloft","SSRI",50,mg,oral
-grapefruit,Grapefruit,"grapefruit juice","Fruit",200,ml,oral
-atorvastatin,Atorvastatin,"Lipitor","Statin",10,mg,oral
-ginkgo,Ginkgo,"Ginkgo biloba","Herb",120,mg,oral
-warfarin,Warfarin,,"Anticoagulant",5,mg,oral
-caffeine,Caffeine,coffee,Stimulant,100,mg,oral
-creatine,Creatine,"creatine monohydrate,creatine supplement","Supplement",5,g,oral
-magnesium,Magnesium,"magnesium citrate,magnesium supplement","Mineral",400,mg,oral
+id,name,synonyms,class,typicalDoseAmount,typicalDoseUnit,route,externalIds,referenceUrls
+st_johns_wort,St John's Wort,"hypericum,st johns wort,hypericin","Herb",300,mg,oral,"{""rxnorm"":""1290"",""wikidata"":""Q192047""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Hypericum_perforatum"",""nih"":""https://ods.od.nih.gov/factsheets/StJohnsWort-Consumer/""}"
+sertraline,Sertraline,"Zoloft","SSRI",50,mg,oral,"{""rxnorm"":""8610"",""wikidata"":""Q422072""}","{""medlineplus"":""https://medlineplus.gov/druginfo/meds/a697048.html"",""drugbank"":""https://go.drugbank.com/drugs/DB01104""}"
+grapefruit,Grapefruit,"grapefruit juice","Fruit",200,ml,oral,"{""usda_fdc"":""1100076"",""wikidata"":""Q3726""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Grapefruit"",""usda_fdc"":""https://fdc.nal.usda.gov/fdc-app.html#/food-details/1100076""}"
+atorvastatin,Atorvastatin,"Lipitor","Statin",10,mg,oral,"{""rxnorm"":""83367"",""wikidata"":""Q418423""}","{""medlineplus"":""https://medlineplus.gov/druginfo/meds/a600045.html"",""drugbank"":""https://go.drugbank.com/drugs/DB01076""}"
+ginkgo,Ginkgo,"Ginkgo biloba","Herb",120,mg,oral,"{""wikidata"":""Q41571""}","{""nih"":""https://ods.od.nih.gov/factsheets/Ginkgo-Consumer/"",""wikipedia"":""https://en.wikipedia.org/wiki/Ginkgo_biloba""}"
+warfarin,Warfarin,,"Anticoagulant",5,mg,oral,"{""rxnorm"":""11289"",""wikidata"":""Q407431""}","{""medlineplus"":""https://medlineplus.gov/druginfo/meds/a682277.html"",""drugbank"":""https://go.drugbank.com/drugs/DB00682""}"
+caffeine,Caffeine,"coffee","Stimulant",100,mg,oral,"{""cas"":""58-08-2"",""wikidata"":""Q30243""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Caffeine"",""nih"":""https://ods.od.nih.gov/factsheets/Caffeine-Consumer/""}"
+omega_3,Omega-3 Fatty Acids,"fish oil,omega-3 fatty acids,omega 3","Fatty acid",1000,mg,oral,"{""wikidata"":""Q182290""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Omega-3_fatty_acid"",""nih"":""https://ods.od.nih.gov/factsheets/Omega3FattyAcids-Consumer/""}"
+calcium_carbonate,Calcium Carbonate,"calcium carbonate,calcium supplement,calcium","Mineral",500,mg,oral,"{""wikidata"":""Q23767""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Calcium_carbonate"",""nih"":""https://ods.od.nih.gov/factsheets/Calcium-Consumer/""}"
+levothyroxine,Levothyroxine,"Synthroid,levothyroxine sodium","Thyroid hormone",75,mcg,oral,"{""rxnorm"":""10582"",""wikidata"":""Q412175""}","{""medlineplus"":""https://medlineplus.gov/druginfo/meds/a682461.html"",""drugbank"":""https://go.drugbank.com/drugs/DB00451""}"
+melatonin,Melatonin,"N-acetyl-5-methoxytryptamine","Hormone",5,mg,oral,"{""wikidata"":""Q180159""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Melatonin"",""nih"":""https://ods.od.nih.gov/factsheets/Melatonin-Consumer/""}"
+nifedipine,Nifedipine,"Adalat,Procardia","Calcium channel blocker",30,mg,oral,"{""rxnorm"":""7417"",""wikidata"":""Q422232""}","{""medlineplus"":""https://medlineplus.gov/druginfo/meds/a684028.html"",""drugbank"":""https://go.drugbank.com/drugs/DB01115""}"
+creatine,Creatine,"creatine monohydrate,creatine supplement","Supplement",5,g,oral,"{""wikidata"":""Q173354"",""pubchem"":""586""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Creatine"",""nih"":""https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-HealthProfessional/""}"
+magnesium,Magnesium,"magnesium citrate,magnesium supplement","Mineral",400,mg,oral,"{""wikidata"":""Q660"",""pubchem"":""5462224""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Magnesium_in_biology"",""nih"":""https://ods.od.nih.gov/factsheets/Magnesium-Consumer/""}"

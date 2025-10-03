@@ -5,3 +5,6 @@ source_ginkgo_warfarin,"Ginkgo biloba and warfarin bleeding risk","https://pubme
 source_sjw_warfarin,"Interaction of St John's Wort with warfarin","https://pubmed.ncbi.nlm.nih.gov/45678/",45678,10.1001/jama.45678,2019-09-10
 source_ginkgo_sertraline,"Potential interactions between Ginkgo and SSRIs","https://pubmed.ncbi.nlm.nih.gov/56789/",56789,10.1177/1111111,2014-01-15
 source_atorvastatin_warfarin,"Statins and warfarin bleeding risk","https://pubmed.ncbi.nlm.nih.gov/67890/",67890,10.1001/jama.67890,2017-11-05
+source_fishoil_warfarin,"Buckley MS et al. Fish oil interaction with warfarin. Ann Pharmacother. 2004;38(1):50-52.","https://pubmed.ncbi.nlm.nih.gov/14742793/",14742793,10.1345/aph.1D007,2004-01-01
+source_calcium_levothyroxine,"Singh N et al. The acute effect of calcium carbonate on the intestinal absorption of levothyroxine. Thyroid. 2001;11(10):967-971.","https://pubmed.ncbi.nlm.nih.gov/11716045/",11716045,10.1089/105072501753211046,2001-10-01
+source_melatonin_nifedipine,"Lusardi P et al. Cardiovascular effects of melatonin in hypertensive patients well controlled by nifedipine: a 24-hour study. Br J Clin Pharmacol. 2000;49(5):423-427.","https://pubmed.ncbi.nlm.nih.gov/10792199/",10792199,10.1046/j.1365-2125.2000.00195.x,2000-05-01
