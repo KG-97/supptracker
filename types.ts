@@ -30,6 +30,10 @@ export interface InteractionRecord {
   sources: string[]
 }
 
+export interface InteractionWithRisk extends InteractionRecord {
+  risk_score: number
+}
+
 export interface InteractionResponse {
   interaction: InteractionRecord
   risk_score: number
@@ -48,4 +52,11 @@ export interface StackInteraction {
 
 export interface StackResponse {
   interactions: StackInteraction[]
+}
+
+export interface HealthResponse {
+  status: string
+  compounds_loaded: number
+  interactions_loaded: number
+  sources_loaded: number
 }

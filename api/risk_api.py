@@ -463,6 +463,18 @@ def list_compounds():
     """Get all compounds."""
     return {"compounds": list(COMPOUNDS.values())}
 
+
+@app.get("/api/interactions")
+def list_interactions():
+    """Get all known interactions including computed risk scores."""
+    interactions_with_scores = []
+    for interaction in INTERACTIONS:
+        record = interaction.copy()
+        record["risk_score"] = compute_risk(interaction)
+        interactions_with_scores.append(record)
+
+    return {"interactions": interactions_with_scores}
+
 @app.get("/api/compounds/{compound_id}")
 def get_compound(compound_id: str):
     """Get specific compound by ID."""

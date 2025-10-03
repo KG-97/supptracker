@@ -1,4 +1,10 @@
-import type { Compound, InteractionResponse, StackResponse } from './types'
+import type {
+  Compound,
+  HealthResponse,
+  InteractionResponse,
+  InteractionWithRisk,
+  StackResponse,
+} from './types'
 
 const API_BASE = (() => {
   const envBase = import.meta.env.VITE_API_BASE?.trim()
@@ -51,6 +57,20 @@ export async function searchCompounds(query: string): Promise<Compound[]> {
     `/search?query=${encodeURIComponent(query)}`
   )
   return data.results ?? data.compounds ?? []
+}
+
+export async function fetchHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>('/health')
+}
+
+export async function fetchAllCompounds(): Promise<Compound[]> {
+  const data = await request<{ compounds?: Compound[] }>('/compounds')
+  return data.compounds ?? []
+}
+
+export async function fetchInteractionsList(): Promise<InteractionWithRisk[]> {
+  const data = await request<{ interactions?: InteractionWithRisk[] }>('/interactions')
+  return data.interactions ?? []
 }
 
 export async function fetchInteraction(a: string, b: string): Promise<InteractionResponse> {
