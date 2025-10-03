@@ -143,6 +143,46 @@ def _coerce_iterable(value: Any) -> Iterable[str]:
     return []
 
 
+def _parse_mapping(value: Any) -> Dict[str, str]:
+    if not value:
+        return {}
+    if isinstance(value, dict):
+        return {
+            str(key): str(val)
+            for key, val in value.items()
+            if key is not None and val not in (None, "")
+        }
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed:
+            return {}
+        try:
+            loaded = json.loads(trimmed)
+        except json.JSONDecodeError:
+            loaded = None
+        if isinstance(loaded, dict):
+            return {
+                str(key): str(val)
+                for key, val in loaded.items()
+                if key is not None and val not in (None, "")
+            }
+        pairs = [item.strip() for item in trimmed.split(";") if item.strip()]
+        mapping: Dict[str, str] = {}
+        for pair in pairs:
+            if "=" in pair:
+                key, raw_val = pair.split("=", 1)
+            elif ":" in pair:
+                key, raw_val = pair.split(":", 1)
+            else:
+                continue
+            key = key.strip()
+            raw_val = raw_val.strip()
+            if key and raw_val:
+                mapping[key] = raw_val
+        return mapping
+    return {}
+
+
 def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str, Any]]:
     directory = Path(data_dir) if data_dir is not None else Path(DATA_DIR)
     compounds: Dict[str, Dict[str, Any]] = {}
@@ -159,11 +199,20 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                     if not compound_id:
                         continue
                     synonyms = _parse_synonyms(row.get("synonyms", ""))
+                    external_ids = _parse_mapping(row.get("externalIds"))
+                    reference_urls = _parse_mapping(row.get("referenceUrls"))
+                    base = {
+                        k: v
+                        for k, v in row.items()
+                        if v not in (None, "") and k not in {"synonyms", "externalIds", "referenceUrls"}
+                    }
                     compounds[compound_id] = {
-                        **{k: v for k, v in row.items() if v not in (None, "")},
+                        **base,
                         "id": compound_id,
                         "name": row.get("name") or compound_id,
                         "synonyms": synonyms,
+                        "externalIds": external_ids,
+                        "referenceUrls": reference_urls,
                     }
             return compounds
         except Exception as exc:  # pragma: no cover - logged for diagnostics
@@ -178,11 +227,19 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                 if not compound_id:
                     continue
                 synonyms = entry.get("synonyms") or entry.get("aliases") or []
+                external_ids = _parse_mapping(
+                    entry.get("externalIds") or entry.get("external_ids")
+                )
+                reference_urls = _parse_mapping(
+                    entry.get("referenceUrls") or entry.get("reference_urls")
+                )
                 compounds[compound_id] = {
                     **entry,
                     "id": compound_id,
                     "name": entry.get("name") or compound_id,
                     "synonyms": list(_coerce_iterable(synonyms)),
+                    "externalIds": external_ids,
+                    "referenceUrls": reference_urls,
                 }
         except Exception as exc:  # pragma: no cover
             logger.error("Failed to load compounds JSON: %s", exc)

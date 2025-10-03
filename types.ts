@@ -6,6 +6,8 @@ export interface Compound {
   typicalDoseAmount?: string | null
   typicalDoseUnit?: string | null
   route?: string | null
+  externalIds?: Record<string, string>
+  referenceUrls?: Record<string, string>
 }
 
 export interface Source {
