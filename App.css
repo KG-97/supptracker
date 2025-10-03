@@ -168,6 +168,26 @@ button.ghost:hover {
   color: #475569;
 }
 
+.link-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.link-list a {
+  color: #2563eb;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.link-list a:hover,
+.link-list a:focus {
+  text-decoration: underline;
+}
+
 .status {
   margin: 0;
   font-size: 0.95rem;

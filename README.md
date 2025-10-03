@@ -145,6 +145,22 @@ supptracker/
 └── .github/          # CI/CD workflows
 ```
 
+## 🧾 Compound Data Schema
+
+Each row in `data/compounds.csv` describes a single compound and supports rich metadata so the API and UI can surface trusted external resources.
+
+| Column | Description |
+| --- | --- |
+| `externalIds` | JSON object mapping an external system to its identifier (e.g. `{ "rxnorm": "83367", "wikidata": "Q418423" }`). |
+| `referenceUrls` | JSON object mapping the same systems (or other reputable sources) to canonical URLs (e.g. `{ "nih": "https://ods.od.nih.gov/factsheets/StJohnsWort-Consumer/" }`). |
+
+When adding new compounds:
+
+1. Prefer authoritative databases such as **NIH Office of Dietary Supplements**, **MedlinePlus**, **RxNorm**, **DrugBank**, **PubChem**, or **Wikidata**.
+2. Use stable URLs that point directly to the compound’s reference page. Avoid shortened links or commercial vendor pages.
+3. Keep identifier keys lowercase and snake_case (e.g. `medlineplus`, `pubchem`).
+4. Ensure the IDs in `externalIds` correspond to the provided URLs where possible so the frontend can display human-friendly link labels.
+
 ## 🧪 Testing
 
 ```bash
