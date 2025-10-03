@@ -1,9 +1,18 @@
-import React, { FormEvent, useMemo, useState } from 'react'
+import React, { FormEvent, useEffect, useMemo, useState } from 'react'
 import './App.css'
-import { checkStack, fetchInteraction, searchCompounds } from './api'
+import {
+  checkStack,
+  fetchAllCompounds,
+  fetchHealth,
+  fetchInteraction,
+  fetchInteractionsList,
+  searchCompounds,
+} from './api'
 import type {
   Compound,
+  HealthResponse,
   InteractionResponse,
+  InteractionWithRisk,
   Source,
   StackInteraction,
 } from './types'
@@ -50,6 +59,21 @@ function severityClass(severity: string): string {
   return `badge badge-${normalized}`
 }
 
+function formatDose(compound: Compound): string {
+  const amount = compound.typicalDoseAmount
+  const unit = compound.typicalDoseUnit
+
+  if (!amount && !unit) {
+    return 'Not specified'
+  }
+
+  if (amount && unit) {
+    return `${amount} ${unit}`
+  }
+
+  return amount ?? unit ?? 'Not specified'
+}
+
 export default function App(): JSX.Element {
   const [query, setQuery] = useState('')
   const [searchStatus, setSearchStatus] = useState<AsyncStatus>('idle')
@@ -68,6 +92,36 @@ export default function App(): JSX.Element {
   const [stackInteractions, setStackInteractions] = useState<StackInteraction[] | null>(null)
   const [stackCompounds, setStackCompounds] = useState<string[]>([])
 
+  const [overviewStatus, setOverviewStatus] = useState<AsyncStatus>('loading')
+  const [overviewError, setOverviewError] = useState<string | null>(null)
+  const [health, setHealth] = useState<HealthResponse | null>(null)
+  const [allCompounds, setAllCompounds] = useState<Compound[]>([])
+  const [allInteractions, setAllInteractions] = useState<InteractionWithRisk[]>([])
+
+  useEffect(() => {
+    async function loadDataset() {
+      setOverviewStatus('loading')
+      setOverviewError(null)
+      try {
+        const [healthResponse, compoundsResponse, interactionsResponse] = await Promise.all([
+          fetchHealth(),
+          fetchAllCompounds(),
+          fetchInteractionsList(),
+        ])
+
+        setHealth(healthResponse)
+        setAllCompounds(compoundsResponse)
+        setAllInteractions(interactionsResponse)
+        setOverviewStatus('success')
+      } catch (error) {
+        setOverviewStatus('error')
+        setOverviewError(error instanceof Error ? error.message : 'Failed to load dataset overview')
+      }
+    }
+
+    loadDataset()
+  }, [])
+
   const hasSearchResults = searchResults.length > 0
   const stackHasInteractions = !!stackInteractions && stackInteractions.length > 0
 
@@ -77,6 +131,32 @@ export default function App(): JSX.Element {
       return acc
     }, {})
   }, [searchResults])
+
+  const datasetCompoundLookup = useMemo(() => {
+    return allCompounds.reduce<Record<string, Compound>>((acc, compound) => {
+      acc[compound.id] = compound
+      return acc
+    }, {})
+  }, [allCompounds])
+
+  const topInteractions = useMemo(() => {
+    const severityRanking: Record<string, number> = {
+      severe: 3,
+      moderate: 2,
+      mild: 1,
+      none: 0,
+    }
+
+    return [...allInteractions]
+      .sort((a, b) => {
+        const severityDelta = (severityRanking[b.severity.toLowerCase()] ?? 0) - (severityRanking[a.severity.toLowerCase()] ?? 0)
+        if (severityDelta !== 0) {
+          return severityDelta
+        }
+        return (b.risk_score ?? 0) - (a.risk_score ?? 0)
+      })
+      .slice(0, 4)
+  }, [allInteractions])
 
   async function handleSearch(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault()
@@ -175,6 +255,90 @@ export default function App(): JSX.Element {
       </header>
 
       <main className="grid">
+        <section className="card accent-card full-width">
+          <div className="card-header">
+            <h2>Dataset overview</h2>
+            <p>Instant snapshot of every resource loaded by the API powering this deployment.</p>
+          </div>
+          {overviewStatus === 'loading' && <p className="status">Loading dataset statistics…</p>}
+          {overviewStatus === 'error' && <p className="status status-error">{overviewError}</p>}
+          {overviewStatus === 'success' && health && (
+            <>
+              <ul className="stat-grid" aria-live="polite">
+                <li className="stat">
+                  <span className="stat-label">Compounds available</span>
+                  <strong className="stat-value">{health.compounds_loaded}</strong>
+                  <span className="stat-footnote">Ready for search & stack analysis</span>
+                </li>
+                <li className="stat">
+                  <span className="stat-label">Interaction records</span>
+                  <strong className="stat-value">{health.interactions_loaded}</strong>
+                  <span className="stat-footnote">Each with evidence and risk scores</span>
+                </li>
+                <li className="stat">
+                  <span className="stat-label">Evidence sources</span>
+                  <strong className="stat-value">{health.sources_loaded}</strong>
+                  <span className="stat-footnote">Citations powering recommendations</span>
+                </li>
+              </ul>
+
+              {topInteractions.length > 0 && (
+                <div className="overview-panels">
+                  <div className="overview-panel">
+                    <h3>Most notable interactions</h3>
+                    <ol className="interaction-list">
+                      {topInteractions.map((interaction) => (
+                        <li key={interaction.id}>
+                          <div className="interaction-heading">
+                            <span className="interaction-pair">{datasetCompoundLookup[interaction.a]?.name ?? interaction.a}</span>
+                            <span className="interaction-divider">×</span>
+                            <span className="interaction-pair">{datasetCompoundLookup[interaction.b]?.name ?? interaction.b}</span>
+                          </div>
+                          <div className="interaction-meta">
+                            <span className={severityClass(interaction.severity)}>Severity: {interaction.severity}</span>
+                            <span className="badge badge-evidence">Evidence: {interaction.evidence}</span>
+                            <span className="badge badge-muted">Risk: {interaction.risk_score.toFixed(2)}</span>
+                          </div>
+                          <p className="interaction-effect">{interaction.effect ?? 'No description available.'}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                  <div className="overview-panel">
+                    <h3>Compound quick reference</h3>
+                    <ul className="compound-list">
+                      {allCompounds.map((compound) => (
+                        <li key={compound.id}>
+                          <div className="compound-name-row">
+                            <span className="compound-name">{compound.name}</span>
+                            {compound.class && <span className="badge badge-muted">{compound.class}</span>}
+                          </div>
+                          <dl>
+                            <div>
+                              <dt>Dose guide</dt>
+                              <dd>{formatDose(compound)}</dd>
+                            </div>
+                            <div>
+                              <dt>Route</dt>
+                              <dd>{compound.route ?? 'Not specified'}</dd>
+                            </div>
+                            {compound.synonyms.length > 0 && (
+                              <div>
+                                <dt>Also known as</dt>
+                                <dd>{compound.synonyms.join(', ')}</dd>
+                              </div>
+                            )}
+                          </dl>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
         <section className="card">
           <div className="card-header">
             <h2>Search compounds</h2>
@@ -338,8 +502,8 @@ export default function App(): JSX.Element {
                   <tbody>
                     {stackInteractions.map((interaction, index) => (
                       <tr key={`${interaction.a}-${interaction.b}-${index}`}>
-                        <td>{compoundLookup[interaction.a]?.name ?? interaction.a}</td>
-                        <td>{compoundLookup[interaction.b]?.name ?? interaction.b}</td>
+                        <td>{datasetCompoundLookup[interaction.a]?.name ?? compoundLookup[interaction.a]?.name ?? interaction.a}</td>
+                        <td>{datasetCompoundLookup[interaction.b]?.name ?? compoundLookup[interaction.b]?.name ?? interaction.b}</td>
                         <td>
                           <span className={severityClass(interaction.severity)}>{interaction.severity}</span>
                         </td>

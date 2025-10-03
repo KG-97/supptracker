@@ -38,6 +38,10 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+.full-width {
+  grid-column: 1 / -1;
+}
+
 .card {
   background: #ffffff;
   border-radius: 18px;
@@ -46,6 +50,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.accent-card {
+  background: radial-gradient(circle at top left, #eef2ff, #ffffff);
+  border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
 .card-header h2 {
@@ -171,6 +180,143 @@ button.ghost:hover {
 
 .status-info {
   color: #2563eb;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stat {
+  background: rgba(79, 70, 229, 0.08);
+  border: 1px solid rgba(79, 70, 229, 0.18);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #4338ca;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.stat-value {
+  font-size: 2rem;
+  line-height: 1.1;
+  color: #111827;
+}
+
+.stat-footnote {
+  font-size: 0.85rem;
+  color: #4338ca;
+}
+
+.overview-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.overview-panel {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.overview-panel h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.interaction-list {
+  margin: 0;
+  padding: 0;
+  list-style: decimal inside;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.interaction-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.interaction-pair {
+  font-size: 1rem;
+}
+
+.interaction-divider {
+  color: #a855f7;
+  font-weight: 700;
+}
+
+.interaction-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.interaction-effect {
+  margin: 0;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.compound-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.compound-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.compound-name {
+  font-size: 1rem;
+}
+
+.compound-list dl {
+  margin: 8px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.compound-list dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+}
+
+.compound-list dd {
+  margin: 0;
+  color: #1f2937;
+  font-size: 0.95rem;
 }
 
 .pair-inputs {
@@ -330,6 +476,14 @@ button.ghost:hover {
 @media (max-width: 720px) {
   .input-row {
     flex-direction: column;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-panels {
+    grid-template-columns: 1fr;
   }
 
   .pair-inputs {
