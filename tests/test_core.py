@@ -1,5 +1,8 @@
-import sys
+import csv
+import json
 import os
+import sys
+
 import pytest
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -62,4 +65,141 @@ def test_loaders_handle_missing_files(tmp_path, monkeypatch):
     assert app_module.load_compounds() == {}
     assert app_module.load_interactions() == []
     assert app_module.load_sources() == {}
+
+
+def test_load_compounds_merges_multiple_sources(tmp_path, monkeypatch):
+    fieldnames = ["id", "name", "synonyms", "externalIds", "referenceUrls"]
+    csv_path = tmp_path / "compounds.csv"
+    with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow(
+            {
+                "id": "creatine",
+                "name": "Creatine",
+                "synonyms": "creatine monohydrate",
+                "externalIds": json.dumps({"rxnorm": "123"}),
+                "referenceUrls": "",
+            }
+        )
+
+    json_payload = [
+        {
+            "id": "creatine",
+            "aliases": ["Cr"],
+            "externalIds": {"wikidata": "Q173354"},
+            "referenceUrls": {"wikipedia": "https://example.com/creatine"},
+        },
+        {
+            "id": "magnesium",
+            "name": "Magnesium",
+            "synonyms": ["Mg"],
+            "externalIds": {"pubchem": "123"},
+            "referenceUrls": {"nih": "https://example.com/magnesium"},
+        },
+    ]
+    (tmp_path / "compounds.json").write_text(json.dumps(json_payload), encoding="utf-8")
+
+    monkeypatch.setattr(app_module, "DATA_DIR", str(tmp_path))
+    compounds = app_module.load_compounds()
+
+    assert set(compounds.keys()) == {"creatine", "magnesium"}
+    assert compounds["creatine"]["externalIds"] == {"rxnorm": "123", "wikidata": "Q173354"}
+    assert "creatine monohydrate" in compounds["creatine"]["synonyms"]
+    assert "Cr" in compounds["creatine"]["synonyms"]
+    assert compounds["magnesium"]["referenceUrls"]["nih"] == "https://example.com/magnesium"
+
+
+def test_load_interactions_merges_duplicates(tmp_path, monkeypatch):
+    fieldnames = [
+        "id",
+        "a",
+        "b",
+        "bidirectional",
+        "mechanism",
+        "severity",
+        "evidence",
+        "effect",
+        "action",
+        "sources",
+    ]
+    csv_path = tmp_path / "interactions.csv"
+    with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow(
+            {
+                "id": "caf-asp",
+                "a": "caffeine",
+                "b": "aspirin",
+                "bidirectional": "false",
+                "mechanism": "pharmacodynamic",
+                "severity": "Moderate",
+                "evidence": "B",
+                "effect": "Increased side effects",
+                "action": "Monitor",
+                "sources": "source_csv",
+            }
+        )
+
+    json_payload = [
+        {
+            "a": "caffeine",
+            "b": "aspirin",
+            "bidirectional": True,
+            "severity": "Moderate",
+            "evidence": "B",
+            "effect": "Increased side effects",
+            "sources": ["source_json"],
+        },
+        {
+            "a": "creatine",
+            "b": "magnesium",
+            "severity": "Low",
+            "evidence": "C",
+            "effect": "Synergistic support",
+            "sources": ["stack_source"],
+        },
+    ]
+    (tmp_path / "interactions.json").write_text(json.dumps(json_payload), encoding="utf-8")
+
+    monkeypatch.setattr(app_module, "DATA_DIR", str(tmp_path))
+    interactions = app_module.load_interactions()
+
+    assert len(interactions) == 2
+    merged = next(item for item in interactions if {item["a"], item["b"]} == {"caffeine", "aspirin"})
+    assert set(merged["sources"]) == {"source_csv", "source_json"}
+    assert merged["bidirectional"] is True
+
+
+def test_load_sources_merges_entries(tmp_path, monkeypatch):
+    fieldnames = ["id", "citation", "url", "pmid", "doi", "date"]
+    csv_path = tmp_path / "sources.csv"
+    with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow(
+            {
+                "id": "src1",
+                "citation": "Original citation",
+                "url": "",
+                "pmid": "111",
+                "doi": "",
+                "date": "2020-01-01",
+            }
+        )
+
+    json_payload = [
+        {"id": "src1", "url": "https://example.com"},
+        {"id": "src2", "citation": "Another source"},
+    ]
+    (tmp_path / "sources.json").write_text(json.dumps(json_payload), encoding="utf-8")
+
+    monkeypatch.setattr(app_module, "DATA_DIR", str(tmp_path))
+    sources = app_module.load_sources()
+
+    assert set(sources.keys()) == {"src1", "src2"}
+    assert sources["src1"]["url"] == "https://example.com"
+    assert sources["src1"]["citation"] == "Original citation"
+    assert sources["src2"]["citation"] == "Another source"
 
