@@ -22,6 +22,7 @@ async def client():
             "id": "caffeine",
             "name": "Caffeine",
             "synonyms": ["coffee", "tea"],
+            "aliases": ["guarana extract"],
             "externalIds": {"pubchem": "2519"},
             "referenceUrls": {
                 "pubchem": "https://pubchem.ncbi.nlm.nih.gov/compound/2519",
@@ -65,6 +66,20 @@ async def test_search_success(client):
     assert resp.status_code == 200
     data = resp.json()
     assert "results" in data
+    assert any(item["id"] == "caffeine" for item in data["results"])
+
+
+async def test_search_matches_synonym(client):
+    resp = await client.get("/api/search", params={"q": "coffee"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert any(item["id"] == "caffeine" for item in data["results"])
+
+
+async def test_search_matches_alias(client):
+    resp = await client.get("/api/search", params={"q": "guarana"})
+    assert resp.status_code == 200
+    data = resp.json()
     assert any(item["id"] == "caffeine" for item in data["results"])
 
 
