@@ -74,6 +74,31 @@ function formatDose(compound: Compound): string {
   return amount ?? unit ?? 'Not specified'
 }
 
+function formatSourceKey(key: string): string {
+  return key
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function compoundExternalLinks(
+  compound: Compound
+): { key: string; label: string; href: string }[] {
+  const urls = compound.referenceUrls ?? {}
+  const ids = compound.externalIds ?? {}
+
+  return Object.entries(urls)
+    .map(([key, href]) => {
+      if (!href) return null
+      const labelBase = formatSourceKey(key)
+      const identifier = ids[key]
+      const label = identifier ? `${labelBase} (${identifier})` : labelBase
+      return { key, label, href }
+    })
+    .filter((entry): entry is { key: string; label: string; href: string } => !!entry)
+}
+
 export default function App(): JSX.Element {
   const [query, setQuery] = useState('')
   const [searchStatus, setSearchStatus] = useState<AsyncStatus>('idle')
@@ -307,30 +332,49 @@ export default function App(): JSX.Element {
                   <div className="overview-panel">
                     <h3>Compound quick reference</h3>
                     <ul className="compound-list">
-                      {allCompounds.map((compound) => (
-                        <li key={compound.id}>
-                          <div className="compound-name-row">
-                            <span className="compound-name">{compound.name}</span>
-                            {compound.class && <span className="badge badge-muted">{compound.class}</span>}
-                          </div>
-                          <dl>
-                            <div>
-                              <dt>Dose guide</dt>
-                              <dd>{formatDose(compound)}</dd>
+                      {allCompounds.map((compound) => {
+                        const externalLinks = compoundExternalLinks(compound)
+                        return (
+                          <li key={compound.id}>
+                            <div className="compound-name-row">
+                              <span className="compound-name">{compound.name}</span>
+                              {compound.class && <span className="badge badge-muted">{compound.class}</span>}
                             </div>
-                            <div>
-                              <dt>Route</dt>
-                              <dd>{compound.route ?? 'Not specified'}</dd>
-                            </div>
-                            {compound.synonyms.length > 0 && (
+                            <dl>
                               <div>
-                                <dt>Also known as</dt>
-                                <dd>{compound.synonyms.join(', ')}</dd>
+                                <dt>Dose guide</dt>
+                                <dd>{formatDose(compound)}</dd>
                               </div>
-                            )}
-                          </dl>
-                        </li>
-                      ))}
+                              <div>
+                                <dt>Route</dt>
+                                <dd>{compound.route ?? 'Not specified'}</dd>
+                              </div>
+                              {compound.synonyms.length > 0 && (
+                                <div>
+                                  <dt>Also known as</dt>
+                                  <dd>{compound.synonyms.join(', ')}</dd>
+                                </div>
+                              )}
+                              {externalLinks.length > 0 && (
+                                <div>
+                                  <dt>External links</dt>
+                                  <dd>
+                                    <ul className="link-list">
+                                      {externalLinks.map((link) => (
+                                        <li key={link.key}>
+                                          <a href={link.href} target="_blank" rel="noreferrer">
+                                            {link.label}
+                                          </a>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </dd>
+                                </div>
+                              )}
+                            </dl>
+                          </li>
+                        )
+                      })}
                     </ul>
                   </div>
                 </div>
@@ -367,14 +411,28 @@ export default function App(): JSX.Element {
           )}
           {hasSearchResults && (
             <ul className="pill-grid" aria-live="polite">
-              {searchResults.map((compound) => (
-                <li key={compound.id} className="pill">
-                  <span className="pill-name">{compound.name}</span>
-                  {compound.synonyms.length > 0 && (
-                    <span className="pill-meta">Also known as {compound.synonyms.join(', ')}</span>
-                  )}
-                </li>
-              ))}
+              {searchResults.map((compound) => {
+                const externalLinks = compoundExternalLinks(compound)
+                return (
+                  <li key={compound.id} className="pill">
+                    <span className="pill-name">{compound.name}</span>
+                    {compound.synonyms.length > 0 && (
+                      <span className="pill-meta">Also known as {compound.synonyms.join(', ')}</span>
+                    )}
+                    {externalLinks.length > 0 && (
+                      <ul className="link-list">
+                        {externalLinks.map((link) => (
+                          <li key={link.key}>
+                            <a href={link.href} target="_blank" rel="noreferrer">
+                              {link.label}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </section>

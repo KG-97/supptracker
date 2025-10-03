@@ -18,8 +18,24 @@ def anyio_backend():
 @pytest.fixture
 async def client():
     app_module.COMPOUNDS = {
-        "caffeine": {"id": "caffeine", "name": "Caffeine", "synonyms": ["coffee", "tea"]},
-        "aspirin": {"id": "aspirin", "name": "Aspirin", "synonyms": ["acetylsalicylic acid"]},
+        "caffeine": {
+            "id": "caffeine",
+            "name": "Caffeine",
+            "synonyms": ["coffee", "tea"],
+            "externalIds": {"pubchem": "2519"},
+            "referenceUrls": {
+                "pubchem": "https://pubchem.ncbi.nlm.nih.gov/compound/2519",
+            },
+        },
+        "aspirin": {
+            "id": "aspirin",
+            "name": "Aspirin",
+            "synonyms": ["acetylsalicylic acid"],
+            "externalIds": {"pubchem": "2244"},
+            "referenceUrls": {
+                "pubchem": "https://pubchem.ncbi.nlm.nih.gov/compound/2244",
+            },
+        },
     }
     app_module.INTERACTIONS = [
         {
@@ -87,6 +103,18 @@ async def test_stack_check_success(client):
 async def test_stack_check_missing_items(client):
     resp = await client.post("/api/stack/check", json={})
     assert resp.status_code == 422
+
+
+async def test_compounds_endpoint_includes_external_links(client):
+    resp = await client.get("/api/compounds")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "compounds" in data
+    compounds_by_id = {item["id"]: item for item in data["compounds"]}
+    assert "caffeine" in compounds_by_id
+    caffeine = compounds_by_id["caffeine"]
+    assert caffeine["externalIds"] == {"pubchem": "2519"}
+    assert caffeine["referenceUrls"]["pubchem"] == "https://pubchem.ncbi.nlm.nih.gov/compound/2519"
 
 
 async def test_api_with_missing_rules_config(client, tmp_path):

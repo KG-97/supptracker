@@ -1,8 +1,8 @@
-id,name,synonyms,class,typicalDoseAmount,typicalDoseUnit,route
-st_johns_wort,St John's Wort,"hypericum,st johns wort,hypericin","Herb",300,mg,oral
-sertraline,Sertraline,"Zoloft","SSRI",50,mg,oral
-grapefruit,Grapefruit,"grapefruit juice","Fruit",200,ml,oral
-atorvastatin,Atorvastatin,"Lipitor","Statin",10,mg,oral
-ginkgo,Ginkgo,"Ginkgo biloba","Herb",120,mg,oral
-warfarin,Warfarin,,"Anticoagulant",5,mg,oral
-caffeine,Caffeine,coffee,Stimulant,100,mg,oral
+id,name,synonyms,class,typicalDoseAmount,typicalDoseUnit,route,externalIds,referenceUrls
+st_johns_wort,St John's Wort,"hypericum,st johns wort,hypericin","Herb",300,mg,oral,"{""rxnorm"":""1290"",""wikidata"":""Q192047""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Hypericum_perforatum"",""nih"":""https://ods.od.nih.gov/factsheets/StJohnsWort-Consumer/""}"
+sertraline,Sertraline,"Zoloft","SSRI",50,mg,oral,"{""rxnorm"":""8610"",""wikidata"":""Q422072""}","{""medlineplus"":""https://medlineplus.gov/druginfo/meds/a697048.html"",""drugbank"":""https://go.drugbank.com/drugs/DB01104""}"
+grapefruit,Grapefruit,"grapefruit juice","Fruit",200,ml,oral,"{""usda_fdc"":""1100076"",""wikidata"":""Q3726""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Grapefruit"",""usda_fdc"":""https://fdc.nal.usda.gov/fdc-app.html#/food-details/1100076""}"
+atorvastatin,Atorvastatin,"Lipitor","Statin",10,mg,oral,"{""rxnorm"":""83367"",""wikidata"":""Q418423""}","{""medlineplus"":""https://medlineplus.gov/druginfo/meds/a600045.html"",""drugbank"":""https://go.drugbank.com/drugs/DB01076""}"
+ginkgo,Ginkgo,"Ginkgo biloba","Herb",120,mg,oral,"{""wikidata"":""Q41571""}","{""nih"":""https://ods.od.nih.gov/factsheets/Ginkgo-Consumer/"",""wikipedia"":""https://en.wikipedia.org/wiki/Ginkgo_biloba""}"
+warfarin,Warfarin,,"Anticoagulant",5,mg,oral,"{""rxnorm"":""11289"",""wikidata"":""Q407431""}","{""medlineplus"":""https://medlineplus.gov/druginfo/meds/a682277.html"",""drugbank"":""https://go.drugbank.com/drugs/DB00682""}"
+caffeine,Caffeine,"coffee","Stimulant",100,mg,oral,"{""cas"":""58-08-2"",""wikidata"":""Q30243""}","{""wikipedia"":""https://en.wikipedia.org/wiki/Caffeine"",""nih"":""https://ods.od.nih.gov/factsheets/Caffeine-Consumer/""}"
