@@ -214,7 +214,6 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                         "externalIds": external_ids,
                         "referenceUrls": reference_urls,
                     }
-            return compounds
         except Exception as exc:  # pragma: no cover - logged for diagnostics
             logger.error("Failed to load compounds CSV: %s", exc)
 
@@ -222,25 +221,67 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
         try:
             with open(json_path, encoding="utf-8") as fh:
                 data = json.load(fh)
-            for entry in data:
+            for entry in data or []:
                 compound_id = entry.get("id")
                 if not compound_id:
                     continue
-                synonyms = entry.get("synonyms") or entry.get("aliases") or []
+                synonyms_iter = entry.get("synonyms") or entry.get("aliases") or []
+                synonyms = [
+                    s.strip()
+                    for s in _coerce_iterable(synonyms_iter)
+                    if isinstance(s, str) and s.strip()
+                ]
                 external_ids = _parse_mapping(
                     entry.get("externalIds") or entry.get("external_ids")
                 )
                 reference_urls = _parse_mapping(
                     entry.get("referenceUrls") or entry.get("reference_urls")
                 )
-                compounds[compound_id] = {
-                    **entry,
+                record = {
+                    **{k: v for k, v in entry.items() if v not in (None, "")},
                     "id": compound_id,
                     "name": entry.get("name") or compound_id,
-                    "synonyms": list(_coerce_iterable(synonyms)),
+                    "synonyms": synonyms,
                     "externalIds": external_ids,
                     "referenceUrls": reference_urls,
                 }
+
+                existing = compounds.get(compound_id)
+                if not existing:
+                    compounds[compound_id] = record
+                    continue
+
+                existing_synonyms = [
+                    s.strip()
+                    for s in _coerce_iterable(existing.get("synonyms"))
+                    if isinstance(s, str) and s.strip()
+                ]
+                merged_synonyms = list(dict.fromkeys(existing_synonyms + synonyms))
+                existing["synonyms"] = merged_synonyms
+
+                if record.get("name"):
+                    existing_name = existing.get("name")
+                    if existing_name in (None, "", compound_id):
+                        existing["name"] = record["name"]
+
+                existing_external = existing.get("externalIds") or {}
+                if not isinstance(existing_external, dict):
+                    existing_external = {}
+                existing["externalIds"] = {**existing_external, **external_ids}
+
+                existing_refs = existing.get("referenceUrls") or {}
+                if not isinstance(existing_refs, dict):
+                    existing_refs = {}
+                existing["referenceUrls"] = {**existing_refs, **reference_urls}
+
+                for key, value in record.items():
+                    if key in {"id", "synonyms", "externalIds", "referenceUrls"}:
+                        continue
+                    if value in (None, ""):
+                        continue
+                    current = existing.get(key)
+                    if current in (None, ""):
+                        existing[key] = value
         except Exception as exc:  # pragma: no cover
             logger.error("Failed to load compounds JSON: %s", exc)
 
@@ -252,20 +293,81 @@ def load_interactions(data_dir: Optional[str | Path] = None) -> List[Dict[str, A
     csv_path = directory / "interactions.csv"
     json_path = directory / "interactions.json"
 
+    interactions: List[Dict[str, Any]] = []
+    seen: Dict[tuple, int] = {}
+
+    def _normalise_sources(value: Any) -> List[str]:
+        if not value:
+            return []
+        if isinstance(value, str):
+            tokens = []
+            for chunk in value.replace("|", ";").split(";"):
+                chunk = chunk.strip()
+                if not chunk:
+                    continue
+                tokens.extend(part.strip() for part in chunk.split(",") if part.strip())
+            return list(dict.fromkeys(tokens))
+        return [
+            str(item).strip()
+            for item in _coerce_iterable(value)
+            if str(item).strip()
+        ]
+
+    def register(record: Dict[str, Any]) -> None:
+        a = record.get("a")
+        b = record.get("b")
+        if not a or not b:
+            return
+        pair = tuple(sorted((str(a), str(b))))
+        key = (
+            pair,
+            record.get("effect"),
+            record.get("severity"),
+            record.get("evidence"),
+        )
+        record["sources"] = _normalise_sources(record.get("sources"))
+        if key in seen:
+            existing = interactions[seen[key]]
+            existing_sources = existing.get("sources") or []
+            if not isinstance(existing_sources, list):
+                existing_sources = _normalise_sources(existing_sources)
+            merged_sources = list(dict.fromkeys(existing_sources + record["sources"]))
+            existing["sources"] = merged_sources
+
+            existing_mech = existing.get("mechanism") or []
+            if not isinstance(existing_mech, list):
+                existing_mech = [existing_mech]
+            merged_mech = list(dict.fromkeys(existing_mech + (record.get("mechanism") or [])))
+            existing["mechanism"] = merged_mech
+
+            if record.get("bidirectional"):
+                existing["bidirectional"] = True
+
+            for field in ("id", "action", "notes"):
+                value = record.get(field)
+                if value and not existing.get(field):
+                    existing[field] = value
+            return
+        seen[key] = len(interactions)
+        interactions.append(record)
+
     if csv_path.exists():
-        interactions: List[Dict[str, Any]] = []
         try:
             with open(csv_path, newline="", encoding="utf-8") as fh:
                 reader = csv.DictReader(fh)
                 for row in reader:
                     mechanisms = _parse_synonyms(row.get("mechanism", ""))
-                    interactions.append(
-                        {
-                            **{k: v for k, v in row.items() if v not in (None, "")},
-                            "mechanism": mechanisms,
-                        }
-                    )
-            return interactions
+                    bidirectional_raw = row.get("bidirectional")
+                    if isinstance(bidirectional_raw, str):
+                        bidirectional = bidirectional_raw.strip().lower() in {"true", "1", "yes", "y"}
+                    else:
+                        bidirectional = bool(bidirectional_raw)
+                    record = {
+                        **{k: v for k, v in row.items() if v not in (None, "")},
+                        "mechanism": mechanisms,
+                        "bidirectional": bidirectional,
+                    }
+                    register(record)
         except Exception as exc:  # pragma: no cover
             logger.error("Failed to load interactions CSV: %s", exc)
 
@@ -273,10 +375,31 @@ def load_interactions(data_dir: Optional[str | Path] = None) -> List[Dict[str, A
         try:
             with open(json_path, encoding="utf-8") as fh:
                 data = json.load(fh)
-            return data if isinstance(data, list) else []
+            for entry in data or []:
+                mechanisms_raw = entry.get("mechanism") or entry.get("mechanisms") or []
+                if isinstance(mechanisms_raw, str):
+                    mechanisms = _parse_synonyms(mechanisms_raw)
+                else:
+                    mechanisms = [
+                        str(item).strip()
+                        for item in _coerce_iterable(mechanisms_raw)
+                        if str(item).strip()
+                    ]
+                bidirectional_raw = entry.get("bidirectional")
+                if isinstance(bidirectional_raw, str):
+                    bidirectional = bidirectional_raw.strip().lower() in {"true", "1", "yes", "y"}
+                else:
+                    bidirectional = bool(bidirectional_raw)
+                record = {
+                    **{k: v for k, v in entry.items() if v not in (None, "")},
+                    "mechanism": mechanisms,
+                    "bidirectional": bidirectional,
+                }
+                register(record)
         except Exception as exc:  # pragma: no cover
             logger.error("Failed to load interactions JSON: %s", exc)
-    return []
+
+    return interactions
 
 
 def load_sources(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str, Any]]:
@@ -284,8 +407,9 @@ def load_sources(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str, A
     csv_path = directory / "sources.csv"
     json_path = directory / "sources.json"
 
+    sources: Dict[str, Dict[str, Any]] = {}
+
     if csv_path.exists():
-        sources: Dict[str, Dict[str, Any]] = {}
         try:
             with open(csv_path, newline="", encoding="utf-8") as fh:
                 reader = csv.DictReader(fh)
@@ -297,7 +421,6 @@ def load_sources(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str, A
                         **{k: v for k, v in row.items() if v not in (None, "")},
                         "id": source_id,
                     }
-            return sources
         except Exception as exc:  # pragma: no cover
             logger.error("Failed to load sources CSV: %s", exc)
 
@@ -305,10 +428,28 @@ def load_sources(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str, A
         try:
             with open(json_path, encoding="utf-8") as fh:
                 data = json.load(fh)
-            return {item["id"]: item for item in data if "id" in item}
+            for item in data or []:
+                source_id = item.get("id")
+                if not source_id:
+                    continue
+                record = {k: v for k, v in item.items() if v not in (None, "")}
+                record.setdefault("id", source_id)
+                existing = sources.get(source_id)
+                if existing:
+                    for key, value in record.items():
+                        if key == "id":
+                            continue
+                        if value in (None, ""):
+                            continue
+                        current = existing.get(key)
+                        if current in (None, ""):
+                            existing[key] = value
+                    continue
+                sources[source_id] = record
         except Exception as exc:  # pragma: no cover
             logger.error("Failed to load sources JSON: %s", exc)
-    return {}
+
+    return sources
 
 
 def load_rules(path: Optional[str] = None) -> Tuple[
