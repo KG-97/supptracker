@@ -574,22 +574,49 @@ load_data()
 apply_rules()
 
 # Helper functions
+def _iter_identifier_tokens(compound: Dict[str, Any]) -> Iterable[tuple[str, str]]:
+    """Yield (original, lower) identifier tokens for search/resolution."""
+
+    seen: set[str] = set()
+    for field in ("synonyms", "aliases"):
+        for value in _coerce_iterable(compound.get(field)):
+            if not isinstance(value, str):
+                continue
+            candidate = value.strip()
+            if not candidate:
+                continue
+            lowered = candidate.lower()
+            if lowered in seen:
+                continue
+            seen.add(lowered)
+            yield candidate, lowered
+
+
 def resolve_compound(identifier: str) -> Optional[str]:
-    """Resolve compound by ID, name, or synonym."""
+    """Resolve compound by ID, name, synonym, or alias."""
     if not identifier:
         return None
 
-    if identifier in COMPOUNDS:
-        return identifier
+    raw_identifier = str(identifier).strip()
+    if not raw_identifier:
+        return None
 
-    identifier_lower = identifier.lower()
-    for comp_id, comp in COMPOUNDS.items():
-        name = str(comp.get("name", "")).lower()
-        if name == identifier_lower:
+    if raw_identifier in COMPOUNDS:
+        return raw_identifier
+
+    identifier_lower = raw_identifier.lower()
+
+    for comp_id in COMPOUNDS:
+        if comp_id.lower() == identifier_lower:
             return comp_id
 
-        for synonym in _coerce_iterable(comp.get("synonyms") or comp.get("aliases")):
-            if str(synonym).lower() == identifier_lower:
+    for comp_id, comp in COMPOUNDS.items():
+        name = str(comp.get("name", "")).strip().lower()
+        if name and name == identifier_lower:
+            return comp_id
+
+        for _, token_lower in _iter_identifier_tokens(comp):
+            if token_lower == identifier_lower:
                 return comp_id
 
     return None
@@ -680,42 +707,60 @@ def get_compound(compound_id: str):
         raise HTTPException(status_code=404, detail="Compound not found")
     return COMPOUNDS[compound_id]
 
+def _match_rank(compound: Dict[str, Any], query_lower: str) -> Optional[tuple[int, int, str]]:
+    """Return sorting tuple for a compound match or ``None`` if no match."""
+
+    compound_id = str(compound.get("id", "")).strip()
+    if compound_id and compound_id.lower() == query_lower:
+        return (0, 0, compound_id.lower())
+
+    name = str(compound.get("name", "")).strip()
+    name_lower = name.lower()
+    if name_lower:
+        if name_lower == query_lower:
+            return (0, 1, name_lower)
+        if query_lower in name_lower:
+            return (1, name_lower.find(query_lower), name_lower)
+
+    best_synonym_rank: Optional[tuple[int, int, str]] = None
+    for original, lowered in _iter_identifier_tokens(compound):
+        if lowered == query_lower:
+            candidate = (2, 0, lowered)
+        elif query_lower in lowered:
+            candidate = (3, lowered.find(query_lower), lowered)
+        else:
+            continue
+        if best_synonym_rank is None or candidate < best_synonym_rank:
+            best_synonym_rank = candidate
+
+    return best_synonym_rank
+
+
 @app.get("/api/search")
 def search(
     q: Optional[str] = Query(None, min_length=1),
     query: Optional[str] = Query(None, min_length=1),
     limit: int = Query(10, ge=1, le=50),
 ):
-    """Search compounds by name or synonym."""
-    search_term = query or q
+    """Search compounds by ID, name, synonym, or alias."""
+    search_term_raw = query or q
+    search_term = search_term_raw.strip() if isinstance(search_term_raw, str) else None
     if not search_term:
         raise HTTPException(status_code=422, detail="Missing search parameter")
 
     query_lower = search_term.lower()
-    results = []
-    
+    matched: list[tuple[tuple[int, int, str], Dict[str, Any]]] = []
+
     for comp in COMPOUNDS.values():
-        # Check name match
-        name = comp.get("name", "").lower()
-        if query_lower in name:
-            results.append(comp)
+        rank = _match_rank(comp, query_lower)
+        if rank is None:
             continue
-        
-        # Check alias matches
-        aliases = comp.get("aliases", [])
-        if isinstance(aliases, list):
-            for alias in aliases:
-                if isinstance(alias, str) and query_lower in alias.lower():
-                    results.append(comp)
-                    break
-    
-    # Sort by relevance (exact matches first)
-    results.sort(key=lambda x: (
-        x.get("name", "").lower() != query_lower,
-        x.get("name", "").lower().find(query_lower)
-    ))
-    
-    return {"results": results[:limit]}
+        matched.append((rank, comp))
+
+    matched.sort(key=lambda item: (item[0][0], item[0][1], item[0][2], str(item[1].get("name", "")).lower()))
+    results = [comp for _, comp in matched[:limit]]
+
+    return {"results": results}
 
 @app.get("/api/interaction")
 def interaction(a: str, b: str):

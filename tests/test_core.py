@@ -22,6 +22,24 @@ def test_resolve_compound(monkeypatch):
     assert app_module.resolve_compound("unknown") is None
 
 
+def test_resolve_compound_alias(monkeypatch):
+    monkeypatch.setattr(
+        app_module,
+        "COMPOUNDS",
+        {
+            "caffeine": {
+                "id": "caffeine",
+                "name": "Caffeine",
+                "synonyms": [],
+                "aliases": ["Guarana"],
+            }
+        },
+    )
+    assert app_module.resolve_compound("Guarana") == "caffeine"
+    assert app_module.resolve_compound("guarana") == "caffeine"
+    assert app_module.resolve_compound("CAFFEINE") == "caffeine"
+
+
 def test_resolve_compound_with_comma_synonyms(tmp_path, monkeypatch):
     csv_content = (
         "id,name,synonyms,externalIds,referenceUrls\n"
