@@ -4,3 +4,7 @@ pandas==2.1.4
 pyyaml==6.0.2
 httpx==0.27.2
 pytest==7.4.2
+
+# Fuzzy search dependencies
+rapidfuzz==2.15.1
+Unidecode==1.3.6

@@ -6,6 +6,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import yaml, os
 
+# Fuzzy search deps
+from rapidfuzz import process, fuzz
+from unidecode import unidecode
+
 # Allow tests (or deployments) to override the default data directory via an
 # environment variable.  In normal operation the CSV/YAML data files live in the
 # repository's ``data`` directory.  During testing we want to use lightweight
@@ -75,6 +79,24 @@ for _, row in COMPOUNDS_DF.iterrows():
 
 def _normalise_compound(value: Any) -> str:
     return str(value).strip().lower()
+
+
+def _normalize_for_search(s: str) -> str:
+    """Normalize a string for fuzzy searching: remove diacritics, lowercase and collapse whitespace."""
+    if s is None:
+        return ""
+    return " ".join(unidecode(str(s)).lower().split())
+
+
+# Build in-memory search index for compounds at startup
+# choices: mapping id -> search key (name + synonyms)
+_SEARCH_CHOICES: Dict[str, str] = {}
+for c in COMPOUNDS:
+    parts = [c.get("name", "")]
+    parts.extend(c.get("synonyms") or [])
+    joined = " ".join(parts)
+    _SEARCH_CHOICES[c["id"]] = _normalize_for_search(joined)
+
 
 
 def _interaction_key(a: Any, b: Any) -> Tuple[str, str]:
@@ -163,9 +185,54 @@ def search_compounds(q: str):
     hits.sort(key=lambda x: len(x["name"]))
     return hits[:20]
 
+def search_compounds_fuzzy(q: str, limit: int = 20, threshold: int = 60):
+    """Perform fuzzy fuzzy search using RapidFuzz. Returns list of matches with scores."""
+    if not q or not q.strip():
+        return []
+    qn = _normalize_for_search(q)
+
+    # First try exact or prefix matches to boost relevance
+    exact = []
+    prefix = []
+    for c in COMPOUNDS:
+        name_norm = _normalize_for_search(c.get("name", ""))
+        if name_norm == qn:
+            exact.append({"id": c["id"], "name": c["name"], "synonyms": c["synonyms"], "score": 100, "match_type": "exact"})
+        elif name_norm.startswith(qn) or any(_normalize_for_search(s).startswith(qn) for s in c.get("synonyms", [])):
+            prefix.append({"id": c["id"], "name": c["name"], "synonyms": c["synonyms"], "score": 85, "match_type": "prefix"})
+
+    if len(exact) >= limit:
+        return exact[:limit]
+
+    # Use RapidFuzz to score remaining candidates
+    choices_map = _SEARCH_CHOICES
+    # process.extract returns tuples of (choice, score, key)
+    results = process.extract(qn, choices_map, scorer=fuzz.token_set_ratio, limit=limit)
+
+    out = []
+    seen = set()
+    for match_text, score, cid in results:
+        if score < threshold:
+            continue
+        if cid in seen:
+            continue
+        seen.add(cid)
+        comp = next((x for x in COMPOUNDS if x["id"] == cid), None)
+        if not comp:
+            continue
+        out.append({"id": cid, "name": comp["name"], "synonyms": comp["synonyms"], "score": int(score), "match_type": "fuzzy"})
+
+    # Merge exact/prefix results first
+    merged = exact + prefix
+    # dedupe merged ids
+    final = merged + [r for r in out if r["id"] not in {m["id"] for m in merged}]
+    return final[:limit]
+
+
 @app.get("/search")
-def search(q: str = Query(..., description="Compound name or synonym")):
-    return {"compounds": search_compounds(q)}
+def search(q: str = Query(..., description="Compound name or synonym"), limit: int = Query(20, ge=1, le=100)):
+    results = search_compounds_fuzzy(q, limit=limit)
+    return {"compounds": results}
 
 @app.get("/interaction")
 def interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str] = None):
