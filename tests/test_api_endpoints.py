@@ -68,6 +68,20 @@ async def test_search_success(client):
     assert any(item["id"] == "caffeine" for item in data["results"])
 
 
+async def test_search_matches_synonym(client):
+    resp = await client.get("/api/search", params={"q": "coffee"})
+    assert resp.status_code == 200
+    ids = {item["id"] for item in resp.json().get("results", [])}
+    assert "caffeine" in ids
+
+
+async def test_search_matches_external_id(client):
+    resp = await client.get("/api/search", params={"q": "2519"})
+    assert resp.status_code == 200
+    ids = {item["id"] for item in resp.json().get("results", [])}
+    assert "caffeine" in ids
+
+
 async def test_search_missing_query_param(client):
     resp = await client.get("/api/search")
     assert resp.status_code == 422

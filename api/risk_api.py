@@ -620,22 +620,61 @@ load_data()
 apply_rules()
 
 # Helper functions
+def _compound_synonyms(compound: Dict[str, Any]) -> List[str]:
+    """Collect synonyms/aliases for a compound in a normalised list."""
+
+    candidates: List[str] = []
+    for field in ("synonyms", "aliases"):
+        values = compound.get(field)
+        for item in _coerce_iterable(values):
+            text = str(item).strip()
+            if text:
+                candidates.append(text)
+    return candidates
+
+
+def _compound_external_ids(compound: Dict[str, Any]) -> List[str]:
+    external_ids = compound.get("externalIds") or {}
+    if not isinstance(external_ids, dict):
+        return []
+    values: List[str] = []
+    for value in external_ids.values():
+        text = str(value).strip()
+        if text:
+            values.append(text)
+    return values
+
+
 def resolve_compound(identifier: str) -> Optional[str]:
-    """Resolve compound by ID, name, or synonym."""
-    if not identifier:
+    """Resolve compound by ID, name, synonym, alias, or external identifier."""
+
+    if identifier is None:
         return None
 
-    if identifier in COMPOUNDS:
-        return identifier
+    identifier_text = str(identifier).strip()
+    if not identifier_text:
+        return None
 
-    identifier_lower = identifier.lower()
-    for comp_id, comp in COMPOUNDS.items():
-        name = str(comp.get("name", "")).lower()
-        if name == identifier_lower:
+    identifier_lower = identifier_text.lower()
+
+    # Direct ID lookup (both exact and case-insensitive)
+    if identifier_text in COMPOUNDS:
+        return identifier_text
+    for comp_id in COMPOUNDS.keys():
+        if comp_id.lower() == identifier_lower:
             return comp_id
 
-        for synonym in _coerce_iterable(comp.get("synonyms") or comp.get("aliases")):
-            if str(synonym).lower() == identifier_lower:
+    for comp_id, comp in COMPOUNDS.items():
+        name = str(comp.get("name", "")).strip()
+        if name and name.lower() == identifier_lower:
+            return comp_id
+
+        for candidate in _compound_synonyms(comp):
+            if candidate.lower() == identifier_lower:
+                return comp_id
+
+        for ext_id in _compound_external_ids(comp):
+            if ext_id.lower() == identifier_lower:
                 return comp_id
 
     return None
@@ -740,28 +779,36 @@ def search(
     query_lower = search_term.lower()
     results = []
     
-    for comp in COMPOUNDS.values():
-        # Check name match
-        name = comp.get("name", "").lower()
-        if query_lower in name:
-            results.append(comp)
-            continue
-        
-        # Check alias matches
-        aliases = comp.get("aliases", [])
-        if isinstance(aliases, list):
-            for alias in aliases:
-                if isinstance(alias, str) and query_lower in alias.lower():
-                    results.append(comp)
-                    break
-    
-    # Sort by relevance (exact matches first)
-    results.sort(key=lambda x: (
-        x.get("name", "").lower() != query_lower,
-        x.get("name", "").lower().find(query_lower)
-    ))
-    
-    return {"results": results[:limit]}
+    ranked: List[Tuple[Tuple[int, int, str], Dict[str, Any]]] = []
+    seen_ids: set[str] = set()
+
+    for comp_id, comp in COMPOUNDS.items():
+        name = str(comp.get("name", ""))
+        name_lower = name.lower()
+        synonyms = _compound_synonyms(comp)
+        synonyms_lower = [s.lower() for s in synonyms]
+        external_ids = [val.lower() for val in _compound_external_ids(comp)]
+        alias_match = query_lower in synonyms_lower
+
+        score: Optional[Tuple[int, int, str]] = None
+
+        if comp_id.lower() == query_lower or name_lower == query_lower:
+            score = (0, len(name), comp_id)
+        elif alias_match or query_lower in external_ids:
+            score = (1, len(name), comp_id)
+        else:
+            partial_tokens = [comp_id.lower(), name_lower] + synonyms_lower + external_ids
+            if any(query_lower in token for token in partial_tokens):
+                score = (2, len(name), comp_id)
+
+        if score and comp_id not in seen_ids:
+            ranked.append((score, comp))
+            seen_ids.add(comp_id)
+
+    ranked.sort(key=lambda item: item[0])
+    results = [comp for _, comp in ranked[:limit]]
+
+    return {"results": results}
 
 @app.get("/api/interaction")
 def interaction(a: str, b: str):

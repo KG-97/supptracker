@@ -75,6 +75,26 @@ def test_parse_mapping_handles_iterables():
         "wikidata": "Q271",
         "chembl": "CHEMBL25",
     }
+def test_resolve_compound_matches_aliases_and_external_ids(monkeypatch):
+    monkeypatch.setattr(
+        app_module,
+        "COMPOUNDS",
+        {
+            "caffeine": {
+                "id": "caffeine",
+                "name": "Caffeine",
+                "synonyms": ["coffee"],
+                "aliases": ["1,3,7-trimethylxanthine"],
+                "externalIds": {"pubchem": "2519"},
+            }
+        },
+    )
+
+    assert app_module.resolve_compound("caffeine") == "caffeine"
+    assert app_module.resolve_compound("Caffeine") == "caffeine"
+    assert app_module.resolve_compound("coffee") == "caffeine"
+    assert app_module.resolve_compound("1,3,7-TRIMETHYLXANTHINE") == "caffeine"
+    assert app_module.resolve_compound("2519") == "caffeine"
 
 
 def test_compute_risk_returns_float():
