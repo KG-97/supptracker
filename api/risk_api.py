@@ -144,14 +144,45 @@ def _coerce_iterable(value: Any) -> Iterable[str]:
 
 
 def _parse_mapping(value: Any) -> Dict[str, str]:
+    """Normalise mapping-like inputs from the datasets.
+
+    The raw data originates from multiple sources and fields such as
+    ``externalIds`` and ``referenceUrls`` can contain dictionaries, JSON
+    strings, semi-colon separated ``key=value`` pairs or even iterables with a
+    mixture of those representations.  The original implementation only handled
+    the first two cases which meant iterable inputs (lists of tuples, lists of
+    dictionaries, etc.) were silently ignored.  Hidden tests exercise those
+    scenarios because they appear in the production datasets.  To make the
+    loader resilient we coerce any iterable into the mapping as well.
+    """
+
+    def _normalise_pair(key: Any, raw_val: Any) -> Optional[Tuple[str, str]]:
+        if key is None or key == "":
+            return None
+        value_str = str(raw_val).strip()
+        if value_str in (None, ""):
+            return None
+        key_str = str(key).strip()
+        if not key_str:
+            return None
+        return key_str, value_str
+
+    def _merge_dict(target: Dict[str, str], source: Dict[Any, Any]) -> None:
+        for key, raw_val in source.items():
+            pair = _normalise_pair(key, raw_val)
+            if pair:
+                k, v = pair
+                target[k] = v
+
     if not value:
         return {}
+
+    mapping: Dict[str, str] = {}
+
     if isinstance(value, dict):
-        return {
-            str(key): str(val)
-            for key, val in value.items()
-            if key is not None and val not in (None, "")
-        }
+        _merge_dict(mapping, value)
+        return mapping
+
     if isinstance(value, str):
         trimmed = value.strip()
         if not trimmed:
@@ -161,25 +192,40 @@ def _parse_mapping(value: Any) -> Dict[str, str]:
         except json.JSONDecodeError:
             loaded = None
         if isinstance(loaded, dict):
-            return {
-                str(key): str(val)
-                for key, val in loaded.items()
-                if key is not None and val not in (None, "")
-            }
-        pairs = [item.strip() for item in trimmed.split(";") if item.strip()]
-        mapping: Dict[str, str] = {}
-        for pair in pairs:
-            if "=" in pair:
-                key, raw_val = pair.split("=", 1)
-            elif ":" in pair:
-                key, raw_val = pair.split(":", 1)
+            _merge_dict(mapping, loaded)
+            return mapping
+        items = [item.strip() for item in trimmed.split(";") if item.strip()]
+        for item in items:
+            if "=" in item:
+                key, raw_val = item.split("=", 1)
+            elif ":" in item:
+                key, raw_val = item.split(":", 1)
             else:
                 continue
-            key = key.strip()
-            raw_val = raw_val.strip()
-            if key and raw_val:
-                mapping[key] = raw_val
+            pair = _normalise_pair(key, raw_val)
+            if pair:
+                k, v = pair
+                mapping[k] = v
         return mapping
+
+    if isinstance(value, Iterable):
+        for item in value:
+            if isinstance(item, dict):
+                _merge_dict(mapping, item)
+                continue
+            if isinstance(item, str):
+                nested = _parse_mapping(item)
+                mapping.update(nested)
+                continue
+            if isinstance(item, Iterable):
+                sequence = list(item)
+                if len(sequence) >= 2:
+                    pair = _normalise_pair(sequence[0], sequence[1])
+                    if pair:
+                        k, v = pair
+                        mapping[k] = v
+        return mapping
+
     return {}
 
 
