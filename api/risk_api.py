@@ -2,6 +2,8 @@ import csv
 import json
 import logging
 import os
+import re
+import unicodedata
 from collections.abc import Iterable
 from pathlib import Path
 from types import SimpleNamespace
@@ -552,6 +554,148 @@ COMPOUNDS: Dict[str, Dict[str, Any]] = {}
 INTERACTIONS: List[Dict[str, Any]] = []
 SOURCES: Dict[str, Dict[str, Any]] = {}
 
+# Indexes populated from ``COMPOUNDS`` for fast lookup and ranking.  The
+# structure of the caches is documented in ``build_compound_indexes``.
+_COMPOUND_TOKEN_INDEX: Dict[str, List[Tuple[int, str]]] = {}
+_COMPOUND_SEARCH_CACHE: Dict[str, Dict[str, Any]] = {}
+_COMPOUND_INDEX_STATE: Dict[str, Any] = {"source_id": None, "size": None}
+
+
+def _strip_accents(value: str) -> str:
+    """Return ``value`` lower-cased with accents removed."""
+
+    if not value:
+        return ""
+    normalised = unicodedata.normalize("NFKD", value)
+    without_accents = normalised.encode("ascii", "ignore").decode("ascii")
+    return without_accents.lower()
+
+
+def _normalise_token(value: str) -> str:
+    """Normalise ``value`` for fuzzy indexing.
+
+    The transformation removes accents, collapses whitespace and strips most
+    punctuation so lookups like ``"st johns"`` can match ``"St. John's"``.
+    """
+
+    lowered = _strip_accents(value)
+    collapsed = re.sub(r"[\W_]+", " ", lowered)
+    return collapsed.strip()
+
+
+def _register_token(token: str, compound_id: str, priority: int) -> None:
+    """Register a token for both exact and fuzzy lookup caches."""
+
+    stripped = token.strip()
+    if not stripped:
+        return
+
+    lowered = stripped.lower()
+    normalised = _normalise_token(stripped)
+
+    for key in {lowered, normalised}:
+        if not key:
+            continue
+        bucket = _COMPOUND_TOKEN_INDEX.setdefault(key, [])
+        entry = (priority, compound_id)
+        if entry not in bucket:
+            bucket.append(entry)
+
+
+def _ensure_compound_indexes() -> None:
+    """Rebuild caches when the underlying ``COMPOUNDS`` mapping changes."""
+
+    global _COMPOUND_INDEX_STATE
+    if (
+        _COMPOUND_INDEX_STATE.get("source_id") == id(COMPOUNDS)
+        and _COMPOUND_INDEX_STATE.get("size") == len(COMPOUNDS)
+    ):
+        return
+
+    build_compound_indexes()
+
+
+def build_compound_indexes() -> None:
+    """Populate token caches for fast compound resolution and ranking.
+
+    ``_COMPOUND_TOKEN_INDEX`` maps normalised tokens (including IDs, names,
+    synonyms, and aliases) to ``(priority, compound_id)`` tuples used by
+    :func:`resolve_compound`.  ``priority`` encodes how authoritative the token
+    is (0 for IDs, 1 for primary names, 2+ for synonyms/aliases) so the resolver
+    can prefer canonical identifiers without discarding alternate spellings.
+
+    ``_COMPOUND_SEARCH_CACHE`` stores lower-cased and normalised variants of the
+    textual metadata per compound.  The search endpoint consults this structure
+    to compute detailed ranking tuples without repeatedly lower-casing and
+    splitting strings for every request.
+    """
+
+    _COMPOUND_TOKEN_INDEX.clear()
+    _COMPOUND_SEARCH_CACHE.clear()
+
+    for compound_id, compound in COMPOUNDS.items():
+        name = str(compound.get("name", "") or "").strip()
+        name_lower = name.lower()
+        entry_tokens: List[Dict[str, Any]] = []
+
+        display_sort = name_lower or compound_id.lower()
+        id_normalised = _normalise_token(compound_id)
+        name_normalised = _normalise_token(name)
+
+        _register_token(compound_id, compound_id, priority=0)
+        if name:
+            _register_token(name, compound_id, priority=1)
+
+        entry_tokens.append(
+            {
+                "value": compound_id,
+                "lower": compound_id.lower(),
+                "normalised": id_normalised,
+                "priority": 0,
+                "type": "id",
+            }
+        )
+        if name:
+            entry_tokens.append(
+                {
+                    "value": name,
+                    "lower": name_lower,
+                    "normalised": name_normalised,
+                    "priority": 1,
+                    "type": "name",
+                }
+            )
+
+        for idx, field in enumerate(("synonyms", "aliases"), start=2):
+            for token in _coerce_iterable(compound.get(field)):
+                token_str = str(token).strip()
+                if not token_str:
+                    continue
+                token_lower = token_str.lower()
+                token_normalised = _normalise_token(token_str)
+                entry_tokens.append(
+                    {
+                        "value": token_str,
+                        "lower": token_lower,
+                        "normalised": token_normalised,
+                        "priority": idx,
+                        "type": field[:-1],
+                    }
+                )
+                _register_token(token_str, compound_id, priority=idx)
+
+        _COMPOUND_SEARCH_CACHE[compound_id] = {
+            "compound": compound,
+            "id_lower": compound_id.lower(),
+            "id_normalised": id_normalised,
+            "name_lower": name_lower,
+            "name_normalised": name_normalised,
+            "tokens": entry_tokens,
+            "display_sort": display_sort,
+        }
+
+    _COMPOUND_INDEX_STATE.update({"source_id": id(COMPOUNDS), "size": len(COMPOUNDS)})
+
 
 def load_data() -> None:
     """Load all data files into module-level caches."""
@@ -567,6 +711,8 @@ def load_data() -> None:
         len(INTERACTIONS),
         len(SOURCES),
     )
+
+    build_compound_indexes()
 
 
 # Load data and rules on startup
@@ -604,20 +750,29 @@ def resolve_compound(identifier: str) -> Optional[str]:
     if raw_identifier in COMPOUNDS:
         return raw_identifier
 
+    _ensure_compound_indexes()
+
     identifier_lower = raw_identifier.lower()
+    identifier_normalised = _normalise_token(raw_identifier)
 
-    for comp_id in COMPOUNDS:
-        if comp_id.lower() == identifier_lower:
-            return comp_id
+    candidates: List[Tuple[int, str]] = []
+    for key in {identifier_lower, identifier_normalised}:
+        if not key:
+            continue
+        matches = _COMPOUND_TOKEN_INDEX.get(key, [])
+        if matches:
+            candidates.extend(matches)
 
-    for comp_id, comp in COMPOUNDS.items():
-        name = str(comp.get("name", "")).strip().lower()
-        if name and name == identifier_lower:
-            return comp_id
+    if not candidates:
+        return None
 
-        for _, token_lower in _iter_identifier_tokens(comp):
-            if token_lower == identifier_lower:
-                return comp_id
+    candidates.sort()
+    seen = set()
+    for _, compound_id in candidates:
+        if compound_id in seen:
+            continue
+        seen.add(compound_id)
+        return compound_id
 
     return None
 
@@ -707,33 +862,102 @@ def get_compound(compound_id: str):
         raise HTTPException(status_code=404, detail="Compound not found")
     return COMPOUNDS[compound_id]
 
-def _match_rank(compound: Dict[str, Any], query_lower: str) -> Optional[tuple[int, int, str]]:
-    """Return sorting tuple for a compound match or ``None`` if no match."""
+def _score_search_entry(
+    entry: Dict[str, Any], query_lower: str, query_normalised: str
+) -> Optional[Tuple[int, int, int, int, str]]:
+    """Return a detailed ranking tuple for search results.
 
-    compound_id = str(compound.get("id", "")).strip()
-    if compound_id and compound_id.lower() == query_lower:
-        return (0, 0, compound_id.lower())
+    The tuple combines the type of match (exact ID, prefix, substring, fuzzy),
+    the match position, token length, and a stable sort key based on the
+    compound name.  Lower tuples sort first.
+    """
 
-    name = str(compound.get("name", "")).strip()
-    name_lower = name.lower()
-    if name_lower:
-        if name_lower == query_lower:
-            return (0, 1, name_lower)
-        if query_lower in name_lower:
-            return (1, name_lower.find(query_lower), name_lower)
+    display_sort: str = entry["display_sort"]
 
-    best_synonym_rank: Optional[tuple[int, int, str]] = None
-    for original, lowered in _iter_identifier_tokens(compound):
-        if lowered == query_lower:
-            candidate = (2, 0, lowered)
-        elif query_lower in lowered:
-            candidate = (3, lowered.find(query_lower), lowered)
+    def make_rank(category: int, position: int, length: int, priority: int) -> Tuple[int, int, int, int, str]:
+        return (category, position, length, priority, display_sort)
+
+    # Category ordering (lower is better):
+    # 0-2 exact matches (id, name, token)
+    # 3-5 prefix matches, 6-8 substring matches, 9-14 normalised/loose matches.
+    best_rank: Optional[Tuple[int, int, int, int, str]] = None
+
+    def consider(rank: Optional[Tuple[int, int, int, int, str]]) -> None:
+        nonlocal best_rank
+        if rank is None:
+            return
+        if best_rank is None or rank < best_rank:
+            best_rank = rank
+
+    id_lower = entry["id_lower"]
+    if id_lower:
+        if query_lower == id_lower:
+            consider(make_rank(0, 0, len(id_lower), 0))
+        elif id_lower.startswith(query_lower):
+            consider(make_rank(3, 0, len(id_lower), 0))
         else:
-            continue
-        if best_synonym_rank is None or candidate < best_synonym_rank:
-            best_synonym_rank = candidate
+            pos = id_lower.find(query_lower)
+            if pos != -1:
+                consider(make_rank(6, pos, len(id_lower), 0))
 
-    return best_synonym_rank
+    name_lower = entry["name_lower"]
+    if name_lower:
+        if query_lower == name_lower:
+            consider(make_rank(1, 0, len(name_lower), 1))
+        elif name_lower.startswith(query_lower):
+            consider(make_rank(4, 0, len(name_lower), 1))
+        else:
+            pos = name_lower.find(query_lower)
+            if pos != -1:
+                consider(make_rank(7, pos, len(name_lower), 1))
+
+    for token in entry["tokens"]:
+        lower = token.get("lower", "")
+        priority = token.get("priority", 5)
+        if not lower:
+            continue
+        if query_lower == lower:
+            consider(make_rank(2, 0, len(lower), priority))
+            continue
+        if lower.startswith(query_lower):
+            consider(make_rank(5, 0, len(lower), priority))
+            continue
+        pos = lower.find(query_lower)
+        if pos != -1:
+            consider(make_rank(8, pos, len(lower), priority))
+
+    if query_normalised and query_normalised != query_lower:
+        id_norm = entry.get("id_normalised")
+        if id_norm:
+            if query_normalised == id_norm:
+                consider(make_rank(9, 0, len(id_norm), 0))
+            else:
+                pos = id_norm.find(query_normalised)
+                if pos != -1:
+                    consider(make_rank(12, pos, len(id_norm), 0))
+
+        name_norm = entry.get("name_normalised")
+        if name_norm:
+            if query_normalised == name_norm:
+                consider(make_rank(10, 0, len(name_norm), 1))
+            else:
+                pos = name_norm.find(query_normalised)
+                if pos != -1:
+                    consider(make_rank(13, pos, len(name_norm), 1))
+
+        for token in entry["tokens"]:
+            norm = token.get("normalised")
+            priority = token.get("priority", 5)
+            if not norm:
+                continue
+            if query_normalised == norm:
+                consider(make_rank(11, 0, len(norm), priority))
+                continue
+            pos = norm.find(query_normalised)
+            if pos != -1:
+                consider(make_rank(14, pos, len(norm), priority))
+
+    return best_rank
 
 
 @app.get("/api/search")
@@ -748,16 +972,19 @@ def search(
     if not search_term:
         raise HTTPException(status_code=422, detail="Missing search parameter")
 
-    query_lower = search_term.lower()
-    matched: list[tuple[tuple[int, int, str], Dict[str, Any]]] = []
+    _ensure_compound_indexes()
 
-    for comp in COMPOUNDS.values():
-        rank = _match_rank(comp, query_lower)
+    query_lower = search_term.lower()
+    query_normalised = _normalise_token(search_term)
+    matched: List[Tuple[Tuple[int, int, int, int, str], Dict[str, Any]]] = []
+
+    for entry in _COMPOUND_SEARCH_CACHE.values():
+        rank = _score_search_entry(entry, query_lower, query_normalised)
         if rank is None:
             continue
-        matched.append((rank, comp))
+        matched.append((rank, entry["compound"]))
 
-    matched.sort(key=lambda item: (item[0][0], item[0][1], item[0][2], str(item[1].get("name", "")).lower()))
+    matched.sort(key=lambda item: item[0])
     results = [comp for _, comp in matched[:limit]]
 
     return {"results": results}

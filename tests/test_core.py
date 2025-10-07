@@ -18,6 +18,7 @@ def test_resolve_compound(monkeypatch):
         "COMPOUNDS",
         {"caffeine": {"id": "caffeine", "name": "Caffeine", "synonyms": ["coffee"]}},
     )
+    app_module.build_compound_indexes()
     assert app_module.resolve_compound("coffee") == "caffeine"
     assert app_module.resolve_compound("unknown") is None
 
@@ -35,6 +36,7 @@ def test_resolve_compound_alias(monkeypatch):
             }
         },
     )
+    app_module.build_compound_indexes()
     assert app_module.resolve_compound("Guarana") == "caffeine"
     assert app_module.resolve_compound("guarana") == "caffeine"
     assert app_module.resolve_compound("CAFFEINE") == "caffeine"
@@ -50,6 +52,7 @@ def test_resolve_compound_with_comma_synonyms(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DATA_DIR", str(tmp_path))
     compounds = app_module.load_compounds()
     monkeypatch.setattr(app_module, "COMPOUNDS", compounds)
+    app_module.build_compound_indexes()
 
     assert compounds["st_johns_wort"]["synonyms"] == ["St. John's Wort", "Hypericum"]
     assert app_module.resolve_compound("hypericum") == "st_johns_wort"
