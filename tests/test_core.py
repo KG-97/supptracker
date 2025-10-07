@@ -53,6 +53,30 @@ def test_load_compounds_includes_external_metadata(tmp_path, monkeypatch):
     }
 
 
+def test_parse_mapping_handles_iterables():
+    import api.risk_api as app_module
+
+    payload = [
+        {"pubchem": 2519},
+        ("drugbank", "DB01234"),
+        ["rxnorm", 123],
+        "wikidata=Q271",
+        "chembl:CHEMBL25",
+        ["ignored"],
+        {"empty": ""},
+    ]
+
+    result = app_module._parse_mapping(payload)
+
+    assert result == {
+        "pubchem": "2519",
+        "drugbank": "DB01234",
+        "rxnorm": "123",
+        "wikidata": "Q271",
+        "chembl": "CHEMBL25",
+    }
+
+
 def test_compute_risk_returns_float():
     inter = {"severity": "Mild", "evidence": "C", "mechanism": []}
     score = app_module.compute_risk(inter)
