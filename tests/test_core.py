@@ -89,7 +89,7 @@ def test_loaders_handle_missing_files(tmp_path, monkeypatch):
 
 
 def test_load_compounds_merges_multiple_sources(tmp_path, monkeypatch):
-    fieldnames = ["id", "name", "synonyms", "externalIds", "referenceUrls"]
+    fieldnames = ["id", "name", "synonyms", "aliases", "externalIds", "referenceUrls"]
     csv_path = tmp_path / "compounds.csv"
     with open(csv_path, "w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
@@ -99,6 +99,7 @@ def test_load_compounds_merges_multiple_sources(tmp_path, monkeypatch):
                 "id": "creatine",
                 "name": "Creatine",
                 "synonyms": "creatine monohydrate",
+                "aliases": "Creapure",
                 "externalIds": json.dumps({"rxnorm": "123"}),
                 "referenceUrls": "",
             }
@@ -107,7 +108,7 @@ def test_load_compounds_merges_multiple_sources(tmp_path, monkeypatch):
     json_payload = [
         {
             "id": "creatine",
-            "aliases": ["Cr"],
+            "aliases": ["Cr", "Creapure"],
             "externalIds": {"wikidata": "Q173354"},
             "referenceUrls": {"wikipedia": "https://example.com/creatine"},
         },
@@ -127,8 +128,9 @@ def test_load_compounds_merges_multiple_sources(tmp_path, monkeypatch):
     assert set(compounds.keys()) == {"creatine", "magnesium"}
     assert compounds["creatine"]["externalIds"] == {"rxnorm": "123", "wikidata": "Q173354"}
     assert "creatine monohydrate" in compounds["creatine"]["synonyms"]
-    assert "Cr" in compounds["creatine"]["synonyms"]
+    assert compounds["creatine"]["aliases"] == ["Creapure", "Cr"]
     assert compounds["magnesium"]["referenceUrls"]["nih"] == "https://example.com/magnesium"
+    assert compounds["magnesium"].get("aliases", []) == []
 
 
 def test_load_interactions_merges_duplicates(tmp_path, monkeypatch):

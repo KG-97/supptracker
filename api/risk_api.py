@@ -145,6 +145,14 @@ def _coerce_iterable(value: Any) -> Iterable[str]:
     return []
 
 
+def _parse_string_iterable(value: Any) -> List[str]:
+    return [
+        item.strip()
+        for item in _coerce_iterable(value)
+        if isinstance(item, str) and item.strip()
+    ]
+
+
 def _parse_mapping(value: Any) -> Dict[str, str]:
     if not value:
         return {}
@@ -201,18 +209,22 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                     if not compound_id:
                         continue
                     synonyms = _parse_synonyms(row.get("synonyms", ""))
+                    aliases = _parse_synonyms(row.get("aliases", ""))
                     external_ids = _parse_mapping(row.get("externalIds"))
                     reference_urls = _parse_mapping(row.get("referenceUrls"))
                     base = {
                         k: v
                         for k, v in row.items()
-                        if v not in (None, "") and k not in {"synonyms", "externalIds", "referenceUrls"}
+                        if v not in (None, "")
+                        and k
+                        not in {"synonyms", "aliases", "externalIds", "referenceUrls"}
                     }
                     compounds[compound_id] = {
                         **base,
                         "id": compound_id,
                         "name": row.get("name") or compound_id,
                         "synonyms": synonyms,
+                        "aliases": aliases,
                         "externalIds": external_ids,
                         "referenceUrls": reference_urls,
                     }
@@ -227,12 +239,8 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                 compound_id = entry.get("id")
                 if not compound_id:
                     continue
-                synonyms_iter = entry.get("synonyms") or entry.get("aliases") or []
-                synonyms = [
-                    s.strip()
-                    for s in _coerce_iterable(synonyms_iter)
-                    if isinstance(s, str) and s.strip()
-                ]
+                synonyms = _parse_string_iterable(entry.get("synonyms"))
+                aliases = _parse_string_iterable(entry.get("aliases"))
                 external_ids = _parse_mapping(
                     entry.get("externalIds") or entry.get("external_ids")
                 )
@@ -244,6 +252,7 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                     "id": compound_id,
                     "name": entry.get("name") or compound_id,
                     "synonyms": synonyms,
+                    "aliases": aliases,
                     "externalIds": external_ids,
                     "referenceUrls": reference_urls,
                 }
@@ -253,13 +262,10 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                     compounds[compound_id] = record
                     continue
 
-                existing_synonyms = [
-                    s.strip()
-                    for s in _coerce_iterable(existing.get("synonyms"))
-                    if isinstance(s, str) and s.strip()
-                ]
-                merged_synonyms = list(dict.fromkeys(existing_synonyms + synonyms))
-                existing["synonyms"] = merged_synonyms
+                existing_synonyms = _parse_string_iterable(existing.get("synonyms"))
+                existing_aliases = _parse_string_iterable(existing.get("aliases"))
+                existing["synonyms"] = list(dict.fromkeys(existing_synonyms + synonyms))
+                existing["aliases"] = list(dict.fromkeys(existing_aliases + aliases))
 
                 if record.get("name"):
                     existing_name = existing.get("name")
@@ -277,7 +283,7 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                 existing["referenceUrls"] = {**existing_refs, **reference_urls}
 
                 for key, value in record.items():
-                    if key in {"id", "synonyms", "externalIds", "referenceUrls"}:
+                    if key in {"id", "synonyms", "aliases", "externalIds", "referenceUrls"}:
                         continue
                     if value in (None, ""):
                         continue
