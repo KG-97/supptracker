@@ -1,6 +1,7 @@
 from collections import defaultdict
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException, Query, APIRouter, Request
+from fastapi.responses import ORJSONResponse, JSONResponse
+from starlette.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, conlist, root_validator, validator
 from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
@@ -9,6 +10,14 @@ import yaml, os
 # Fuzzy search deps
 from rapidfuzz import process, fuzz
 from unidecode import unidecode
+
+# Production middleware / observability
+from asgi_correlation_id import CorrelationIdMiddleware, correlation_id
+from prometheus_fastapi_instrumentator import Instrumentator
+import logging
+
+# Synonyms helper
+from backend.synonyms import parse_synonyms
 
 # Allow tests (or deployments) to override the default data directory via an
 # environment variable.  In normal operation the CSV/YAML data files live in the
@@ -29,15 +38,35 @@ def load_yaml(name: str) -> dict:
     with open(p, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-app = FastAPI(title="Supplement Interaction API", version="0.1.0")
+app = FastAPI(title="Supplement Interaction API", version="0.2.2", default_response_class=ORJSONResponse)
+
+# CORS (allow from env or default to all)
+origins = os.environ.get("CORS_ALLOWED_ORIGINS", "*")
+if origins == "*":
+    allow_list = ["*"]
+else:
+    allow_list = [o.strip() for o in origins.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Correlation ID middleware
+app.add_middleware(CorrelationIdMiddleware)
+
+# Basic structured logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger("supptracker")
+
+# Prometheus instrumentation
+instrumentator = Instrumentator().instrument(app).expose(app)
+
+# Create API router
+api_router = APIRouter(prefix="/api")
 
 @app.get("/health")
 def health():
@@ -60,9 +89,13 @@ SOURCES_DF = load_csv("sources.csv")
 RULES = load_yaml("risk_rules.yaml")
 
 def to_synonyms(s: str):
-    if pd.isna(s) or s.strip() == "":
-        return []
-    return [x.strip() for x in str(s).split(";")]
+    # Use parse_synonyms for consistent parsing across modules
+    try:
+        if pd.isna(s):
+            return []
+    except Exception:
+        pass
+    return parse_synonyms(s)
 
 COMPOUNDS = []
 for _, row in COMPOUNDS_DF.iterrows():
@@ -96,6 +129,50 @@ for c in COMPOUNDS:
     parts.extend(c.get("synonyms") or [])
     joined = " ".join(parts)
     _SEARCH_CHOICES[c["id"]] = _normalize_for_search(joined)
+
+
+# Logging middleware to capture structured request logs
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    # try to obtain correlation id from middleware or headers
+    try:
+        cid_val = correlation_id.get()
+    except Exception:
+        try:
+            cid_val = correlation_id.get_correlation_id()
+        except Exception:
+            cid_val = request.headers.get("X-Correlation-ID", "")
+
+    logger.info("request_start", extra={"method": request.method, "path": str(request.url.path), "correlation_id": cid_val})
+    response = await call_next(request)
+    logger.info("request_end", extra={"status_code": response.status_code, "method": request.method, "path": str(request.url.path), "correlation_id": cid_val})
+    return response
+
+
+# Readiness endpoint
+@app.get("/ready")
+def ready():
+    return {"status": "ready"}
+
+# Duplicate endpoints under /api router for compatibility
+@api_router.get("/health")
+def api_health():
+    return health()
+
+@api_router.get("/search")
+def api_search(q: str = Query(..., description="Compound name or synonym"), limit: int = Query(20, ge=1, le=100)):
+    return search(q=q, limit=limit)
+
+@api_router.get("/interaction")
+def api_interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str] = None):
+    return interaction(a=a, b=b, flags=flags, doses=doses)
+
+@api_router.post("/stack/check")
+def api_stack_check(payload: StackCheckRequest):
+    return stack_check(payload)
+
+# Mount API router
+app.include_router(api_router)
 
 
 

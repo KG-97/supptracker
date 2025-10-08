@@ -8,3 +8,6 @@ pytest==7.4.2
 # Fuzzy search dependencies
 rapidfuzz==2.15.1
 Unidecode==1.3.6
+orjson==3.9.5
+asgi-correlation-id==0.4.0
+prometheus-fastapi-instrumentator==6.0.1
