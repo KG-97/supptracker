@@ -179,7 +179,10 @@ button.ghost {
   color: var(--link);
 }
 
-html.dark button.ghost,
+html.dark button.ghost {
+  background: rgba(99, 102, 241, 0.12);
+}
+
 @media (prefers-color-scheme: dark) {
   button.ghost {
     background: rgba(99, 102, 241, 0.12);
@@ -476,9 +479,18 @@ button.ghost:hover {
   color: #1f2937;
 }
 
-html.dark .badge,
+html.dark .badge {
+  background: #0b1220;
+  color: #e5e7eb;
+  border: 1px solid #1f2937;
+}
+
 @media (prefers-color-scheme: dark) {
-  .badge { background: #0b1220; color: #e5e7eb; border: 1px solid #1f2937; }
+  .badge {
+    background: #0b1220;
+    color: #e5e7eb;
+    border: 1px solid #1f2937;
+  }
 }
 
 .badge-muted { background: #e5e7eb; color: #374151; }
