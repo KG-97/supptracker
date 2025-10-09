@@ -12,7 +12,17 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, conlist, root_validator, validator
+
+try:  # pragma: no cover - optional dependency
+    from asgi_correlation_id import CorrelationIdMiddleware
+except ImportError:  # pragma: no cover - dependency not installed in some environments
+    CorrelationIdMiddleware = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional dependency
+    from prometheus_fastapi_instrumentator import Instrumentator
+except ImportError:  # pragma: no cover - dependency not installed in some environments
+    Instrumentator = None  # type: ignore[assignment]
 
 
 # Configure logging
@@ -37,6 +47,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+if CorrelationIdMiddleware is not None:  # pragma: no branch - simple guard
+    app.add_middleware(CorrelationIdMiddleware)
+else:  # pragma: no cover - warning for optional dependency
+    logger.info(
+        "asgi-correlation-id not installed; request tracing middleware disabled"
+    )
+
+if Instrumentator is not None:  # pragma: no branch - simple guard
+    Instrumentator().instrument(app).expose(app)
+else:  # pragma: no cover - warning for optional dependency
+    logger.info(
+        "prometheus-fastapi-instrumentator not installed; metrics endpoint disabled"
+    )
 
 # Serve static files from frontend build if available
 FRONTEND_DIST = Path(os.getenv("SUPPTRACKER_FRONTEND_DIST", "frontend_dist"))
@@ -827,36 +851,93 @@ def interaction(a: str, b: str):
     raise HTTPException(status_code=404, detail="No known interaction")
 
 class StackRequest(BaseModel):
-    compounds: List[str]
+    """Request payload for stack checks with input validation and alias support."""
+
+    compounds: conlist(str, min_items=2)
+
+    @root_validator(pre=True)
+    def _alias_items(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        if "compounds" not in values and "items" in values:
+            values["compounds"] = values.pop("items")
+        return values
+
+    @validator("compounds", pre=True)
+    def _validate_compounds(cls, value: Any) -> List[str]:
+        if not isinstance(value, list):
+            raise ValueError("compounds must be provided as a list of strings")
+        cleaned = [str(item).strip() for item in value if str(item).strip()]
+        if len(cleaned) < 2:
+            raise ValueError("Provide at least two compounds to analyse a stack")
+        return cleaned
+
+def _classify_risk_bucket(interaction: Dict[str, Any], score: float) -> Tuple[str, str]:
+    """Return a simple (bucket, action) tuple for stack responses."""
+
+    severity = str(interaction.get("severity", "")).lower()
+    action = str(interaction.get("action", "")).strip() or "Review"
+
+    if severity == "severe" or score >= 2.5:
+        return "High", action or "Avoid"
+    if severity == "moderate" or score >= 1.5:
+        return "Caution", action or "Monitor"
+    return "Low", action or "No issue"
+
 
 @app.post("/api/stack/check")
 def check_stack(payload: StackRequest):
     """Check interactions within a stack of compounds."""
-    ids: List[str] = []
-    for ident in payload.compounds:
+
+    input_items = payload.compounds
+    resolved_ids: List[str] = []
+    for ident in input_items:
         cid = resolve_compound(ident)
         if not cid:
             raise HTTPException(status_code=404, detail=f"Compound not found: {ident}")
-        ids.append(cid)
-    
-    interactions_out: List[dict] = []
-    for i in range(len(ids)):
-        for j in range(i+1, len(ids)):
-            a_id = ids[i]
-            b_id = ids[j]
+        resolved_ids.append(cid)
+
+    length = len(resolved_ids)
+    matrix: List[List[Optional[float]]] = [[None for _ in range(length)] for _ in range(length)]
+    interactions_out: List[Dict[str, Any]] = []
+
+    for i in range(length):
+        for j in range(i + 1, length):
+            a_id = resolved_ids[i]
+            b_id = resolved_ids[j]
             for inter in INTERACTIONS:
-                if (inter["a"] == a_id and inter["b"] == b_id) or (inter.get("bidirectional", False) and inter["a"] == b_id and inter["b"] == a_id):
-                    interactions_out.append({
-                        "a": a_id,
-                        "b": b_id,
-                        "severity": inter["severity"],
-                        "evidence": inter["evidence"],
-                        "effect": inter["effect"],
-                        "action": inter["action"],
-                        "risk_score": compute_risk(inter),
-                    })
-    
-    return {"interactions": interactions_out}
+                first_match = inter["a"] == a_id and inter["b"] == b_id
+                second_match = (
+                    inter.get("bidirectional", False)
+                    and inter["a"] == b_id
+                    and inter["b"] == a_id
+                )
+                if not (first_match or second_match):
+                    continue
+
+                score = compute_risk(inter)
+                matrix[i][j] = score
+                matrix[j][i] = score
+
+                bucket, resolved_action = _classify_risk_bucket(inter, score)
+                record = {
+                    "a": a_id,
+                    "b": b_id,
+                    "severity": inter.get("severity"),
+                    "evidence": inter.get("evidence"),
+                    "effect": inter.get("effect"),
+                    "action": inter.get("action"),
+                    "action_resolved": resolved_action,
+                    "bucket": bucket,
+                    "risk_score": score,
+                }
+                interactions_out.append(record)
+
+    return {
+        "items": input_items,
+        "resolved_items": resolved_ids,
+        "matrix": matrix,
+        "cells": interactions_out,
+        "interactions": interactions_out,
+    }
 
 # SPA fallback route - must be last
 @app.get("/{full_path:path}")
