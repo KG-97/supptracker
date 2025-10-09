@@ -14,6 +14,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, conlist, root_validator, validator
 
+from backend.synonyms import parse_synonyms
+
 try:  # pragma: no cover - optional dependency
     from asgi_correlation_id import CorrelationIdMiddleware
 except ImportError:  # pragma: no cover - dependency not installed in some environments
@@ -142,19 +144,43 @@ def _resolve_config_path(path: Optional[str]) -> Optional[Path]:
     return candidate if candidate.exists() else None
 
 
-def _parse_synonyms(value: str) -> List[str]:
-    if not value:
-        return []
-    reader = csv.reader([value])
-    try:
-        row = next(reader)
-    except StopIteration:
-        return []
-    if len(row) == 1:
-        row = [part.strip() for part in row[0].split(",")]
-    else:
-        row = [item.strip() for item in row]
-    return [item for item in row if item]
+class DataHealthTracker:
+    """Track data loading health and surface degradations."""
+
+    def __init__(self) -> None:
+        self._issues: Dict[str, str] = {}
+
+    def record_success(self, source: str) -> None:
+        self._issues.pop(source, None)
+
+    def record_failure(self, source: str, error: str) -> None:
+        self._issues[source] = error
+
+    def reset(self) -> None:
+        self._issues.clear()
+
+    def snapshot(self) -> Dict[str, Any]:
+        issues = [
+            {"source": source, "error": message}
+            for source, message in self._issues.items()
+        ]
+        status = "healthy" if not issues else "degraded"
+        return {"status": status, "issues": issues}
+
+
+DATA_HEALTH = DataHealthTracker()
+
+
+def reset_health_state() -> None:
+    """Expose a helper for tests to reset health tracking."""
+
+    DATA_HEALTH.reset()
+
+
+def get_health_state() -> Dict[str, Any]:
+    """Return the current data health snapshot."""
+
+    return DATA_HEALTH.snapshot()
 
 
 def _coerce_iterable(value: Any) -> Iterable[str]:
@@ -260,23 +286,27 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
     csv_path = directory / "compounds.csv"
     json_path = directory / "compounds.json"
 
+    csv_loaded = False
     if csv_path.exists():
         try:
             with open(csv_path, newline="", encoding="utf-8") as fh:
                 reader = csv.DictReader(fh)
+                csv_loaded = True
                 for row in reader:
                     compound_id = row.get("id")
                     if not compound_id:
                         continue
-                    synonyms = _parse_synonyms(row.get("synonyms", ""))
+                    synonyms = parse_synonyms([row.get("synonyms"), row.get("aliases")])
+                    aliases = parse_synonyms(row.get("aliases"))
                     external_ids = _parse_mapping(row.get("externalIds"))
                     reference_urls = _parse_mapping(row.get("referenceUrls"))
                     base = {
                         k: v
                         for k, v in row.items()
-                        if v not in (None, "") and k not in {"synonyms", "externalIds", "referenceUrls"}
+                        if v not in (None, "")
+                        and k not in {"synonyms", "externalIds", "referenceUrls"}
                     }
-                    compounds[compound_id] = {
+                    record = {
                         **base,
                         "id": compound_id,
                         "name": row.get("name") or compound_id,
@@ -284,8 +314,22 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                         "externalIds": external_ids,
                         "referenceUrls": reference_urls,
                     }
+                    if aliases:
+                        record["aliases"] = aliases
+                    compounds[compound_id] = record
         except Exception as exc:  # pragma: no cover - logged for diagnostics
+            csv_loaded = False
             logger.error("Failed to load compounds CSV: %s", exc)
+            DATA_HEALTH.record_failure(
+                csv_path.name, f"Failed to load {csv_path.name}: {exc}"
+            )
+    else:
+        DATA_HEALTH.record_failure(
+            csv_path.name, f"Missing data file at {csv_path}"
+        )
+
+    if csv_loaded:
+        DATA_HEALTH.record_success(csv_path.name)
 
     if json_path.exists():
         try:
@@ -295,19 +339,15 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                 compound_id = entry.get("id")
                 if not compound_id:
                     continue
-                synonyms_iter = entry.get("synonyms") or entry.get("aliases") or []
-                synonyms = [
-                    s.strip()
-                    for s in _coerce_iterable(synonyms_iter)
-                    if isinstance(s, str) and s.strip()
-                ]
+                synonyms = parse_synonyms([entry.get("synonyms"), entry.get("aliases")])
+                entry_aliases = parse_synonyms(entry.get("aliases"))
                 external_ids = _parse_mapping(
                     entry.get("externalIds") or entry.get("external_ids")
                 )
                 reference_urls = _parse_mapping(
                     entry.get("referenceUrls") or entry.get("reference_urls")
                 )
-                record = {
+                record: Dict[str, Any] = {
                     **{k: v for k, v in entry.items() if v not in (None, "")},
                     "id": compound_id,
                     "name": entry.get("name") or compound_id,
@@ -315,19 +355,26 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                     "externalIds": external_ids,
                     "referenceUrls": reference_urls,
                 }
+                if entry_aliases:
+                    record["aliases"] = entry_aliases
+                elif "aliases" in record:
+                    record["aliases"] = parse_synonyms(record.get("aliases"))
 
                 existing = compounds.get(compound_id)
                 if not existing:
                     compounds[compound_id] = record
                     continue
 
-                existing_synonyms = [
-                    s.strip()
-                    for s in _coerce_iterable(existing.get("synonyms"))
-                    if isinstance(s, str) and s.strip()
-                ]
-                merged_synonyms = list(dict.fromkeys(existing_synonyms + synonyms))
+                existing_synonyms = parse_synonyms(existing.get("synonyms"))
+                existing_aliases = parse_synonyms(existing.get("aliases"))
+                merged_synonyms = parse_synonyms(
+                    existing_synonyms + existing_aliases + synonyms
+                )
                 existing["synonyms"] = merged_synonyms
+
+                merged_aliases = parse_synonyms(existing_aliases + entry_aliases)
+                if merged_aliases:
+                    existing["aliases"] = merged_aliases
 
                 if record.get("name"):
                     existing_name = existing.get("name")
@@ -421,12 +468,14 @@ def load_interactions(data_dir: Optional[str | Path] = None) -> List[Dict[str, A
         seen[key] = len(interactions)
         interactions.append(record)
 
+    csv_loaded = False
     if csv_path.exists():
         try:
             with open(csv_path, newline="", encoding="utf-8") as fh:
                 reader = csv.DictReader(fh)
+                csv_loaded = True
                 for row in reader:
-                    mechanisms = _parse_synonyms(row.get("mechanism", ""))
+                    mechanisms = parse_synonyms(row.get("mechanism"))
                     bidirectional_raw = row.get("bidirectional")
                     if isinstance(bidirectional_raw, str):
                         bidirectional = bidirectional_raw.strip().lower() in {"true", "1", "yes", "y"}
@@ -439,7 +488,18 @@ def load_interactions(data_dir: Optional[str | Path] = None) -> List[Dict[str, A
                     }
                     register(record)
         except Exception as exc:  # pragma: no cover
+            csv_loaded = False
             logger.error("Failed to load interactions CSV: %s", exc)
+            DATA_HEALTH.record_failure(
+                csv_path.name, f"Failed to load {csv_path.name}: {exc}"
+            )
+    else:
+        DATA_HEALTH.record_failure(
+            csv_path.name, f"Missing data file at {csv_path}"
+        )
+
+    if csv_loaded:
+        DATA_HEALTH.record_success(csv_path.name)
 
     if json_path.exists():
         try:
@@ -447,14 +507,7 @@ def load_interactions(data_dir: Optional[str | Path] = None) -> List[Dict[str, A
                 data = json.load(fh)
             for entry in data or []:
                 mechanisms_raw = entry.get("mechanism") or entry.get("mechanisms") or []
-                if isinstance(mechanisms_raw, str):
-                    mechanisms = _parse_synonyms(mechanisms_raw)
-                else:
-                    mechanisms = [
-                        str(item).strip()
-                        for item in _coerce_iterable(mechanisms_raw)
-                        if str(item).strip()
-                    ]
+                mechanisms = parse_synonyms(mechanisms_raw)
                 bidirectional_raw = entry.get("bidirectional")
                 if isinstance(bidirectional_raw, str):
                     bidirectional = bidirectional_raw.strip().lower() in {"true", "1", "yes", "y"}
@@ -479,10 +532,12 @@ def load_sources(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str, A
 
     sources: Dict[str, Dict[str, Any]] = {}
 
+    csv_loaded = False
     if csv_path.exists():
         try:
             with open(csv_path, newline="", encoding="utf-8") as fh:
                 reader = csv.DictReader(fh)
+                csv_loaded = True
                 for row in reader:
                     source_id = row.get("id")
                     if not source_id:
@@ -492,7 +547,18 @@ def load_sources(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str, A
                         "id": source_id,
                     }
         except Exception as exc:  # pragma: no cover
+            csv_loaded = False
             logger.error("Failed to load sources CSV: %s", exc)
+            DATA_HEALTH.record_failure(
+                csv_path.name, f"Failed to load {csv_path.name}: {exc}"
+            )
+    else:
+        DATA_HEALTH.record_failure(
+            csv_path.name, f"Missing data file at {csv_path}"
+        )
+
+    if csv_loaded:
+        DATA_HEALTH.record_success(csv_path.name)
 
     if json_path.exists():
         try:
@@ -530,6 +596,12 @@ def load_rules(path: Optional[str] = None) -> Tuple[
     Any,
     str,
 ]:
+    if path:
+        expected_path = Path(path)
+    else:
+        env_path = os.getenv("RISK_RULES_PATH")
+        expected_path = Path(env_path) if env_path else DATA_DIR / "risk_rules.yaml"
+
     config_path = _resolve_config_path(path)
     mechanisms = DEFAULT_MECHANISM_DELTAS.copy()
     weights = DEFAULT_WEIGHTS.copy()
@@ -539,6 +611,10 @@ def load_rules(path: Optional[str] = None) -> Tuple[
     formula_source = DEFAULT_FORMULA_SOURCE
 
     if not config_path or not config_path.exists():
+        DATA_HEALTH.record_failure(
+            expected_path.name,
+            f"Missing rules config at {expected_path}",
+        )
         return mechanisms, weights, severity_map, evidence_map, formula, formula_source
 
     try:
@@ -546,6 +622,10 @@ def load_rules(path: Optional[str] = None) -> Tuple[
             content = yaml.safe_load(fh) or {}
     except Exception as exc:  # pragma: no cover
         logger.error("Failed to load rules config %s: %s", config_path, exc)
+        DATA_HEALTH.record_failure(
+            expected_path.name,
+            f"Failed to load {expected_path.name}: {exc}",
+        )
         return mechanisms, weights, severity_map, evidence_map, formula, formula_source
 
     try:
@@ -592,6 +672,10 @@ def load_rules(path: Optional[str] = None) -> Tuple[
             formula_source = formula_text
     except Exception as exc:  # pragma: no cover
         logger.error("Invalid rules config %s: %s", config_path, exc)
+        DATA_HEALTH.record_failure(
+            expected_path.name,
+            f"Invalid rules config {expected_path.name}: {exc}",
+        )
         return (
             DEFAULT_MECHANISM_DELTAS.copy(),
             DEFAULT_WEIGHTS.copy(),
@@ -601,6 +685,7 @@ def load_rules(path: Optional[str] = None) -> Tuple[
             DEFAULT_FORMULA_SOURCE,
         )
 
+    DATA_HEALTH.record_success(expected_path.name)
     return mechanisms, weights, severity_map, evidence_map, formula, formula_source
 
 
@@ -627,6 +712,8 @@ def load_data() -> None:
     """Load all data files into module-level caches."""
     global COMPOUNDS, INTERACTIONS, SOURCES
 
+    reset_health_state()
+
     COMPOUNDS = load_compounds()
     INTERACTIONS = load_interactions()
     SOURCES = load_sources()
@@ -647,14 +734,7 @@ apply_rules()
 def _compound_synonyms(compound: Dict[str, Any]) -> List[str]:
     """Collect synonyms/aliases for a compound in a normalised list."""
 
-    candidates: List[str] = []
-    for field in ("synonyms", "aliases"):
-        values = compound.get(field)
-        for item in _coerce_iterable(values):
-            text = str(item).strip()
-            if text:
-                candidates.append(text)
-    return candidates
+    return parse_synonyms([compound.get("synonyms"), compound.get("aliases")])
 
 
 def _compound_external_ids(compound: Dict[str, Any]) -> List[str]:
@@ -758,11 +838,13 @@ def compute_risk(interaction: Dict[str, Any]) -> float:
 @app.get("/api/health")
 def health():
     """Health check endpoint."""
+    snapshot = get_health_state()
     return {
-        "status": "healthy",
+        "status": snapshot.get("status", "healthy"),
         "compounds_loaded": len(COMPOUNDS),
         "interactions_loaded": len(INTERACTIONS),
-        "sources_loaded": len(SOURCES)
+        "sources_loaded": len(SOURCES),
+        "issues": snapshot.get("issues", []),
     }
 
 @app.get("/api/compounds")

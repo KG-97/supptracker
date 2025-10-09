@@ -104,11 +104,18 @@ def test_compute_risk_returns_float():
 
 
 def test_loaders_handle_missing_files(tmp_path, monkeypatch):
+    app_module.reset_health_state()
     monkeypatch.setattr(app_module, "DATA_DIR", str(tmp_path))
 
     assert app_module.load_compounds() == {}
     assert app_module.load_interactions() == []
     assert app_module.load_sources() == {}
+
+    health = app_module.get_health_state()
+    assert health["status"] == "degraded"
+    sources = {issue["source"] for issue in health["issues"]}
+    assert {"compounds.csv", "interactions.csv", "sources.csv"}.issubset(sources)
+    app_module.reset_health_state()
 
 
 def test_load_compounds_merges_multiple_sources(tmp_path, monkeypatch):

@@ -67,9 +67,15 @@ export interface StackResponse {
   interactions: StackInteraction[]
 }
 
+export interface HealthIssue {
+  source: string
+  error: string
+}
+
 export interface HealthResponse {
-  status: string
+  status: 'healthy' | 'degraded'
   compounds_loaded: number
   interactions_loaded: number
   sources_loaded: number
+  issues?: HealthIssue[]
 }

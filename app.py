@@ -1,10 +1,15 @@
 from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
+
+import os
+
+import pandas as pd
+import yaml
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, conlist, root_validator, validator
-from typing import Any, Dict, List, Optional, Tuple
-import pandas as pd
-import yaml, os
+
+from backend.synonyms import parse_synonyms
 
 # Allow tests (or deployments) to override the default data directory via an
 # environment variable.  In normal operation the CSV/YAML data files live in the
@@ -35,7 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     """Lightweight health endpoint for probes."""
     return {"status": "ok", "service": "supptracker-backend", "version": app.version}
@@ -56,9 +61,9 @@ SOURCES_DF = load_csv("sources.csv")
 RULES = load_yaml("risk_rules.yaml")
 
 def to_synonyms(s: str):
-    if pd.isna(s) or s.strip() == "":
+    if pd.isna(s) or str(s).strip() == "":
         return []
-    return [x.strip() for x in str(s).split(";")]
+    return parse_synonyms(s)
 
 COMPOUNDS = []
 for _, row in COMPOUNDS_DF.iterrows():
@@ -163,11 +168,11 @@ def search_compounds(q: str):
     hits.sort(key=lambda x: len(x["name"]))
     return hits[:20]
 
-@app.get("/search")
+@app.get("/api/search")
 def search(q: str = Query(..., description="Compound name or synonym")):
     return {"compounds": search_compounds(q)}
 
-@app.get("/interaction")
+@app.get("/api/interaction")
 def interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str] = None):
     inter = find_interaction(a, b)
     if not inter:
@@ -188,7 +193,7 @@ def interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str
         }
     }
 
-@app.post("/stack/check")
+@app.post("/api/stack/check")
 def stack_check(payload: StackCheckRequest):
     items = payload.items
     n = len(items)

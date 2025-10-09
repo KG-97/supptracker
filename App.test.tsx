@@ -86,4 +86,20 @@ describe('App external links', () => {
     const wikidataLink = await screen.findByRole('link', { name: 'Wikidata (Q30243)' })
     expect(wikidataLink).toHaveAttribute('href', 'https://www.wikidata.org/wiki/Q30243')
   })
+
+  it('shows a health warning when the dataset is degraded', async () => {
+    apiMocks.fetchHealth.mockResolvedValueOnce({
+      status: 'degraded',
+      compounds_loaded: 0,
+      interactions_loaded: 0,
+      sources_loaded: 0,
+      issues: [{ source: 'compounds.csv', error: 'Missing data file' }],
+    })
+
+    render(<App />)
+
+    const warningHeading = await screen.findByText('Dataset loaded with warnings')
+    expect(warningHeading).toBeInTheDocument()
+    expect(screen.getByText(/compounds\.csv/i)).toBeInTheDocument()
+  })
 })
