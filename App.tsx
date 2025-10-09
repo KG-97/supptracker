@@ -18,18 +18,21 @@ import type {
 } from './types'
 
 // Helper function to resolve sources from API response
-function resolveSources(pairData: any): any[] {
-  // Prefer detailed source objects over raw IDs
-  const detailedSources = pairData.sources || []
-  const interactionSources = pairData.interaction?.sources || []
-  
-  // Check if interaction.sources contains objects with citation info
-  if (interactionSources.length > 0 && typeof interactionSources[0] === 'object' && interactionSources[0].citation) {
-    return interactionSources
+function resolveSources(response: InteractionResponse | null): Source[] {
+  if (!response) {
+    return []
   }
-  
-  // Otherwise fall back to the detailed sources array
-  return detailedSources
+
+  const detailedSources = response.sources ?? []
+  if (detailedSources.length > 0) {
+    return detailedSources
+  }
+
+  const interactionSources = response.interaction?.sources ?? []
+  return interactionSources.map((sourceId, index) => ({
+    id: sourceId,
+    title: `Source ${index + 1}`,
+  }))
 }
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
@@ -249,8 +252,8 @@ export default function App(): JSX.Element {
     setStackError(null)
     try {
       const data = await checkStack(compounds)
-      setStackInteractions(data.interactions)
-      setStackCompounds(compounds)
+      setStackInteractions(data.interactions ?? data.cells ?? [])
+      setStackCompounds(data.items ?? compounds)
       setStackStatus('success')
       setStackError(null)
     } catch (error) {
@@ -262,7 +265,7 @@ export default function App(): JSX.Element {
   }
 
   const pair = pairData?.interaction
-  const pairSources = pairData?.sources ?? []
+  const resolvedPairSources = resolveSources(pairData)
   const riskScore = pairData?.risk_score
   const formattedRiskScore = typeof riskScore === 'number' ? riskScore.toFixed(2) : 'N/A'
 
@@ -489,10 +492,10 @@ export default function App(): JSX.Element {
                 </div>
               </dl>
               <details className="sources">
-                <summary>Evidence sources ({resolveSources(pairData).length})</summary>
+                <summary>Evidence sources ({resolvedPairSources.length})</summary>
                 <ul>
-                  {resolveSources(pairData).length === 0 && <li>No citations provided.</li>}
-                  {resolveSources(pairData).map((source, index) => (
+                  {resolvedPairSources.length === 0 && <li>No citations provided.</li>}
+                  {resolvedPairSources.map((source, index) => (
                     <li key={source.id ?? index}>{sourceLabel(source, index)}</li>
                   ))}
                 </ul>
@@ -566,7 +569,16 @@ export default function App(): JSX.Element {
                           <span className={severityClass(interaction.severity)}>{interaction.severity}</span>
                         </td>
                         <td>{interaction.evidence}</td>
-                        <td>{interaction.risk_score.toFixed(2)}</td>
+                        <td
+                          title={
+                            interaction.action_resolved ??
+                            interaction.action ??
+                            undefined
+                          }
+                        >
+                          {interaction.risk_score.toFixed(2)}
+                          {interaction.bucket && ` (${interaction.bucket})`}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

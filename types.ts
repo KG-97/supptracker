@@ -1,3 +1,6 @@
+export type EvidenceGrade = 'A' | 'B' | 'C' | 'D'
+export type SeverityLevel = 'None' | 'Mild' | 'Moderate' | 'Severe'
+
 export interface Compound {
   id: string
   name: string
@@ -8,6 +11,7 @@ export interface Compound {
   route?: string | null
   externalIds?: Record<string, string>
   referenceUrls?: Record<string, string>
+  [key: string]: unknown
 }
 
 export interface Source {
@@ -23,13 +27,14 @@ export interface InteractionRecord {
   id: string
   a: string
   b: string
-  bidirectional: boolean
+  bidirectional?: boolean
   mechanism: string[]
-  severity: 'None' | 'Mild' | 'Moderate' | 'Severe'
-  evidence: 'A' | 'B' | 'C' | 'D'
-  effect: string
-  action: string
+  severity: SeverityLevel
+  evidence: EvidenceGrade
+  effect?: string
+  action?: string
   sources: string[]
+  [key: string]: unknown
 }
 
 export interface InteractionWithRisk extends InteractionRecord {
@@ -37,7 +42,7 @@ export interface InteractionWithRisk extends InteractionRecord {
 }
 
 export interface InteractionResponse {
-  interaction: InteractionRecord
+  interaction: InteractionRecord & Partial<InteractionWithRisk>
   risk_score: number
   sources: Source[]
 }
@@ -45,14 +50,20 @@ export interface InteractionResponse {
 export interface StackInteraction {
   a: string
   b: string
-  severity: string
-  evidence: string
+  severity: SeverityLevel | string
+  evidence: EvidenceGrade | string
   risk_score: number
   effect?: string
   action?: string
+  action_resolved?: string
+  bucket?: string
 }
 
 export interface StackResponse {
+  items?: string[]
+  resolved_items?: string[]
+  matrix?: (number | null)[][]
+  cells?: StackInteraction[]
   interactions: StackInteraction[]
 }
 
