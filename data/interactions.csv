@@ -1,10 +1,21 @@
-id,a,b,bidirectional,mechanism,severity,evidence,effect,action,sources
-sjw_sertraline,st_johns_wort,sertraline,true,"serotonergic|CYP3A4_induction","Severe","B","Additive serotonergic effect and CYP3A4 induction; risk of serotonin syndrome","Avoid","source_sjw_ssri"
-grapefruit_atorvastatin,grapefruit,atorvastatin,true,"CYP3A4_inhibition","Moderate","B","Grapefruit inhibits CYP3A4 leading to increased statin levels and risk of myopathy","Monitor","source_grapefruit_statin"
-ginkgo_warfarin,ginkgo,warfarin,true,"Bleeding|pharmacodynamic","Moderate","C","Ginkgo may increase bleeding risk when combined with warfarin","Monitor","source_ginkgo_warfarin"
-sjw_warfarin,st_johns_wort,warfarin,true,"CYP3A4_induction","Moderate","C","St John's Wort may reduce warfarin levels leading to decreased anticoagulant effect","Monitor","source_sjw_warfarin"
-ginkgo_sertraline,ginkgo,sertraline,true,"serotonergic","Moderate","D","Potential increased serotonergic activity and bleeding risk","Monitor","source_ginkgo_sertraline"
-atorvastatin_warfarin,atorvastatin,warfarin,true,"Bleeding","Moderate","C","Possible increased bleeding risk due to additive anticoagulant effects","Monitor","source_atorvastatin_warfarin"
-omega3_warfarin,omega_3,warfarin,true,"pharmacodynamic|additive","Moderate","B","Omega-3 fatty acids may potentiate warfarin's anticoagulant effect via additive platelet inhibition","Monitor","source_fishoil_warfarin"
-calcium_levothyroxine,calcium_carbonate,levothyroxine,true,"pharmacokinetic","Moderate","B","Calcium carbonate reduces levothyroxine absorption, leading to elevated TSH and reduced efficacy","Separate administration","source_calcium_levothyroxine"
-melatonin_nifedipine,melatonin,nifedipine,true,"pharmacodynamic","Moderate","B","Melatonin can counteract nifedipine's antihypertensive effect, increasing blood pressure","Avoid","source_melatonin_nifedipine"
+compound_a,compound_b,severity,evidence_grade,mechanism_tags,source_ids,action
+caffeine,l-theanine,None,B,"CNS;attention;anxiolysis;synergy",examine:caffeine;examine:l-theanine,
+green-tea-extract,caffeine,None,B,"thermogenesis;synergy;CNS",examine:green-tea-extract;examine:caffeine,
+taurine,caffeine,Mild,C,"CNS;stimulant-load;cardiovascular",examine:taurine;examine:caffeine,Monitor total stimulant load; avoid high-dose combinations.
+melatonin,caffeine,Moderate,B,"sleep;antagonism;adenosine",examine:melatonin;examine:caffeine,Separate by 8–10 hours; avoid caffeine late in the day.
+magnesium,melatonin,None,C,"sleep;relaxation;cofactor",examine:magnesium;examine:melatonin,
+vitamin-d3,vitamin-k2-mk7,None,B,"bone-health;cofactor;calcium-metabolism",examine:vitamin-d3;examine:vitamin-k2-mk7,
+magnesium,vitamin-d3,None,B,"cofactor;vitamin-d-metabolism",examine:magnesium;examine:vitamin-d3,
+beta-alanine,l-citrulline,None,B,"exercise;buffering;nitric-oxide;synergy",examine:beta-alanine;examine:l-citrulline,
+creatine,caffeine,Mild,C,"performance;GI;mixed-evidence",examine:creatine;examine:caffeine,If stacking, split doses and reduce caffeine near training.
+glucosamine,chondroitin,None,B,"joint-health;structural;common-combo",examine:glucosamine;examine:chondroitin,
+msm,glucosamine,None,C,"joint-health;common-combo",examine:msm;examine:glucosamine,
+fish-oil,curcumin,None,C,"anti-inflammatory;nfkb;complementary",examine:fish-oil;examine:curcumin,
+fish-oil,ginger,Mild,C,"antiplatelet;bleeding-risk;caution",examine:fish-oil;examine:ginger,If bruising occurs, consider spacing or reducing doses.
+resveratrol,curcumin,None,C,"polyphenols;antioxidant;complementary",examine:resveratrol;examine:curcumin,
+berberine,nac,Mild,C,"glucose-metabolism;caution",examine:berberine;examine:nac,If sensitive to glucose changes, monitor response.
+chromium-picolinate,berberine,Mild,C,"glucose-metabolism;additive",examine:chromium-picolinate;examine:berberine,Potential additive effect on glucose; monitor for lightheadedness.
+alpha-gpc,caffeine,None,C,"cholinergic;CNS;focus",examine:alpha-gpc;examine:caffeine,
+bacopa,ginkgo,None,C,"nootropic;attention;memory",examine:bacopa;examine:ginkgo,
+ashwagandha,rhodiola,None,C,"adaptogen;stress;fatigue",examine:ashwagandha;examine:rhodiola,
+magnesium,zinc,Mild,C,"absorption;competition;timing",examine:magnesium;examine:zinc,Consider taking at different times to minimize competition.
