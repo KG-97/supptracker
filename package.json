@@ -7,7 +7,8 @@
     "dev": "node scripts/run-vite.js dev",
     "build": "node scripts/run-vite.js build",
     "preview": "node scripts/run-vite.js preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "react": "18.2.0",
@@ -22,6 +23,6 @@
     "jsdom": "^27.0.0",
     "typescript": "^5.1.0",
     "vite": "^5.0.0",
-    "vitest": "^1.2.0"
+    "vitest": "^1.5.0"
   }
 }

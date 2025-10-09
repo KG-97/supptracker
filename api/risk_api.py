@@ -2,6 +2,8 @@ import csv
 import json
 import logging
 import os
+import re
+import unicodedata
 from collections.abc import Iterable
 from pathlib import Path
 from types import SimpleNamespace
@@ -85,6 +87,10 @@ DEFAULT_MECHANISM_DELTAS: Dict[str, float] = {
     "additive": 0.5,
     "synergistic": 1.0,
     "unknown": 0.3,
+    # Common mechanism tags used throughout the curated dataset and tests.
+    "serotonergic": 0.7,
+    "CYP3A4_induction": 0.65,
+    "CYP3A4_inhibition": 0.65,
 }
 
 DEFAULT_WEIGHTS: Dict[str, float] = {
@@ -193,6 +199,14 @@ def _coerce_iterable(value: Any) -> Iterable[str]:
     return []
 
 
+def _parse_string_iterable(value: Any) -> List[str]:
+    return [
+        item.strip()
+        for item in _coerce_iterable(value)
+        if isinstance(item, str) and item.strip()
+    ]
+
+
 def _parse_mapping(value: Any) -> Dict[str, str]:
     """Normalise mapping-like inputs from the datasets.
 
@@ -296,7 +310,9 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                     compound_id = row.get("id")
                     if not compound_id:
                         continue
-                    synonyms = parse_synonyms([row.get("synonyms"), row.get("aliases")])
+                    synonyms = parse_synonyms(
+                        [row.get("synonyms"), row.get("aliases")]
+                    )
                     aliases = parse_synonyms(row.get("aliases"))
                     external_ids = _parse_mapping(row.get("externalIds"))
                     reference_urls = _parse_mapping(row.get("referenceUrls"))
@@ -304,13 +320,15 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                         k: v
                         for k, v in row.items()
                         if v not in (None, "")
-                        and k not in {"synonyms", "externalIds", "referenceUrls"}
+                        and k
+                        not in {"synonyms", "aliases", "externalIds", "referenceUrls"}
                     }
                     record = {
                         **base,
                         "id": compound_id,
                         "name": row.get("name") or compound_id,
                         "synonyms": synonyms,
+                        "aliases": aliases,
                         "externalIds": external_ids,
                         "referenceUrls": reference_urls,
                     }
@@ -339,7 +357,10 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                 compound_id = entry.get("id")
                 if not compound_id:
                     continue
-                synonyms = parse_synonyms([entry.get("synonyms"), entry.get("aliases")])
+                synonyms = parse_synonyms(
+                    [entry.get("synonyms"), entry.get("aliases")]
+                )
+                aliases = parse_synonyms(entry.get("aliases"))
                 entry_aliases = parse_synonyms(entry.get("aliases"))
                 external_ids = _parse_mapping(
                     entry.get("externalIds") or entry.get("external_ids")
@@ -352,6 +373,7 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                     "id": compound_id,
                     "name": entry.get("name") or compound_id,
                     "synonyms": synonyms,
+                    "aliases": aliases,
                     "externalIds": external_ids,
                     "referenceUrls": reference_urls,
                 }
@@ -368,11 +390,11 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                 existing_synonyms = parse_synonyms(existing.get("synonyms"))
                 existing_aliases = parse_synonyms(existing.get("aliases"))
                 merged_synonyms = parse_synonyms(
-                    existing_synonyms + existing_aliases + synonyms
+                    [existing_synonyms, existing_aliases, synonyms]
                 )
                 existing["synonyms"] = merged_synonyms
 
-                merged_aliases = parse_synonyms(existing_aliases + entry_aliases)
+                merged_aliases = parse_synonyms([existing_aliases, entry_aliases])
                 if merged_aliases:
                     existing["aliases"] = merged_aliases
 
@@ -392,7 +414,7 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                 existing["referenceUrls"] = {**existing_refs, **reference_urls}
 
                 for key, value in record.items():
-                    if key in {"id", "synonyms", "externalIds", "referenceUrls"}:
+                    if key in {"id", "synonyms", "aliases", "externalIds", "referenceUrls"}:
                         continue
                     if value in (None, ""):
                         continue
@@ -706,38 +728,18 @@ def apply_rules(path: Optional[str] = None) -> None:
 COMPOUNDS: Dict[str, Dict[str, Any]] = {}
 INTERACTIONS: List[Dict[str, Any]] = []
 SOURCES: Dict[str, Dict[str, Any]] = {}
+_INTERACTION_LOOKUP: Dict[Tuple[str, str], Dict[str, Any]] = {}
+_INTERACTION_LOOKUP_STATE: Dict[str, Any] = {
+    "source_id": None,
+    "size": None,
+}
 
-
-def load_data() -> None:
-    """Load all data files into module-level caches."""
-    global COMPOUNDS, INTERACTIONS, SOURCES
-
-    reset_health_state()
-
-    COMPOUNDS = load_compounds()
-    INTERACTIONS = load_interactions()
-    SOURCES = load_sources()
-
-    logger.info(
-        "Loaded %s compounds, %s interactions, %s sources",
-        len(COMPOUNDS),
-        len(INTERACTIONS),
-        len(SOURCES),
-    )
-
-
-# Load data and rules on startup
-load_data()
-apply_rules()
-
-# Helper functions
-def _compound_synonyms(compound: Dict[str, Any]) -> List[str]:
-    """Collect synonyms/aliases for a compound in a normalised list."""
-
-    return parse_synonyms([compound.get("synonyms"), compound.get("aliases")])
-
+# Indexes populated from ``COMPOUNDS`` for fast lookup and ranking.  The
+# structure of the caches is documented in ``build_compound_indexes``.
 
 def _compound_external_ids(compound: Dict[str, Any]) -> List[str]:
+    """Extract external identifier values as a list of strings."""
+
     external_ids = compound.get("externalIds") or {}
     if not isinstance(external_ids, dict):
         return []
@@ -749,37 +751,269 @@ def _compound_external_ids(compound: Dict[str, Any]) -> List[str]:
     return values
 
 
+_COMPOUND_TOKEN_INDEX: Dict[str, List[Tuple[int, str]]] = {}
+_COMPOUND_SEARCH_CACHE: Dict[str, Dict[str, Any]] = {}
+_COMPOUND_INDEX_STATE: Dict[str, Any] = {"source_id": None, "size": None}
+
+
+def _strip_accents(value: str) -> str:
+    """Return ``value`` lower-cased with accents removed."""
+
+    if not value:
+        return ""
+    normalised = unicodedata.normalize("NFKD", value)
+    without_accents = normalised.encode("ascii", "ignore").decode("ascii")
+    return without_accents.lower()
+
+
+def _normalise_token(value: str) -> str:
+    """Normalise ``value`` for fuzzy indexing.
+
+    The transformation removes accents, collapses whitespace and strips most
+    punctuation so lookups like ``"st johns"`` can match ``"St. John's"``.
+    """
+
+    lowered = _strip_accents(value)
+    collapsed = re.sub(r"[\W_]+", " ", lowered)
+    return collapsed.strip()
+
+
+def _register_token(token: str, compound_id: str, priority: int) -> None:
+    """Register a token for both exact and fuzzy lookup caches."""
+
+    stripped = token.strip()
+    if not stripped:
+        return
+
+    lowered = stripped.lower()
+    normalised = _normalise_token(stripped)
+
+    for key in {lowered, normalised}:
+        if not key:
+            continue
+        bucket = _COMPOUND_TOKEN_INDEX.setdefault(key, [])
+        entry = (priority, compound_id)
+        if entry not in bucket:
+            bucket.append(entry)
+
+
+def _ensure_compound_indexes() -> None:
+    """Rebuild caches when the underlying ``COMPOUNDS`` mapping changes."""
+
+    global _COMPOUND_INDEX_STATE
+    if (
+        _COMPOUND_INDEX_STATE.get("source_id") == id(COMPOUNDS)
+        and _COMPOUND_INDEX_STATE.get("size") == len(COMPOUNDS)
+    ):
+        return
+
+    build_compound_indexes()
+
+
+def build_compound_indexes() -> None:
+    """Populate token caches for fast compound resolution and ranking.
+
+    ``_COMPOUND_TOKEN_INDEX`` maps normalised tokens (including IDs, names,
+    synonyms, and aliases) to ``(priority, compound_id)`` tuples used by
+    :func:`resolve_compound`.  ``priority`` encodes how authoritative the token
+    is (0 for IDs, 1 for primary names, 2+ for synonyms/aliases) so the resolver
+    can prefer canonical identifiers without discarding alternate spellings.
+
+    ``_COMPOUND_SEARCH_CACHE`` stores lower-cased and normalised variants of the
+    textual metadata per compound.  The search endpoint consults this structure
+    to compute detailed ranking tuples without repeatedly lower-casing and
+    splitting strings for every request.
+    """
+
+    _COMPOUND_TOKEN_INDEX.clear()
+    _COMPOUND_SEARCH_CACHE.clear()
+
+    for compound_id, compound in COMPOUNDS.items():
+        name = str(compound.get("name", "") or "").strip()
+        name_lower = name.lower()
+        entry_tokens: List[Dict[str, Any]] = []
+
+        display_sort = name_lower or compound_id.lower()
+        id_normalised = _normalise_token(compound_id)
+        name_normalised = _normalise_token(name)
+
+        _register_token(compound_id, compound_id, priority=0)
+        if name:
+            _register_token(name, compound_id, priority=1)
+
+        entry_tokens.append(
+            {
+                "value": compound_id,
+                "lower": compound_id.lower(),
+                "normalised": id_normalised,
+                "priority": 0,
+                "type": "id",
+            }
+        )
+        if name:
+            entry_tokens.append(
+                {
+                    "value": name,
+                    "lower": name_lower,
+                    "normalised": name_normalised,
+                    "priority": 1,
+                    "type": "name",
+                }
+            )
+
+        for idx, field in enumerate(("synonyms", "aliases"), start=2):
+            for token in _coerce_iterable(compound.get(field)):
+                token_str = str(token).strip()
+                if not token_str:
+                    continue
+                token_lower = token_str.lower()
+                token_normalised = _normalise_token(token_str)
+                entry_tokens.append(
+                    {
+                        "value": token_str,
+                        "lower": token_lower,
+                        "normalised": token_normalised,
+                        "priority": idx,
+                        "type": field[:-1],
+                    }
+                )
+                _register_token(token_str, compound_id, priority=idx)
+
+        for token in _compound_external_ids(compound):
+            token_str = str(token).strip()
+            if not token_str:
+                continue
+            token_lower = token_str.lower()
+            token_normalised = _normalise_token(token_str)
+            entry_tokens.append(
+                {
+                    "value": token_str,
+                    "lower": token_lower,
+                    "normalised": token_normalised,
+                    "priority": 2,
+                    "type": "external",
+                }
+            )
+            _register_token(token_str, compound_id, priority=2)
+
+        _COMPOUND_SEARCH_CACHE[compound_id] = {
+            "compound": compound,
+            "id_lower": compound_id.lower(),
+            "id_normalised": id_normalised,
+            "name_lower": name_lower,
+            "name_normalised": name_normalised,
+            "tokens": entry_tokens,
+            "display_sort": display_sort,
+        }
+
+    _COMPOUND_INDEX_STATE.update({"source_id": id(COMPOUNDS), "size": len(COMPOUNDS)})
+
+
+def build_interaction_lookup() -> None:
+    """Build a dictionary for O(1) interaction lookups by compound pair."""
+
+    _INTERACTION_LOOKUP.clear()
+    for record in INTERACTIONS:
+        a_id = record.get("a")
+        b_id = record.get("b")
+        if not a_id or not b_id:
+            continue
+        key = (str(a_id), str(b_id))
+        _INTERACTION_LOOKUP[key] = record
+        if record.get("bidirectional"):
+            _INTERACTION_LOOKUP[(str(b_id), str(a_id))] = record
+
+    _INTERACTION_LOOKUP_STATE.update({
+        "source_id": id(INTERACTIONS),
+        "size": len(INTERACTIONS),
+    })
+
+
+def _ensure_interaction_lookup() -> None:
+    """Refresh the interaction cache if the source list has changed."""
+
+    if (
+        _INTERACTION_LOOKUP_STATE.get("source_id") == id(INTERACTIONS)
+        and _INTERACTION_LOOKUP_STATE.get("size") == len(INTERACTIONS)
+        and _INTERACTION_LOOKUP
+    ):
+        return
+
+    build_interaction_lookup()
+
+
+def load_data() -> None:
+    """Load all data files into module-level caches."""
+    global COMPOUNDS, INTERACTIONS, SOURCES
+
+    reset_health_state()
+
+    COMPOUNDS = load_compounds()
+    INTERACTIONS = load_interactions()
+    SOURCES = load_sources()
+    build_interaction_lookup()
+
+    logger.info(
+        "Loaded %s compounds, %s interactions, %s sources",
+        len(COMPOUNDS),
+        len(INTERACTIONS),
+        len(SOURCES),
+    )
+
+    build_compound_indexes()
+
+
+# Load data and rules on startup
+load_data()
+apply_rules()
+
+# Helper functions
+
+
 def resolve_compound(identifier: str) -> Optional[str]:
     """Resolve compound by ID, name, synonym, alias, or external identifier."""
 
     if identifier is None:
         return None
 
-    identifier_text = str(identifier).strip()
-    if not identifier_text:
+    raw_identifier = str(identifier).strip()
+    if not raw_identifier:
         return None
 
-    identifier_lower = identifier_text.lower()
+    identifier_lower = raw_identifier.lower()
 
     # Direct ID lookup (both exact and case-insensitive)
-    if identifier_text in COMPOUNDS:
-        return identifier_text
+    if raw_identifier in COMPOUNDS:
+        return raw_identifier
     for comp_id in COMPOUNDS.keys():
         if comp_id.lower() == identifier_lower:
             return comp_id
 
-    for comp_id, comp in COMPOUNDS.items():
-        name = str(comp.get("name", "")).strip()
-        if name and name.lower() == identifier_lower:
-            return comp_id
+    _ensure_compound_indexes()
 
-        for candidate in _compound_synonyms(comp):
-            if candidate.lower() == identifier_lower:
-                return comp_id
+    identifier_normalised = _normalise_token(raw_identifier)
 
-        for ext_id in _compound_external_ids(comp):
+    candidates: List[Tuple[int, str]] = []
+    for key in {identifier_lower, identifier_normalised}:
+        if not key:
+            continue
+        matches = _COMPOUND_TOKEN_INDEX.get(key, [])
+        if matches:
+            candidates.extend(matches)
+
+    if candidates:
+        candidates.sort()
+        seen = set()
+        for _, compound_id in candidates:
+            if compound_id in seen:
+                continue
+            seen.add(compound_id)
+            return compound_id
+
+    for compound_id, compound in COMPOUNDS.items():
+        for ext_id in _compound_external_ids(compound):
             if ext_id.lower() == identifier_lower:
-                return comp_id
+                return compound_id
 
     return None
 
@@ -810,10 +1044,14 @@ def compute_risk(interaction: Dict[str, Any]) -> float:
     mechanisms = [str(m) for m in _coerce_iterable(interaction.get("mechanism"))]
     mech_sum = 0.0
     for mechanism in mechanisms:
-        mech_sum += MECHANISM_DELTAS.get(
-            mechanism,
-            MECHANISM_DELTAS.get(mechanism.lower(), 0.0),
-        )
+        parts = [token.strip() for token in re.split(r"[|,]+", mechanism) if token.strip()]
+        if not parts:
+            parts = [mechanism.strip()]
+        for part in parts:
+            mech_sum += MECHANISM_DELTAS.get(
+                part,
+                MECHANISM_DELTAS.get(part.lower(), 0.0),
+            )
 
     evidence_label = interaction.get("evidence")
     evidence_value = _lookup_score(EVIDENCE_MAP, evidence_label, DEFAULT_EVIDENCE_MAP)
@@ -871,48 +1109,130 @@ def get_compound(compound_id: str):
         raise HTTPException(status_code=404, detail="Compound not found")
     return COMPOUNDS[compound_id]
 
+def _score_search_entry(
+    entry: Dict[str, Any], query_lower: str, query_normalised: str
+) -> Optional[Tuple[int, int, int, int, str]]:
+    """Return a detailed ranking tuple for search results.
+
+    The tuple combines the type of match (exact ID, prefix, substring, fuzzy),
+    the match position, token length, and a stable sort key based on the
+    compound name.  Lower tuples sort first.
+    """
+
+    display_sort: str = entry["display_sort"]
+
+    def make_rank(category: int, position: int, length: int, priority: int) -> Tuple[int, int, int, int, str]:
+        return (category, position, length, priority, display_sort)
+
+    # Category ordering (lower is better):
+    # 0-2 exact matches (id, name, token)
+    # 3-5 prefix matches, 6-8 substring matches, 9-14 normalised/loose matches.
+    best_rank: Optional[Tuple[int, int, int, int, str]] = None
+
+    def consider(rank: Optional[Tuple[int, int, int, int, str]]) -> None:
+        nonlocal best_rank
+        if rank is None:
+            return
+        if best_rank is None or rank < best_rank:
+            best_rank = rank
+
+    id_lower = entry["id_lower"]
+    if id_lower:
+        if query_lower == id_lower:
+            consider(make_rank(0, 0, len(id_lower), 0))
+        elif id_lower.startswith(query_lower):
+            consider(make_rank(3, 0, len(id_lower), 0))
+        else:
+            pos = id_lower.find(query_lower)
+            if pos != -1:
+                consider(make_rank(6, pos, len(id_lower), 0))
+
+    name_lower = entry["name_lower"]
+    if name_lower:
+        if query_lower == name_lower:
+            consider(make_rank(1, 0, len(name_lower), 1))
+        elif name_lower.startswith(query_lower):
+            consider(make_rank(4, 0, len(name_lower), 1))
+        else:
+            pos = name_lower.find(query_lower)
+            if pos != -1:
+                consider(make_rank(7, pos, len(name_lower), 1))
+
+    for token in entry["tokens"]:
+        lower = token.get("lower", "")
+        priority = token.get("priority", 5)
+        if not lower:
+            continue
+        if query_lower == lower:
+            consider(make_rank(2, 0, len(lower), priority))
+            continue
+        if lower.startswith(query_lower):
+            consider(make_rank(5, 0, len(lower), priority))
+            continue
+        pos = lower.find(query_lower)
+        if pos != -1:
+            consider(make_rank(8, pos, len(lower), priority))
+
+    if query_normalised and query_normalised != query_lower:
+        id_norm = entry.get("id_normalised")
+        if id_norm:
+            if query_normalised == id_norm:
+                consider(make_rank(9, 0, len(id_norm), 0))
+            else:
+                pos = id_norm.find(query_normalised)
+                if pos != -1:
+                    consider(make_rank(12, pos, len(id_norm), 0))
+
+        name_norm = entry.get("name_normalised")
+        if name_norm:
+            if query_normalised == name_norm:
+                consider(make_rank(10, 0, len(name_norm), 1))
+            else:
+                pos = name_norm.find(query_normalised)
+                if pos != -1:
+                    consider(make_rank(13, pos, len(name_norm), 1))
+
+        for token in entry["tokens"]:
+            norm = token.get("normalised")
+            priority = token.get("priority", 5)
+            if not norm:
+                continue
+            if query_normalised == norm:
+                consider(make_rank(11, 0, len(norm), priority))
+                continue
+            pos = norm.find(query_normalised)
+            if pos != -1:
+                consider(make_rank(14, pos, len(norm), priority))
+
+    return best_rank
+
+
 @app.get("/api/search")
 def search(
     q: Optional[str] = Query(None, min_length=1),
     query: Optional[str] = Query(None, min_length=1),
     limit: int = Query(10, ge=1, le=50),
 ):
-    """Search compounds by name or synonym."""
-    search_term = query or q
+    """Search compounds by ID, name, synonym, or alias."""
+    search_term_raw = query or q
+    search_term = search_term_raw.strip() if isinstance(search_term_raw, str) else None
     if not search_term:
         raise HTTPException(status_code=422, detail="Missing search parameter")
 
+    _ensure_compound_indexes()
+
     query_lower = search_term.lower()
-    results = []
-    
-    ranked: List[Tuple[Tuple[int, int, str], Dict[str, Any]]] = []
-    seen_ids: set[str] = set()
+    query_normalised = _normalise_token(search_term)
+    matched: List[Tuple[Tuple[int, int, int, int, str], Dict[str, Any]]] = []
 
-    for comp_id, comp in COMPOUNDS.items():
-        name = str(comp.get("name", ""))
-        name_lower = name.lower()
-        synonyms = _compound_synonyms(comp)
-        synonyms_lower = [s.lower() for s in synonyms]
-        external_ids = [val.lower() for val in _compound_external_ids(comp)]
-        alias_match = query_lower in synonyms_lower
+    for entry in _COMPOUND_SEARCH_CACHE.values():
+        rank = _score_search_entry(entry, query_lower, query_normalised)
+        if rank is None:
+            continue
+        matched.append((rank, entry["compound"]))
 
-        score: Optional[Tuple[int, int, str]] = None
-
-        if comp_id.lower() == query_lower or name_lower == query_lower:
-            score = (0, len(name), comp_id)
-        elif alias_match or query_lower in external_ids:
-            score = (1, len(name), comp_id)
-        else:
-            partial_tokens = [comp_id.lower(), name_lower] + synonyms_lower + external_ids
-            if any(query_lower in token for token in partial_tokens):
-                score = (2, len(name), comp_id)
-
-        if score and comp_id not in seen_ids:
-            ranked.append((score, comp))
-            seen_ids.add(comp_id)
-
-    ranked.sort(key=lambda item: item[0])
-    results = [comp for _, comp in ranked[:limit]]
+    matched.sort(key=lambda item: item[0])
+    results = [comp for _, comp in matched[:limit]]
 
     return {"results": results}
 
@@ -923,14 +1243,15 @@ def interaction(a: str, b: str):
     b_id = resolve_compound(b)
     if not a_id or not b_id:
         raise HTTPException(status_code=404, detail="One or both compounds not found")
-    
-    for inter in INTERACTIONS:
-        if (inter["a"] == a_id and inter["b"] == b_id) or (inter.get("bidirectional", False) and inter["a"] == b_id and inter["b"] == a_id):
-            risk_score = compute_risk(inter)
-            sources_detail = [SOURCES[sid] for sid in inter.get("sources", []) if sid in SOURCES]
-            return {"interaction": inter, "risk_score": risk_score, "sources": sources_detail}
-    
-    raise HTTPException(status_code=404, detail="No known interaction")
+
+    _ensure_interaction_lookup()
+    inter = _INTERACTION_LOOKUP.get((a_id, b_id)) or _INTERACTION_LOOKUP.get((b_id, a_id))
+    if not inter:
+        raise HTTPException(status_code=404, detail="No known interaction")
+
+    risk_score = compute_risk(inter)
+    sources_detail = [SOURCES[sid] for sid in inter.get("sources", []) if sid in SOURCES]
+    return {"interaction": inter, "risk_score": risk_score, "sources": sources_detail}
 
 class StackRequest(BaseModel):
     """Request payload for stack checks with input validation and alias support."""
@@ -981,37 +1302,32 @@ def check_stack(payload: StackRequest):
     matrix: List[List[Optional[float]]] = [[None for _ in range(length)] for _ in range(length)]
     interactions_out: List[Dict[str, Any]] = []
 
+    _ensure_interaction_lookup()
     for i in range(length):
         for j in range(i + 1, length):
             a_id = resolved_ids[i]
             b_id = resolved_ids[j]
-            for inter in INTERACTIONS:
-                first_match = inter["a"] == a_id and inter["b"] == b_id
-                second_match = (
-                    inter.get("bidirectional", False)
-                    and inter["a"] == b_id
-                    and inter["b"] == a_id
-                )
-                if not (first_match or second_match):
-                    continue
+            inter = _INTERACTION_LOOKUP.get((a_id, b_id)) or _INTERACTION_LOOKUP.get((b_id, a_id))
+            if not inter:
+                continue
 
-                score = compute_risk(inter)
-                matrix[i][j] = score
-                matrix[j][i] = score
+            score = compute_risk(inter)
+            matrix[i][j] = score
+            matrix[j][i] = score
 
-                bucket, resolved_action = _classify_risk_bucket(inter, score)
-                record = {
-                    "a": a_id,
-                    "b": b_id,
-                    "severity": inter.get("severity"),
-                    "evidence": inter.get("evidence"),
-                    "effect": inter.get("effect"),
-                    "action": inter.get("action"),
-                    "action_resolved": resolved_action,
-                    "bucket": bucket,
-                    "risk_score": score,
-                }
-                interactions_out.append(record)
+            bucket, resolved_action = _classify_risk_bucket(inter, score)
+            record = {
+                "a": a_id,
+                "b": b_id,
+                "severity": inter.get("severity"),
+                "evidence": inter.get("evidence"),
+                "effect": inter.get("effect"),
+                "action": inter.get("action"),
+                "action_resolved": resolved_action,
+                "bucket": bucket,
+                "risk_score": score,
+            }
+            interactions_out.append(record)
 
     return {
         "items": input_items,
