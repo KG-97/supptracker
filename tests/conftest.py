@@ -15,9 +15,15 @@ def _ensure_test_data():
 
     # compounds.csv
     with open(os.path.join(data_dir, "compounds.csv"), "w", encoding="utf-8") as f:
-        f.write("id,name,synonyms\n")
-        f.write("caffeine,Caffeine,coffee;tea\n")
-        f.write("aspirin,Aspirin,acetylsalicylic acid\n")
+        f.write("id,name,synonyms,aliases,externalIds,referenceUrls\n")
+        f.write(
+            'caffeine,Caffeine,coffee;tea,guarana extract,"{""pubchem"":""2519""}",'
+            '"{""pubchem"":""https://pubchem.ncbi.nlm.nih.gov/compound/2519""}"\n'
+        )
+        f.write(
+            'aspirin,Aspirin,acetylsalicylic acid,ASA,"{""pubchem"":""2244""}",'
+            '"{""pubchem"":""https://pubchem.ncbi.nlm.nih.gov/compound/2244""}"\n'
+        )
 
     # interactions.csv
     with open(os.path.join(data_dir, "interactions.csv"), "w", encoding="utf-8") as f:

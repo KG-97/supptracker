@@ -1,3 +1,3 @@
 id,name,synonyms,aliases,externalIds,referenceUrls
 caffeine,Caffeine,coffee;tea,guarana extract,"{""pubchem"":""2519""}","{""pubchem"":""https://pubchem.ncbi.nlm.nih.gov/compound/2519""}"
-aspirin,Aspirin,acetylsalicylic acid,,"{""pubchem"":""2244""}","{""pubchem"":""https://pubchem.ncbi.nlm.nih.gov/compound/2244""}"
+aspirin,Aspirin,acetylsalicylic acid,ASA,"{""pubchem"":""2244""}","{""pubchem"":""https://pubchem.ncbi.nlm.nih.gov/compound/2244""}"
