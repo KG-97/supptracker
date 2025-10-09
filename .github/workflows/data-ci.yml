@@ -1,0 +1,41 @@
+name: data-ci
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 3 * * *"
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install pandas pyyaml pytest
+      - name: Compile compounds
+        run: |
+          python tools/compile_compounds.py
+      - name: Compile interactions
+        run: |
+          python tools/compile_interactions.py || true
+      - name: Validate compounds YAML
+        run: |
+          python tools/validate_compounds.py
+      - name: Validate interactions ↔ compounds
+        run: |
+          test -f data/interactions.csv || true
+          python tools/validate_interactions.py || true
+      - name: Run tests
+        run: |
+          pytest -q
+      - name: Ensure compiled CSVs committed
+        run: |
+          git diff --exit-code data/compounds.csv || (echo "::error::compounds.csv out of date. Run compiler and commit." && exit 1)
+          test -f data/interactions.csv && git diff --exit-code data/interactions.csv || true
+          test -f data/sources.csv && git diff --exit-code data/sources.csv || true

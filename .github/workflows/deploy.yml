@@ -1,0 +1,22 @@
+name: deploy
+on:
+  push:
+    branches: [ main ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build docker image
+        run: |
+          docker build -t supptracker:ci .
+      - name: (Optional) Push to registry
+        if: ${{ secrets.REGISTRY && secrets.REGISTRY_USER && secrets.REGISTRY_TOKEN }}
+        run: |
+          echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ secrets.REGISTRY }} -u "${{ secrets.REGISTRY_USER }}" --password-stdin
+          docker tag supptracker:ci ${{ secrets.REGISTRY }}/supptracker:${{ github.sha }}
+          docker push ${{ secrets.REGISTRY }}/supptracker:${{ github.sha }}
+      - name: Trigger Railway/Cloud deploy
+        if: ${{ secrets.DEPLOY_WEBHOOK }}
+        run: |
+          curl -fsSL -X POST -H "Content-Type: application/json" -d '{"sha":"${{ github.sha }}"}' "${{ secrets.DEPLOY_WEBHOOK }}"

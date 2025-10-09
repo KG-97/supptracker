@@ -22,6 +22,7 @@ async def client():
             "id": "caffeine",
             "name": "Caffeine",
             "synonyms": ["coffee", "tea"],
+            "aliases": ["guarana extract"],
             "externalIds": {"pubchem": "2519"},
             "referenceUrls": {
                 "pubchem": "https://pubchem.ncbi.nlm.nih.gov/compound/2519",
@@ -35,6 +36,12 @@ async def client():
             "referenceUrls": {
                 "pubchem": "https://pubchem.ncbi.nlm.nih.gov/compound/2244",
             },
+        },
+        "st_johns_wort": {
+            "id": "st_johns_wort",
+            "name": "St. John's Wort",
+            "synonyms": ["Hypericum perforatum"],
+            "aliases": ["St Johns"],
         },
     }
     app_module.INTERACTIONS = [
@@ -52,6 +59,7 @@ async def client():
         }
     ]
     app_module.SOURCES = {"s1": {"id": "s1", "citation": "Example source"}}
+    app_module.build_compound_indexes()
     transport = httpx.ASGITransport(app=app_module.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as async_client:
         yield async_client
@@ -80,6 +88,34 @@ async def test_search_matches_external_id(client):
     assert resp.status_code == 200
     ids = {item["id"] for item in resp.json().get("results", [])}
     assert "caffeine" in ids
+
+
+async def test_search_matches_alias(client):
+    resp = await client.get("/api/search", params={"q": "guarana"})
+    assert resp.status_code == 200
+    ids = {item["id"] for item in resp.json().get("results", [])}
+    assert "caffeine" in ids
+
+
+async def test_search_partial_match(client):
+    resp = await client.get("/api/search", params={"q": "caff"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["results"][0]["id"] == "caffeine"
+
+
+async def test_search_case_insensitive(client):
+    resp = await client.get("/api/search", params={"q": "ASPIR"})
+    assert resp.status_code == 200
+    ids = {item["id"] for item in resp.json().get("results", [])}
+    assert "aspirin" in ids
+
+
+async def test_search_handles_special_characters(client):
+    resp = await client.get("/api/search", params={"q": "st johns"})
+    assert resp.status_code == 200
+    ids = {item["id"] for item in resp.json().get("results", [])}
+    assert "st_johns_wort" in ids
 
 
 async def test_search_missing_query_param(client):
