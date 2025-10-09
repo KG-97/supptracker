@@ -65,9 +65,6 @@ logger = logging.getLogger("supptracker")
 # Prometheus instrumentation
 instrumentator = Instrumentator().instrument(app).expose(app)
 
-# Create API router
-api_router = APIRouter(prefix="/api")
-
 @app.get("/health")
 def health():
     """Lightweight health endpoint for probes."""
@@ -153,26 +150,6 @@ async def log_requests(request: Request, call_next):
 @app.get("/ready")
 def ready():
     return {"status": "ready"}
-
-# Duplicate endpoints under /api router for compatibility
-@api_router.get("/health")
-def api_health():
-    return health()
-
-@api_router.get("/search")
-def api_search(q: str = Query(..., description="Compound name or synonym"), limit: int = Query(20, ge=1, le=100)):
-    return search(q=q, limit=limit)
-
-@api_router.get("/interaction")
-def api_interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str] = None):
-    return interaction(a=a, b=b, flags=flags, doses=doses)
-
-@api_router.post("/stack/check")
-def api_stack_check(payload: StackCheckRequest):
-    return stack_check(payload)
-
-# Mount API router
-app.include_router(api_router)
 
 
 
@@ -361,3 +338,31 @@ def stack_check(payload: StackCheckRequest):
             }
             interactions.append(entry)
     return {"items": items, "matrix": matrix, "cells": interactions, "interactions": interactions}
+
+
+# Create API router and duplicate routes under /api for compatibility
+api_router = APIRouter(prefix="/api")
+
+
+@api_router.get("/health")
+def api_health():
+    return health()
+
+
+@api_router.get("/search")
+def api_search(q: str = Query(..., description="Compound name or synonym"), limit: int = Query(20, ge=1, le=100)):
+    return search(q=q, limit=limit)
+
+
+@api_router.get("/interaction")
+def api_interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str] = None):
+    return interaction(a=a, b=b, flags=flags, doses=doses)
+
+
+@api_router.post("/stack/check")
+def api_stack_check(payload: StackCheckRequest):
+    return stack_check(payload)
+
+
+# Mount API router
+app.include_router(api_router)
