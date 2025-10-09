@@ -310,6 +310,20 @@ export default function App(): JSX.Element {
                 </li>
               </ul>
 
+              {health.status === 'degraded' && health.issues && health.issues.length > 0 && (
+                <div className="health-alert" role="status" aria-live="assertive">
+                  <strong className="health-alert-title">Dataset loaded with warnings</strong>
+                  <ul>
+                    {health.issues.map((issue) => (
+                      <li key={`${issue.source}:${issue.error}`.slice(0, 120)}>
+                        <span className="health-issue-source">{issue.source}:</span>{' '}
+                        <span className="health-issue-message">{issue.error}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {topInteractions.length > 0 && (
                 <div className="overview-panels">
                   <div className="overview-panel">
