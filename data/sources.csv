@@ -1,10 +1,31 @@
-id,citation,url,pmid,doi,date
-source_sjw_ssri,"Serotonin syndrome risk from St John's Wort and Sertraline","https://pubmed.ncbi.nlm.nih.gov/12345/",12345,10.1001/jama.12345,2018-05-12
-source_grapefruit_statin,"Grapefruit juice-statin interaction","https://pubmed.ncbi.nlm.nih.gov/23456/",23456,10.1001/jama.23456,2016-03-30
-source_ginkgo_warfarin,"Ginkgo biloba and warfarin bleeding risk","https://pubmed.ncbi.nlm.nih.gov/34567/",34567,10.1177/0000000,2015-07-20
-source_sjw_warfarin,"Interaction of St John's Wort with warfarin","https://pubmed.ncbi.nlm.nih.gov/45678/",45678,10.1001/jama.45678,2019-09-10
-source_ginkgo_sertraline,"Potential interactions between Ginkgo and SSRIs","https://pubmed.ncbi.nlm.nih.gov/56789/",56789,10.1177/1111111,2014-01-15
-source_atorvastatin_warfarin,"Statins and warfarin bleeding risk","https://pubmed.ncbi.nlm.nih.gov/67890/",67890,10.1001/jama.67890,2017-11-05
-source_fishoil_warfarin,"Buckley MS et al. Fish oil interaction with warfarin. Ann Pharmacother. 2004;38(1):50-52.","https://pubmed.ncbi.nlm.nih.gov/14742793/",14742793,10.1345/aph.1D007,2004-01-01
-source_calcium_levothyroxine,"Singh N et al. The acute effect of calcium carbonate on the intestinal absorption of levothyroxine. Thyroid. 2001;11(10):967-971.","https://pubmed.ncbi.nlm.nih.gov/11716045/",11716045,10.1089/105072501753211046,2001-10-01
-source_melatonin_nifedipine,"Lusardi P et al. Cardiovascular effects of melatonin in hypertensive patients well controlled by nifedipine: a 24-hour study. Br J Clin Pharmacol. 2000;49(5):423-427.","https://pubmed.ncbi.nlm.nih.gov/10792199/",10792199,10.1046/j.1365-2125.2000.00195.x,2000-05-01
+id,title,citation,identifier,date,extra
+examine:creatine,Examine — Creatine,Examine.com reference page,supplements/creatine,,{"url_note":"Use site search for latest sections."}
+examine:caffeine,Examine — Caffeine,Examine.com reference page,supplements/caffeine,,{"url_note":"Use site search for latest sections."}
+examine:l-theanine,Examine — L-Theanine,Examine.com reference page,supplements/theanine,,{"url_note":"Use site search for latest sections."}
+examine:magnesium,Examine — Magnesium,Examine.com reference page,supplements/magnesium,,{"url_note":"Use site search for latest sections."}
+examine:vitamin-d3,Examine — Vitamin-D3,Examine.com reference page,supplements/vitamin-d,,{"url_note":"Use site search for latest sections."}
+examine:vitamin-k2-mk7,Examine — Vitamin-K2-MK7,Examine.com reference page,supplements/vitamin-k,,{"url_note":"Use site search for latest sections."}
+examine:fish-oil,Examine — Fish Oil,Examine.com reference page,supplements/fish-oil,,{"url_note":"Use site search for latest sections."}
+examine:ashwagandha,Examine — Ashwagandha,Examine.com reference page,supplements/ashwagandha,,{"url_note":"Use site search for latest sections."}
+examine:rhodiola,Examine — Rhodiola,Examine.com reference page,supplements/rhodiola-rosea,,{"url_note":"Use site search for latest sections."}
+examine:berberine,Examine — Berberine,Examine.com reference page,supplements/berberine,,{"url_note":"Use site search for latest sections."}
+examine:melatonin,Examine — Melatonin,Examine.com reference page,supplements/melatonin,,{"url_note":"Use site search for latest sections."}
+examine:curcumin,Examine — Curcumin,Examine.com reference page,supplements/curcumin,,{"url_note":"Use site search for latest sections."}
+examine:ginger,Examine — Ginger,Examine.com reference page,supplements/ginger,,{"url_note":"Use site search for latest sections."}
+examine:green-tea-extract,Examine — Green-Tea-Extract,Examine.com reference page,supplements/green-tea-extract,,{"url_note":"Use site search for latest sections."}
+examine:niacin,Examine — Niacin,Examine.com reference page,supplements/niacin,,{"url_note":"Use site search for latest sections."}
+examine:nac,Examine — NAC,Examine.com reference page,supplements/n-acetylcysteine,,{"url_note":"Use site search for latest sections."}
+examine:alpha-gpc,Examine — Alpha-GPC,Examine.com reference page,supplements/alpha-gpc,,{"url_note":"Use site search for latest sections."}
+examine:bacopa,Examine — Bacopa,Examine.com reference page,supplements/bacopa-monnieri,,{"url_note":"Use site search for latest sections."}
+examine:ginkgo,Examine — Ginkgo,Examine.com reference page,supplements/ginkgo-biloba,,{"url_note":"Use site search for latest sections."}
+examine:coq10,Examine — CoQ10,Examine.com reference page,supplements/coenzyme-q10,,{"url_note":"Use site search for latest sections."}
+examine:resveratrol,Examine — Resveratrol,Examine.com reference page,supplements/resveratrol,,{"url_note":"Use site search for latest sections."}
+examine:chromium-picolinate,Examine — Chromium-Picolinate,Examine.com reference page,supplements/chromium,,{"url_note":"Use site search for latest sections."}
+examine:glucosamine,Examine — Glucosamine,Examine.com reference page,supplements/glucosamine,,{"url_note":"Use site search for latest sections."}
+examine:chondroitin,Examine — Chondroitin,Examine.com reference page,supplements/chondroitin,,{"url_note":"Use site search for latest sections."}
+examine:msm,Examine — MSM,Examine.com reference page,supplements/msm,,{"url_note":"Use site search for latest sections."}
+examine:beta-alanine,Examine — Beta-Alanine,Examine.com reference page,supplements/beta-alanine,,{"url_note":"Use site search for latest sections."}
+examine:l-citrulline,Examine — L-Citrulline,Examine.com reference page,supplements/citrulline,,{"url_note":"Use site search for latest sections."}
+examine:taurine,Examine — Taurine,Examine.com reference page,supplements/taurine,,{"url_note":"Use site search for latest sections."}
+examine:zinc,Examine — Zinc,Examine.com reference page,supplements/zinc,,{"url_note":"Use site search for latest sections."}
+examine:vitamin-b12,Examine — Vitamin-B12,Examine.com reference page,supplements/vitamin-b12,,{"url_note":"Use site search for latest sections."}
