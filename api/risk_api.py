@@ -10,6 +10,28 @@ import yaml
 import ast
 from types import SimpleNamespace
 
+# Compatibility shim: some Starlette versions make Middleware iterate to
+# (cls, args, kwargs) which FastAPI's middleware builder doesn't expect
+# (it expects (cls, options)). Patch Middleware.__iter__ early so tests
+# and runtime won't hit a ValueError when FastAPI unpacks middleware entries.
+try:
+    from starlette.middleware import Middleware as _StarletteMiddleware
+
+    def _mw_iter(self):
+        # Return (cls, options) where options are the kwargs dict
+        return iter((self.cls, self.kwargs))
+
+    # Only patch if the existing __iter__ yields 3 items
+    try:
+        test_iter = tuple(_StarletteMiddleware(object))
+        if len(test_iter) == 3:
+            _StarletteMiddleware.__iter__ = _mw_iter  # type: ignore[attr-defined]
+    except Exception:
+        # Defensive: if instantiation or inspection fails, skip patch
+        pass
+except Exception:
+    pass
+
 # Define data models
 class Compound(BaseModel):
     id: str
@@ -37,6 +59,34 @@ if not logger.handlers:
     logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
+
+# FastAPI expects user_middleware entries to be (middleware_class, options_dict).
+# In some environments `starlette.middleware.Middleware` iterates to (cls, args, kwargs),
+# which causes a "too many values to unpack" error when FastAPI builds the stack.
+# Normalize any existing entries to the expected two-item form using kwargs.
+try:
+    normalized = []
+    for item in list(app.user_middleware):
+        try:
+            parts = tuple(item)
+        except Exception:
+            # If it's already a tuple-like acceptable to FastAPI, keep it
+            normalized.append(item)
+            continue
+        if len(parts) == 2:
+            normalized.append(item)
+        elif len(parts) == 3:
+            cls, _args, kwargs = parts
+            if not isinstance(kwargs, dict):
+                kwargs = {}
+            normalized.append((cls, kwargs))
+        else:
+            # Fallback: keep original
+            normalized.append(item)
+    app.user_middleware = normalized
+except Exception:
+    # Defensive: don't let middleware normalization break imports/tests
+    pass
 
 # Paths and data helpers
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
@@ -394,12 +444,14 @@ def interaction(a: str, b: str):
     for inter in INTERACTIONS:
         if inter.get("a") == a_id and inter.get("b") == b_id:
             inter_copy = dict(inter)
-            inter_copy["risk"] = compute_risk(inter)
-            return inter_copy
+            score = compute_risk(inter)
+            inter_copy["risk"] = score
+            return {"interaction": inter_copy, "risk_score": score}
         if inter.get("bidirectional", True) and inter.get("a") == b_id and inter.get("b") == a_id:
             inter_copy = dict(inter)
-            inter_copy["risk"] = compute_risk(inter)
-            return inter_copy
+            score = compute_risk(inter)
+            inter_copy["risk"] = score
+            return {"interaction": inter_copy, "risk_score": score}
     raise HTTPException(status_code=404, detail="Interaction not found")
 
 
@@ -456,4 +508,10 @@ def check_stack(payload: StackRequest) -> dict:
             found.append(_normalize_interaction_for_output(inter))
 
     return {"interactions": found}
+
+
+@app.post("/api/stack/check")
+def stack_check_endpoint(payload: StackRequest):
+    """HTTP endpoint wrapper for stack checking used by the frontend and tests."""
+    return check_stack(payload)
 

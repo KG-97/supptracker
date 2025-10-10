@@ -12,6 +12,7 @@ orjson==3.11.3
 
 # Observability / middleware
 asgi-correlation-id==4.3.4
-prometheus-fastapi-instrumentator==7.1.0
-prometheus-client==0.23.1
+# prometheus-fastapi-instrumentator removed due to starlette version conflicts
+# prometheus-fastapi-instrumentator==7.1.0
+# prometheus-client==0.23.1
 
