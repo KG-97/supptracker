@@ -23,59 +23,81 @@ from typing import List, Dict, Any, Optional, Set
 from collections import defaultdict
 
 try:
-    from pydantic import BaseModel, Field, field_validator, ValidationError, ConfigDict
+    from pydantic import BaseModel, Field, ValidationError, validator
 except ImportError:
     print("ERROR: pydantic is not installed. Please run: pip install pydantic")
     sys.exit(1)
 
 
 class Compound(BaseModel):
-    """Schema for compounds data"""
-    model_config = ConfigDict(populate_by_name=True)
-    
-    id: str = Field(..., min_length=1, alias='compound_id')
+    """Schema for compounds.csv"""
+
+    id: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1)
     synonyms: Optional[str] = None
     class_: Optional[str] = Field(None, alias='class')
-    description: Optional[str] = None
-    externalIds: Optional[str] = None
-    referenceUrls: Optional[str] = None
+    route: Optional[str] = None
+    dose: Optional[str] = None
+    qt_risk: Optional[str] = None
+    notes: Optional[str] = None
+    examine_slug: Optional[str] = None
+    external_links: Optional[str] = None
 
-    @field_validator('externalIds', 'referenceUrls')
-    @classmethod
-    def validate_json_fields(cls, v):
+    @validator('external_links', pre=True)
+    def validate_external_links(cls, v: Optional[str]) -> Optional[str]:
         if v and v.strip():
+            if not isinstance(v, str):
+                raise TypeError("external_links must be a string")
             try:
                 json.loads(v)
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON: {e}")
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSON: {exc}")
         return v
 
 
 class Interaction(BaseModel):
-    """Schema for interactions data"""
-    model_config = ConfigDict(populate_by_name=True)
-    
-    id: str = Field(..., min_length=1, alias='interaction_id')
-    a: str = Field(..., min_length=1, alias='compound1_id')
-    b: str = Field(..., min_length=1, alias='compound2_id')
-    severity: str = Field(..., pattern=r'^(Severe|Moderate|Mild)$')
-    description: Optional[str] = None
-    recommendation: Optional[str] = None
-    risk_score: Optional[float] = Field(None, ge=0, le=10)
-    sources: Optional[str] = Field(None, alias='source_ids')
+    """Schema for interactions.csv"""
+
+    compound_a: str = Field(..., min_length=1)
+    compound_b: str = Field(..., min_length=1)
+    severity: str = Field(..., pattern=r'^(Severe|Moderate|Mild|None)$')
+    evidence_grade: Optional[str] = None
+    mechanism: str = Field(..., min_length=1)
+    effect: str = Field(..., min_length=1)
+    risk_level: str = Field(..., pattern=r'^(Low|Moderate|High|Unknown)$')
+    mechanism_tags: Optional[str] = None
+    source_ids: Optional[str] = None
+    action: Optional[str] = None
+
+    @validator('evidence_grade', pre=True)
+    def validate_evidence_grade(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if isinstance(v, str) and v.strip():
+            allowed = {"A", "B", "C", "D"}
+            if v.upper() not in allowed:
+                raise ValueError(f"evidence_grade must be one of {sorted(allowed)}")
+            return v.upper()
+        return None
 
 
 class Source(BaseModel):
     """Schema for sources data"""
-    model_config = ConfigDict(populate_by_name=True)
-    
-    id: str = Field(..., min_length=1, alias='source_id')
-    citation: str = Field(..., min_length=1, alias='title')  # sources.csv uses 'citation' not 'title'
-    url: Optional[str] = None
-    pmid: Optional[str] = None
-    doi: Optional[str] = None
-    date: Optional[str] = Field(None, alias='publication_date')
+    id: str = Field(..., min_length=1)
+    title: Optional[str] = None
+    citation: str = Field(..., min_length=1)
+    identifier: Optional[str] = None
+    date: Optional[str] = None
+    extra: Optional[str] = None
+
+    @validator('extra', pre=True)
+    def validate_extra(cls, v: Optional[str]) -> Optional[str]:
+        if v and v.strip():
+            try:
+                json.loads(v)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSON: {exc}")
+        return v
 
 
 class DataValidator:
@@ -97,7 +119,7 @@ class DataValidator:
 
         # Validate CSV files
         self.validate_csv('compounds.csv', Compound, self.compounds, 'id')
-        self.validate_csv('interactions.csv', Interaction, self.interactions, 'id')
+        self.validate_csv('interactions.csv', Interaction, self.interactions, None)
         self.validate_csv('sources.csv', Source, self.sources, 'id')
 
         # Validate JSON files (but skip if not critical)
@@ -113,7 +135,7 @@ class DataValidator:
 
         return len(self.errors) == 0
 
-    def validate_csv(self, filename: str, model: type[BaseModel], storage: Dict, id_field: str) -> None:
+    def validate_csv(self, filename: str, model: type[BaseModel], storage: Dict, id_field: Optional[str]) -> None:
         """Validate a CSV file against a Pydantic model"""
         filepath = self.data_dir / filename
         print(f"Validating {filename}...")
@@ -138,16 +160,19 @@ class DataValidator:
                 # Validate schema
                 try:
                     validated = model(**row)
-                    row_id = row.get(id_field)
+                    if id_field:
+                        row_id = row.get(id_field)
 
-                    # Check for duplicates
-                    if row_id in seen_ids:
-                        self.errors.append(
-                            f"{filename}:row {row_num}: Duplicate {id_field} '{row_id}'"
-                        )
+                        # Check for duplicates
+                        if row_id in seen_ids:
+                            self.errors.append(
+                                f"{filename}:row {row_num}: Duplicate {id_field} '{row_id}'"
+                            )
+                        else:
+                            seen_ids.add(row_id)
+                            storage[row_id] = row
                     else:
-                        seen_ids.add(row_id)
-                        storage[row_id] = row
+                        storage[row_num] = row
 
                 except ValidationError as e:
                     for error in e.errors():
@@ -216,28 +241,29 @@ class DataValidator:
         print("\nChecking referential integrity...")
 
         # Check interactions reference valid compounds
-        for interaction_id, interaction in self.interactions.items():
-            compound1_id = interaction.get('a')
-            compound2_id = interaction.get('b')
+        for row_key, interaction in self.interactions.items():
+            row_label = row_key if isinstance(row_key, int) else f"id={row_key}"
+            compound_a = (interaction.get('compound_a') or '').strip()
+            compound_b = (interaction.get('compound_b') or '').strip()
 
-            if compound1_id and compound1_id not in self.compounds:
+            if compound_a and compound_a not in self.compounds:
                 self.errors.append(
-                    f"interactions.csv:{interaction_id}: References unknown compound 'a' (compound1_id) '{compound1_id}'"
+                    f"interactions.csv:row {row_label}: References unknown compound_a '{compound_a}'"
                 )
 
-            if compound2_id and compound2_id not in self.compounds:
+            if compound_b and compound_b not in self.compounds:
                 self.errors.append(
-                    f"interactions.csv:{interaction_id}: References unknown compound 'b' (compound2_id) '{compound2_id}'"
+                    f"interactions.csv:row {row_label}: References unknown compound_b '{compound_b}'"
                 )
 
             # Check source references
-            source_ids = interaction.get('sources', '')
+            source_ids = interaction.get('source_ids', '')
             if source_ids:
                 for source_id in source_ids.split(';'):
                     source_id = source_id.strip()
                     if source_id and source_id not in self.sources:
                         self.warnings.append(
-                            f"interactions.csv:{interaction_id}: References unknown source_id '{source_id}'"
+                            f"interactions.csv:row {row_label}: References unknown source_id '{source_id}'"
                         )
 
         print("  ✓ Referential integrity checked")
