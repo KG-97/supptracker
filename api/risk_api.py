@@ -385,4 +385,75 @@ def search(q: str):
 @app.get("/api/interaction")
 def interaction(a: str, b: str):
     """Get interaction details between two compounds by id or name."""
-   
+    a_id = resolve_compound(a)
+    b_id = resolve_compound(b)
+    if not a_id or not b_id:
+        raise HTTPException(status_code=404, detail="Compound not found")
+
+    # Find matching interaction (respect bidirectionality)
+    for inter in INTERACTIONS:
+        if inter.get("a") == a_id and inter.get("b") == b_id:
+            inter_copy = dict(inter)
+            inter_copy["risk"] = compute_risk(inter)
+            return inter_copy
+        if inter.get("bidirectional", True) and inter.get("a") == b_id and inter.get("b") == a_id:
+            inter_copy = dict(inter)
+            inter_copy["risk"] = compute_risk(inter)
+            return inter_copy
+    raise HTTPException(status_code=404, detail="Interaction not found")
+
+
+class StackRequest(BaseModel):
+    compounds: List[str]
+
+
+def _normalize_interaction_for_output(inter: dict) -> dict:
+    """Return a shallow copy of interaction with computed risk for API responses."""
+    out = dict(inter)
+    out["risk"] = compute_risk(inter)
+    return out
+
+
+def check_stack(payload: StackRequest) -> dict:
+    """Check a stack of compounds for interactions.
+
+    Args:
+        payload: StackRequest with a list of compound identifiers or names.
+
+    Returns:
+        A dict with key "interactions" containing matching interaction dicts.
+
+    Raises:
+        HTTPException: if any compound cannot be resolved.
+    """
+    if not payload or not payload.compounds:
+        return {"interactions": []}
+
+    resolved: List[str] = []
+    for ident in payload.compounds:
+        rid = resolve_compound(ident)
+        if not rid:
+            raise HTTPException(status_code=400, detail=f"Unknown compound: {ident}")
+        resolved.append(rid)
+
+    resolved_set = set(resolved)
+    found: List[dict] = []
+    seen_pairs = set()
+    for inter in INTERACTIONS:
+        a = inter.get("a")
+        b = inter.get("b")
+        if a in resolved_set and b in resolved_set:
+            pair = tuple(sorted([a, b]))
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            found.append(_normalize_interaction_for_output(inter))
+        elif inter.get("bidirectional", True) and b in resolved_set and a in resolved_set:
+            pair = tuple(sorted([a, b]))
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            found.append(_normalize_interaction_for_output(inter))
+
+    return {"interactions": found}
+
