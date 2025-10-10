@@ -5,18 +5,23 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      REGISTRY: ${{ secrets.REGISTRY }}
+      REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+      REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+      DEPLOY_WEBHOOK: ${{ secrets.DEPLOY_WEBHOOK }}
     steps:
       - uses: actions/checkout@v4
       - name: Build docker image
         run: |
           docker build -t supptracker:ci .
       - name: (Optional) Push to registry
-        if: ${{ secrets.REGISTRY && secrets.REGISTRY_USER && secrets.REGISTRY_TOKEN }}
+        if: ${{ env.REGISTRY != '' && env.REGISTRY_USER != '' && env.REGISTRY_TOKEN != '' }}
         run: |
-          echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ secrets.REGISTRY }} -u "${{ secrets.REGISTRY_USER }}" --password-stdin
-          docker tag supptracker:ci ${{ secrets.REGISTRY }}/supptracker:${{ github.sha }}
-          docker push ${{ secrets.REGISTRY }}/supptracker:${{ github.sha }}
+          echo "${REGISTRY_TOKEN}" | docker login "${REGISTRY}" -u "${REGISTRY_USER}" --password-stdin
+          docker tag supptracker:ci "${REGISTRY}/supptracker:${GITHUB_SHA}"
+          docker push "${REGISTRY}/supptracker:${GITHUB_SHA}"
       - name: Trigger Railway/Cloud deploy
-        if: ${{ secrets.DEPLOY_WEBHOOK }}
+        if: ${{ env.DEPLOY_WEBHOOK != '' }}
         run: |
-          curl -fsSL -X POST -H "Content-Type: application/json" -d '{"sha":"${{ github.sha }}"}' "${{ secrets.DEPLOY_WEBHOOK }}"
+          curl -fsSL -X POST -H "Content-Type: application/json" -d '{"sha":"${GITHUB_SHA}"}' "${DEPLOY_WEBHOOK}"

@@ -1,21 +1,21 @@
-compound_a,compound_b,severity,evidence_grade,mechanism_tags,source_ids,action
-caffeine,l-theanine,None,B,"CNS;attention;anxiolysis;synergy",examine:caffeine;examine:l-theanine,
-green-tea-extract,caffeine,None,B,"thermogenesis;synergy;CNS",examine:green-tea-extract;examine:caffeine,
-taurine,caffeine,Mild,C,"CNS;stimulant-load;cardiovascular",examine:taurine;examine:caffeine,Monitor total stimulant load; avoid high-dose combinations.
-melatonin,caffeine,Moderate,B,"sleep;antagonism;adenosine",examine:melatonin;examine:caffeine,Separate by 8–10 hours; avoid caffeine late in the day.
-magnesium,melatonin,None,C,"sleep;relaxation;cofactor",examine:magnesium;examine:melatonin,
-vitamin-d3,vitamin-k2-mk7,None,B,"bone-health;cofactor;calcium-metabolism",examine:vitamin-d3;examine:vitamin-k2-mk7,
-magnesium,vitamin-d3,None,B,"cofactor;vitamin-d-metabolism",examine:magnesium;examine:vitamin-d3,
-beta-alanine,l-citrulline,None,B,"exercise;buffering;nitric-oxide;synergy",examine:beta-alanine;examine:l-citrulline,
-creatine,caffeine,Mild,C,"performance;GI;mixed-evidence",examine:creatine;examine:caffeine,If stacking, split doses and reduce caffeine near training.
-glucosamine,chondroitin,None,B,"joint-health;structural;common-combo",examine:glucosamine;examine:chondroitin,
-msm,glucosamine,None,C,"joint-health;common-combo",examine:msm;examine:glucosamine,
-fish-oil,curcumin,None,C,"anti-inflammatory;nfkb;complementary",examine:fish-oil;examine:curcumin,
-fish-oil,ginger,Mild,C,"antiplatelet;bleeding-risk;caution",examine:fish-oil;examine:ginger,If bruising occurs, consider spacing or reducing doses.
-resveratrol,curcumin,None,C,"polyphenols;antioxidant;complementary",examine:resveratrol;examine:curcumin,
-berberine,nac,Mild,C,"glucose-metabolism;caution",examine:berberine;examine:nac,If sensitive to glucose changes, monitor response.
-chromium-picolinate,berberine,Mild,C,"glucose-metabolism;additive",examine:chromium-picolinate;examine:berberine,Potential additive effect on glucose; monitor for lightheadedness.
-alpha-gpc,caffeine,None,C,"cholinergic;CNS;focus",examine:alpha-gpc;examine:caffeine,
-bacopa,ginkgo,None,C,"nootropic;attention;memory",examine:bacopa;examine:ginkgo,
-ashwagandha,rhodiola,None,C,"adaptogen;stress;fatigue",examine:ashwagandha;examine:rhodiola,
-magnesium,zinc,Mild,C,"absorption;competition;timing",examine:magnesium;examine:zinc,Consider taking at different times to minimize competition.
+compound_a,compound_b,severity,evidence_grade,mechanism_tags,source_ids,action,mechanism,effect,risk_level
+caffeine,l-theanine,None,B,CNS;attention;anxiolysis;synergy,examine:caffeine;examine:l-theanine,Pair in 2:1 theanine:caffeine ratio for smoother focus.,Synergistic modulation of adenosine and GABA signaling,Promotes calm alertness and reduces caffeine jitters,Low
+green-tea-extract,caffeine,None,B,thermogenesis;synergy;CNS,examine:green-tea-extract;examine:caffeine,Use with meals; monitor sensitivity to stimulants.,Catechin-caffeine thermogenic synergy,Enhances thermogenesis and metabolic rate modestly,Low
+taurine,caffeine,Mild,C,CNS;stimulant-load;cardiovascular,examine:taurine;examine:caffeine,Monitor total stimulant load; avoid high-dose combinations.,Additive CNS stimulation with overlapping cardiovascular effects,May elevate heart rate or blood pressure in sensitive individuals,Moderate
+melatonin,caffeine,Moderate,B,sleep;antagonism;adenosine,examine:melatonin;examine:caffeine,Separate by 8–10 hours; avoid caffeine late in the day.,Opposing modulation of adenosine and circadian signaling,Caffeine can blunt melatonin-driven sleep onset,Moderate
+magnesium,melatonin,None,C,sleep;relaxation;cofactor,examine:magnesium;examine:melatonin,Often taken in the evening alongside melatonin.,Magnesium supports GABAergic tone that complements melatonin,"May promote deeper, more restful sleep",Low
+vitamin-d3,vitamin-k2-mk7,None,B,bone-health;cofactor;calcium-metabolism,examine:vitamin-d3;examine:vitamin-k2-mk7,Co-supplement especially when vitamin D doses exceed daily needs.,Co-regulation of calcium deposition and bone remodeling,Improves calcium utilization and limits arterial calcification,Low
+magnesium,vitamin-d3,None,B,cofactor;vitamin-d-metabolism,examine:magnesium;examine:vitamin-d3,Ensure adequate magnesium when supplementing vitamin D.,Magnesium-dependent activation of vitamin D enzymes,Supports vitamin D metabolism and serum levels,Low
+beta-alanine,l-citrulline,None,B,exercise;buffering;nitric-oxide;synergy,examine:beta-alanine;examine:l-citrulline,Commonly stacked pre-workout; split beta-alanine doses to limit tingles.,Complementary nitric oxide and carnosine pathways,May improve endurance and workout volume,Low
+creatine,caffeine,Mild,C,performance;GI;mixed-evidence,examine:creatine;examine:caffeine,"If stacking, split doses and reduce caffeine near training.",Potential interference with adenosine signaling and fluid balance,Mixed evidence for reduced ergogenic response to creatine,Moderate
+glucosamine,chondroitin,None,B,joint-health;structural;common-combo,examine:glucosamine;examine:chondroitin,Frequently dosed together for osteoarthritis support.,Combined structural support for cartilage matrix,May modestly improve joint comfort,Low
+msm,glucosamine,None,C,joint-health;common-combo,examine:msm;examine:glucosamine,Often included in joint formulas; monitor for GI upset.,Sulfur donor complements glucosamine in joint tissue,May enhance joint comfort when combined,Low
+fish-oil,curcumin,None,C,anti-inflammatory;nfkb;complementary,examine:fish-oil;examine:curcumin,Take with meals containing fat to aid absorption.,Anti-inflammatory and NF-κB modulation synergy,Supports systemic inflammatory balance,Low
+fish-oil,ginger,Mild,C,antiplatelet;bleeding-risk;caution,examine:fish-oil;examine:ginger,Reduce dose or separate if bruising occurs or before surgery.,Additive antiplatelet effects from omega-3s and gingerols,May increase bleeding or bruising risk,Moderate
+resveratrol,curcumin,None,C,polyphenols;antioxidant;complementary,examine:resveratrol;examine:curcumin,Take with meals containing fat or piperine for absorption.,Polyphenolic antioxidant synergy impacting sirtuins and NF-κB,Complimentary cellular antioxidant support,Low
+berberine,nac,Mild,C,glucose-metabolism;caution,examine:berberine;examine:nac,"Monitor glucose closely when combining, especially with medication.",Combined support for glucose metabolism and hepatic antioxidant defenses,May lower blood glucose more than either alone,Moderate
+chromium-picolinate,berberine,Mild,C,glucose-metabolism;additive,examine:chromium-picolinate;examine:berberine,Potential additive effect on glucose; monitor for lightheadedness.,Additive insulin-sensitizing activity,Can potentiate hypoglycemic response,Moderate
+alpha-gpc,caffeine,None,C,cholinergic;CNS;focus,examine:alpha-gpc;examine:caffeine,Use earlier in the day to avoid sleep disruption.,Cholinergic support plus central nervous system stimulation,May enhance mental focus and reaction time,Low
+bacopa,ginkgo,None,C,nootropic;attention;memory,examine:bacopa;examine:ginkgo,Allow several weeks for cognitive benefits.,Complementary neurovascular and cholinergic effects,May support memory and attention,Low
+ashwagandha,rhodiola,None,C,adaptogen;stress;fatigue,examine:ashwagandha;examine:rhodiola,Start with low doses to assess tolerance.,Dual adaptogenic modulation of HPA-axis stress response,May improve stress resilience and fatigue,Low
+magnesium,zinc,Mild,C,absorption;competition;timing,examine:magnesium;examine:zinc,Take with food and separate high-dose supplements if needed.,Competition for absorption in high doses,Excess of one may impair absorption of the other,Low
