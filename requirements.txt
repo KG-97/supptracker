@@ -1,13 +1,17 @@
 fastapi==0.98.0
 uvicorn[standard]==0.23.2
-pandas==2.1.4
-pyyaml==6.0.2
-httpx==0.27.2
+pandas==2.2.2
+PyYAML==6.0.2
+httpx==0.28.1
 pytest==7.4.2
 
 # Fuzzy search dependencies
 rapidfuzz==2.15.1
 Unidecode==1.3.6
-orjson==3.9.5
-asgi-correlation-id==0.4.0
-prometheus-fastapi-instrumentator==6.0.1
+orjson==3.11.3
+
+# Observability / middleware
+asgi-correlation-id==4.3.4
+prometheus-fastapi-instrumentator==7.1.0
+prometheus-client==0.23.1
+

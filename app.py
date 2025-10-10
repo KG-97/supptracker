@@ -40,6 +40,9 @@ def load_yaml(name: str) -> dict:
 
 app = FastAPI(title="Supplement Interaction API", version="0.2.2", default_response_class=ORJSONResponse)
 
+# Create API router which will host all our application endpoints
+api_router = APIRouter(prefix="/api")
+
 # CORS (allow from env or default to all)
 origins = os.environ.get("CORS_ALLOWED_ORIGINS", "*")
 if origins == "*":
@@ -65,7 +68,7 @@ logger = logging.getLogger("supptracker")
 # Prometheus instrumentation
 instrumentator = Instrumentator().instrument(app).expose(app)
 
-@app.get("/health")
+@api_router.get("/health")
 def health():
     """Lightweight health endpoint for probes."""
     return {"status": "ok", "service": "supptracker-backend", "version": app.version}
@@ -176,6 +179,7 @@ buckets = RULES.get("buckets", {
     "high":{"min":1.51,"label":"High","action":"Avoid"}
 })
 
+
 def compute_score(interaction: Dict[str,Any], doses: Optional[str]=None, flags: Optional[str]=None):
     sev = sev_map.get(str(interaction.get("severity","None")), 0)
     evd = evd_map.get(str(interaction.get("evidence_grade","D")), 4)
@@ -283,12 +287,12 @@ def search_compounds_fuzzy(q: str, limit: int = 20, threshold: int = 60):
     return final[:limit]
 
 
-@app.get("/search")
+@api_router.get("/search")
 def search(q: str = Query(..., description="Compound name or synonym"), limit: int = Query(20, ge=1, le=100)):
     results = search_compounds_fuzzy(q, limit=limit)
     return {"compounds": results}
 
-@app.get("/interaction")
+@api_router.get("/interaction")
 def interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str] = None):
     inter = find_interaction(a, b)
     if not inter:
@@ -309,7 +313,7 @@ def interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str
         }
     }
 
-@app.post("/stack/check")
+@api_router.post("/stack/check")
 def stack_check(payload: StackCheckRequest):
     items = payload.items
     n = len(items)
@@ -338,30 +342,6 @@ def stack_check(payload: StackCheckRequest):
             }
             interactions.append(entry)
     return {"items": items, "matrix": matrix, "cells": interactions, "interactions": interactions}
-
-
-# Create API router and duplicate routes under /api for compatibility
-api_router = APIRouter(prefix="/api")
-
-
-@api_router.get("/health")
-def api_health():
-    return health()
-
-
-@api_router.get("/search")
-def api_search(q: str = Query(..., description="Compound name or synonym"), limit: int = Query(20, ge=1, le=100)):
-    return search(q=q, limit=limit)
-
-
-@api_router.get("/interaction")
-def api_interaction(a: str, b: str, flags: Optional[str] = None, doses: Optional[str] = None):
-    return interaction(a=a, b=b, flags=flags, doses=doses)
-
-
-@api_router.post("/stack/check")
-def api_stack_check(payload: StackCheckRequest):
-    return stack_check(payload)
 
 
 # Mount API router
