@@ -13,7 +13,6 @@ from unidecode import unidecode
 
 # Production middleware / observability
 from asgi_correlation_id import CorrelationIdMiddleware, correlation_id
-from prometheus_fastapi_instrumentator import Instrumentator
 import logging
 
 # Synonyms helper
@@ -65,8 +64,18 @@ app.add_middleware(CorrelationIdMiddleware)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger("supptracker")
 
-# Prometheus instrumentation
-instrumentator = Instrumentator().instrument(app).expose(app)
+# Prometheus instrumentation - optional and guarded.
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    try:
+        Instrumentator().instrument(app).expose(app)
+    except Exception as _exc:  # pragma: no cover - avoid test breakage if instrumentator mutates middleware
+        logger = logging.getLogger("supptracker")
+        logger.warning("Prometheus Instrumentator not enabled: %s", _exc)
+except Exception:
+    # Not installed or failed to import; continue without instrumentation
+    pass
 
 @api_router.get("/health")
 def health():
