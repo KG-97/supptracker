@@ -387,20 +387,24 @@ def _parse_external_links(value: Any) -> List[Dict[str, str]]:
                 nested = _normalise_entry(target)
                 if not nested:
                     continue
-                if (
-                    isinstance(label, str)
-                    and label.strip()
-                    and "label" not in nested
-                ):
-                    nested["label"] = label.strip()
+                if isinstance(label, str):
+                    label_str = label.strip()
+                    if label_str:
+                        existing = nested.get("label")
+                        if not (isinstance(existing, str) and existing.strip()):
+                            nested["label"] = label_str
                 results.append(nested)
                 continue
 
             nested_links = _parse_external_links(target)
             if nested_links:
-                if isinstance(label, str) and label.strip():
-                    for entry in nested_links:
-                        entry.setdefault("label", label.strip())
+                if isinstance(label, str):
+                    label_str = label.strip()
+                    if label_str:
+                        for entry in nested_links:
+                            existing = entry.get("label")
+                            if not (isinstance(existing, str) and existing.strip()):
+                                entry["label"] = label_str
                 results.extend(nested_links)
 
         return results
