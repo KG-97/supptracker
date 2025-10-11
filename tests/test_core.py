@@ -74,6 +74,23 @@ def test_load_compounds_includes_external_metadata(tmp_path, monkeypatch):
     }
 
 
+def test_load_compounds_parses_external_links(tmp_path, monkeypatch):
+    csv_content = (
+        "id,name,synonyms,external_links\n"
+        'creatine,Creatine,creatine;monohydrate,"[{""label"":""Examine"",""url"":""https://example.com/creatine""}]"\n'
+    )
+    (tmp_path / "compounds.csv").write_text(csv_content, encoding="utf-8")
+
+    monkeypatch.setattr(app_module, "DATA_DIR", str(tmp_path))
+    compounds = app_module.load_compounds()
+
+    record = compounds["creatine"]
+    assert record["externalLinks"] == [
+        {"label": "Examine", "url": "https://example.com/creatine"}
+    ]
+    assert "external_links" not in record
+
+
 def test_parse_mapping_handles_iterables():
     import api.risk_api as app_module
 

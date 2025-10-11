@@ -10,6 +10,7 @@ import {
 } from '../api'
 import type {
   Compound,
+  ExternalLink,
   HealthResponse,
   InteractionResponse,
   InteractionWithRisk,
@@ -63,18 +64,41 @@ function severityClass(severity: string): string {
 }
 
 function formatDose(compound: Compound): string {
-  const amount = compound.typicalDoseAmount
-  const unit = compound.typicalDoseUnit
-
-  if (!amount && !unit) {
-    return 'Not specified'
-  }
+  const amount =
+    typeof compound.typicalDoseAmount === 'string'
+      ? compound.typicalDoseAmount.trim()
+      : compound.typicalDoseAmount
+  const unit =
+    typeof compound.typicalDoseUnit === 'string'
+      ? compound.typicalDoseUnit.trim()
+      : compound.typicalDoseUnit
 
   if (amount && unit) {
     return `${amount} ${unit}`
   }
 
-  return amount ?? unit ?? 'Not specified'
+  if (amount || unit) {
+    return (amount || unit) ?? 'Not specified'
+  }
+
+  const rawDoseCandidates: unknown[] = [
+    compound.dose,
+    (compound as Record<string, unknown>).doseGuide,
+    (compound as Record<string, unknown>).dose_guide,
+    (compound as Record<string, unknown>).dosage,
+    (compound as Record<string, unknown>).dose_notes,
+  ]
+
+  for (const candidate of rawDoseCandidates) {
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim()
+      if (trimmed) {
+        return trimmed
+      }
+    }
+  }
+
+  return 'Not specified'
 }
 
 function formatSourceKey(key: string): string {
@@ -85,21 +109,171 @@ function formatSourceKey(key: string): string {
     .join(' ')
 }
 
+type NormalisedExternalLink = { label?: string; identifier?: string; url: string }
+
+function parseExternalLinksValue(value: unknown): NormalisedExternalLink[] {
+  if (!value) {
+    return []
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => parseExternalLinksValue(item))
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return []
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed)
+      return parseExternalLinksValue(parsed)
+    } catch {
+      const entries = trimmed
+        .split(';')
+        .map((segment) => segment.trim())
+        .filter(Boolean)
+      const links: NormalisedExternalLink[] = []
+      for (const entry of entries) {
+        const separator = entry.includes('|') ? '|' : entry.includes(',') ? ',' : null
+        if (!separator) {
+          continue
+        }
+        const [rawLabel, rawUrl] = entry.split(separator, 2)
+        const url = rawUrl?.trim()
+        if (!url) {
+          continue
+        }
+        const label = rawLabel?.trim()
+        links.push({ url, ...(label ? { label } : {}) })
+      }
+      return links
+    }
+  }
+
+  if (typeof value === 'object') {
+    const record = value as ExternalLink & Record<string, unknown>
+    const urlCandidate =
+      (typeof record.url === 'string' && record.url.trim()) ||
+      (typeof (record as Record<string, unknown>).href === 'string'
+        ? ((record as Record<string, unknown>).href as string).trim()
+        : undefined) ||
+      (typeof (record as Record<string, unknown>).link === 'string'
+        ? ((record as Record<string, unknown>).link as string).trim()
+        : undefined)
+
+    if (!urlCandidate) {
+      return []
+    }
+
+    const labelCandidate =
+      (typeof record.label === 'string' && record.label.trim()) ||
+      (typeof (record as Record<string, unknown>).title === 'string'
+        ? ((record as Record<string, unknown>).title as string).trim()
+        : undefined) ||
+      (typeof (record as Record<string, unknown>).name === 'string'
+        ? ((record as Record<string, unknown>).name as string).trim()
+        : undefined)
+
+    const identifierCandidate =
+      (typeof record.identifier === 'string' && record.identifier.trim()) ||
+      (typeof (record as Record<string, unknown>).id === 'string'
+        ? ((record as Record<string, unknown>).id as string).trim()
+        : undefined) ||
+      (typeof (record as Record<string, unknown>).slug === 'string'
+        ? ((record as Record<string, unknown>).slug as string).trim()
+        : undefined) ||
+      (typeof (record as Record<string, unknown>).key === 'string'
+        ? ((record as Record<string, unknown>).key as string).trim()
+        : undefined)
+
+    const link: NormalisedExternalLink = { url: urlCandidate }
+    if (labelCandidate) {
+      link.label = labelCandidate
+    }
+    if (identifierCandidate) {
+      link.identifier = identifierCandidate
+    }
+    return [link]
+  }
+
+  return []
+}
+
+function lookupExternalId(ids: Record<string, string>, key: string): string | undefined {
+  if (key in ids) {
+    return ids[key]
+  }
+  const lowerKey = key.toLowerCase()
+  if (lowerKey in ids) {
+    return ids[lowerKey]
+  }
+
+  const normalised = lowerKey.replace(/[^a-z0-9]/g, '')
+  for (const [candidateKey, value] of Object.entries(ids)) {
+    if (
+      candidateKey === key ||
+      candidateKey.toLowerCase() === lowerKey ||
+      candidateKey.toLowerCase().replace(/[^a-z0-9]/g, '') === normalised
+    ) {
+      return value
+    }
+  }
+
+  return undefined
+}
+
 function compoundExternalLinks(
   compound: Compound
 ): { key: string; label: string; href: string }[] {
   const urls = compound.referenceUrls ?? {}
   const ids = compound.externalIds ?? {}
+  const links: { key: string; label: string; href: string }[] = []
+  const seen = new Map<string, number>()
 
-  return Object.entries(urls)
-    .map(([key, href]) => {
-      if (!href) return null
-      const labelBase = formatSourceKey(key)
-      const identifier = ids[key]
-      const label = identifier ? `${labelBase} (${identifier})` : labelBase
-      return { key, label, href }
-    })
-    .filter((entry): entry is { key: string; label: string; href: string } => !!entry)
+  function addLink(key: string, label: string, href: string) {
+    const trimmedHref = href.trim()
+    if (!trimmedHref) {
+      return
+    }
+    const hrefKey = trimmedHref.toLowerCase()
+    if (seen.has(hrefKey)) {
+      const index = seen.get(hrefKey) ?? -1
+      if (index >= 0 && !links[index].label && label) {
+        links[index] = { ...links[index], label }
+      }
+      return
+    }
+    seen.set(hrefKey, links.length)
+    links.push({ key, label, href: trimmedHref })
+  }
+
+  for (const [key, href] of Object.entries(urls)) {
+    if (typeof href !== 'string') {
+      continue
+    }
+    const identifier = lookupExternalId(ids, key)
+    const labelBase = formatSourceKey(key)
+    const label = identifier ? `${labelBase} (${identifier})` : labelBase
+    addLink(key, label, href)
+  }
+
+  const externalLinkValues = [
+    compound.externalLinks,
+    (compound as Record<string, unknown>).external_links,
+  ]
+
+  for (const value of externalLinkValues) {
+    for (const entry of parseExternalLinksValue(value)) {
+      const href = entry.url
+      const label = entry.label?.trim() || entry.identifier?.trim() || formatSourceKey(entry.url)
+      const key = entry.identifier?.trim() || entry.label?.trim() || entry.url
+      addLink(key, label, href)
+    }
+  }
+
+  return links
 }
 
 export default function App(): JSX.Element {

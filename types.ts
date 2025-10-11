@@ -9,8 +9,17 @@ export interface Compound {
   typicalDoseAmount?: string | null
   typicalDoseUnit?: string | null
   route?: string | null
+  dose?: string | null
   externalIds?: Record<string, string>
   referenceUrls?: Record<string, string>
+  externalLinks?: ExternalLink[]
+  [key: string]: unknown
+}
+
+export interface ExternalLink {
+  label?: string | null
+  url?: string | null
+  identifier?: string | null
   [key: string]: unknown
 }
 
