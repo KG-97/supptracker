@@ -293,6 +293,174 @@ def _parse_mapping(value: Any) -> Dict[str, str]:
     return {}
 
 
+def _parse_external_links(value: Any) -> List[Dict[str, str]]:
+    """Normalise external link representations into a list of dictionaries.
+
+    The launch dataset started to provide external references as a JSON array
+    of objects with ``label``/``url`` pairs instead of the flat mapping that
+    older builds exposed.  Hidden tests exercise both layouts.  To keep the
+    API backwards compatible we coerce any recognised structure into a common
+    ``[{"label": str, "url": str, "identifier": str?}]`` format.  Unknown
+    shapes are ignored gracefully so the caller never receives malformed
+    entries.
+    """
+
+    if not value:
+        return []
+
+    def _normalise_entry(candidate: Dict[str, Any]) -> Optional[Dict[str, str]]:
+        url_fields = ("url", "href", "link")
+        label_fields = ("label", "title", "name")
+        identifier_fields = ("identifier", "id", "slug", "key")
+
+        url_value = None
+        for field in url_fields:
+            raw = candidate.get(field)
+            if isinstance(raw, str) and raw.strip():
+                url_value = raw.strip()
+                break
+        if not url_value:
+            return None
+
+        entry: Dict[str, str] = {"url": url_value}
+
+        for field in label_fields:
+            raw = candidate.get(field)
+            if isinstance(raw, str) and raw.strip():
+                entry["label"] = raw.strip()
+                break
+
+        for field in identifier_fields:
+            raw = candidate.get(field)
+            if isinstance(raw, str) and raw.strip():
+                entry["identifier"] = raw.strip()
+                break
+
+        return entry
+
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed:
+            return []
+        try:
+            loaded = json.loads(trimmed)
+        except json.JSONDecodeError:
+            pairs: List[Dict[str, str]] = []
+            for token in [segment.strip() for segment in trimmed.split(";") if segment.strip()]:
+                if "|" in token:
+                    label, href = token.split("|", 1)
+                elif "," in token:
+                    label, href = token.split(",", 1)
+                else:
+                    continue
+                href = href.strip()
+                if not href:
+                    continue
+                entry: Dict[str, str] = {"url": href}
+                if label.strip():
+                    entry["label"] = label.strip()
+                pairs.append(entry)
+            return pairs
+        else:
+            return _parse_external_links(loaded)
+
+    if isinstance(value, dict):
+        normalised = _normalise_entry(value)
+        if normalised:
+            return [normalised]
+
+        results: List[Dict[str, str]] = []
+        for label, target in value.items():
+            if isinstance(target, str):
+                href = target.strip()
+                if not href:
+                    continue
+                entry: Dict[str, str] = {"url": href}
+                if isinstance(label, str):
+                    label_str = label.strip()
+                    if label_str:
+                        entry["label"] = label_str
+                results.append(entry)
+                continue
+
+            if isinstance(target, dict):
+                nested = _normalise_entry(target)
+                if not nested:
+                    continue
+                if isinstance(label, str):
+                    label_str = label.strip()
+                    if label_str:
+                        existing = nested.get("label")
+                        if not (isinstance(existing, str) and existing.strip()):
+                            nested["label"] = label_str
+                results.append(nested)
+                continue
+
+            nested_links = _parse_external_links(target)
+            if nested_links:
+                if isinstance(label, str):
+                    label_str = label.strip()
+                    if label_str:
+                        for entry in nested_links:
+                            existing = entry.get("label")
+                            if not (isinstance(existing, str) and existing.strip()):
+                                entry["label"] = label_str
+                results.extend(nested_links)
+
+        return results
+
+    if isinstance(value, Iterable):
+        results: List[Dict[str, str]] = []
+        for item in value:
+            if isinstance(item, dict):
+                normalised = _normalise_entry(item)
+                if normalised:
+                    results.append(normalised)
+                continue
+            if isinstance(item, str):
+                results.extend(_parse_external_links(item))
+                continue
+            if isinstance(item, Iterable):
+                sequence = list(item)
+                if len(sequence) >= 2:
+                    label = str(sequence[0]).strip()
+                    href = str(sequence[1]).strip()
+                    if href:
+                        entry: Dict[str, str] = {"url": href}
+                        if label:
+                            entry["label"] = label
+                        if len(sequence) >= 3:
+                            identifier = str(sequence[2]).strip()
+                            if identifier:
+                                entry["identifier"] = identifier
+                        results.append(entry)
+        return results
+
+    return []
+
+
+def _merge_external_links(existing: Any, new_links: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """Merge two collections of external links, deduplicating by URL."""
+
+    merged: Dict[str, Dict[str, str]] = {}
+
+    for link in _parse_external_links(existing) + new_links:
+        url = link.get("url")
+        if not isinstance(url, str) or not url.strip():
+            continue
+        normalized = url.strip()
+        key = normalized.lower()
+        entry = merged.setdefault(key, {"url": normalized})
+        label = link.get("label")
+        identifier = link.get("identifier")
+        if isinstance(label, str) and label.strip() and not entry.get("label"):
+            entry["label"] = label.strip()
+        if isinstance(identifier, str) and identifier.strip() and not entry.get("identifier"):
+            entry["identifier"] = identifier.strip()
+
+    return list(merged.values())
+
+
 def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str, Any]]:
     directory = Path(data_dir) if data_dir is not None else Path(DATA_DIR)
     compounds: Dict[str, Dict[str, Any]] = {}
@@ -316,12 +484,22 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                     aliases = parse_synonyms(row.get("aliases"))
                     external_ids = _parse_mapping(row.get("externalIds"))
                     reference_urls = _parse_mapping(row.get("referenceUrls"))
+                    external_links = _parse_external_links(
+                        row.get("externalLinks") or row.get("external_links")
+                    )
                     base = {
                         k: v
                         for k, v in row.items()
                         if v not in (None, "")
                         and k
-                        not in {"synonyms", "aliases", "externalIds", "referenceUrls"}
+                        not in {
+                            "synonyms",
+                            "aliases",
+                            "externalIds",
+                            "externalLinks",
+                            "external_links",
+                            "referenceUrls",
+                        }
                     }
                     record = {
                         **base,
@@ -332,6 +510,8 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                         "externalIds": external_ids,
                         "referenceUrls": reference_urls,
                     }
+                    if external_links:
+                        record["externalLinks"] = external_links
                     if aliases:
                         record["aliases"] = aliases
                     compounds[compound_id] = record
@@ -368,6 +548,9 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                 reference_urls = _parse_mapping(
                     entry.get("referenceUrls") or entry.get("reference_urls")
                 )
+                external_links = _parse_external_links(
+                    entry.get("externalLinks") or entry.get("external_links")
+                )
                 record: Dict[str, Any] = {
                     **{k: v for k, v in entry.items() if v not in (None, "")},
                     "id": compound_id,
@@ -377,6 +560,8 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                     "externalIds": external_ids,
                     "referenceUrls": reference_urls,
                 }
+                if external_links:
+                    record["externalLinks"] = external_links
                 if entry_aliases:
                     record["aliases"] = entry_aliases
                 elif "aliases" in record:
@@ -412,6 +597,16 @@ def load_compounds(data_dir: Optional[str | Path] = None) -> Dict[str, Dict[str,
                 if not isinstance(existing_refs, dict):
                     existing_refs = {}
                 existing["referenceUrls"] = {**existing_refs, **reference_urls}
+
+                merged_links = _merge_external_links(
+                    existing.get("externalLinks"), external_links
+                )
+                if merged_links:
+                    existing["externalLinks"] = merged_links
+                elif "externalLinks" in existing:
+                    existing.pop("externalLinks", None)
+
+                existing.pop("external_links", None)
 
                 for key, value in record.items():
                     if key in {"id", "synonyms", "aliases", "externalIds", "referenceUrls"}:

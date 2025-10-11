@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import type { Compound } from './types'
 
 const apiMocks = vi.hoisted(() => {
   return {
@@ -85,6 +86,43 @@ describe('App external links', () => {
 
     const wikidataLink = await screen.findByRole('link', { name: 'Wikidata (Q30243)' })
     expect(wikidataLink).toHaveAttribute('href', 'https://www.wikidata.org/wiki/Q30243')
+  })
+
+  it('renders dataset external links provided as JSON strings', async () => {
+    apiMocks.fetchAllCompounds.mockResolvedValueOnce([
+      {
+        id: 'creatine',
+        name: 'Creatine',
+        synonyms: [],
+        dose: '3–5 g/day',
+        external_links: JSON.stringify([
+          { label: 'Examine', url: 'https://examine.com/supplements/creatine' },
+        ]),
+      } as unknown as Compound,
+    ])
+
+    render(<App />)
+
+    const examineLink = await screen.findByRole('link', { name: 'Examine' })
+    expect(examineLink).toHaveAttribute('href', 'https://examine.com/supplements/creatine')
+  })
+
+  it('shows the combined dose string when amount and unit are not provided separately', async () => {
+    apiMocks.fetchAllCompounds.mockResolvedValueOnce([
+      {
+        id: 'creatine',
+        name: 'Creatine',
+        synonyms: [],
+        dose: '3–5 g/day',
+        external_links: JSON.stringify([
+          { label: 'Examine', url: 'https://examine.com/supplements/creatine' },
+        ]),
+      } as unknown as Compound,
+    ])
+
+    render(<App />)
+
+    expect(await screen.findByText('3–5 g/day')).toBeInTheDocument()
   })
 
   it('shows a health warning when the dataset is degraded', async () => {
