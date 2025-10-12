@@ -251,13 +251,17 @@ def _parse_mapping(value: Any) -> Dict[str, str]:
         trimmed = value.strip()
         if not trimmed:
             return {}
+
         try:
             loaded = json.loads(trimmed)
         except json.JSONDecodeError:
             loaded = None
-        if isinstance(loaded, dict):
-            _merge_dict(mapping, loaded)
-            return mapping
+        else:
+            nested = _parse_mapping(loaded)
+            if nested:
+                mapping.update(nested)
+                return mapping
+
         items = [item.strip() for item in trimmed.split(";") if item.strip()]
         for item in items:
             if "=" in item:

@@ -113,6 +113,26 @@ def test_parse_mapping_handles_iterables():
         "wikidata": "Q271",
         "chembl": "CHEMBL25",
     }
+
+
+def test_parse_mapping_handles_json_string_sequences():
+    import api.risk_api as app_module
+
+    payload = json.dumps(
+        [
+            ["pubchem", 2519],
+            {"drugbank": "DB01234"},
+            ["rxnorm", "123", "ignored"],
+        ]
+    )
+
+    result = app_module._parse_mapping(payload)
+
+    assert result == {
+        "pubchem": "2519",
+        "drugbank": "DB01234",
+        "rxnorm": "123",
+    }
 def test_resolve_compound_matches_aliases_and_external_ids(monkeypatch):
     monkeypatch.setattr(
         app_module,
