@@ -1433,7 +1433,10 @@ def search(
     matched.sort(key=lambda item: item[0])
     results = [comp for _, comp in matched[:limit]]
 
-    return {"results": results}
+    # NOTE: The frontend expects the payload to expose a ``compounds`` key,
+    # while historic API clients rely on ``results``. To avoid breaking either
+    # consumer we provide both keys pointing to the same list.
+    return {"results": results, "compounds": results}
 
 @app.get("/api/interaction")
 def interaction(a: str, b: str):
