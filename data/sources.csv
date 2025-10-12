@@ -29,3 +29,14 @@ examine:l-citrulline,Examine — L-Citrulline,Examine.com reference page,supplem
 examine:taurine,Examine — Taurine,Examine.com reference page,supplements/taurine,,{"url_note":"Use site search for latest sections."}
 examine:zinc,Examine — Zinc,Examine.com reference page,supplements/zinc,,{"url_note":"Use site search for latest sections."}
 examine:vitamin-b12,Examine — Vitamin-B12,Examine.com reference page,supplements/vitamin-b12,,{"url_note":"Use site search for latest sections."}
+examine:5-htp,Examine — 5-HTP,Examine.com reference page,supplements/5-htp,,{"url_note":"Use site search for latest sections."}
+examine:glycine,Examine — Glycine,Examine.com reference page,supplements/glycine,,{"url_note":"Use site search for latest sections."}
+examine:lions-mane,Examine — Lion's-Mane,Examine.com reference page,supplements/lions-mane,,{"url_note":"Use site search for latest sections."}
+examine:piperine,Examine — Piperine,Examine.com reference page,supplements/piperine,,{"url_note":"Use site search for latest sections."}
+examine:st-johns-wort,Examine — St-Johns-Wort,Examine.com reference page,supplements/st-johns-wort,,{"url_note":"Use site search for latest sections."}
+examine:acetyl-l-carnitine,Examine — Acetyl-L-Carnitine,Examine.com reference page,supplements/acetyl-l-carnitine,,{"url_note":"Use site search for latest sections."}
+examine:alpha-lipoic-acid,Examine — Alpha-Lipoic-Acid,Examine.com reference page,supplements/alpha-lipoic-acid,,{"url_note":"Use site search for latest sections."}
+nccih:st-johns-wort,NCCIH — St. John's Wort,NCCIH fact sheet,health/st-johns-wort,2023-06-01,{"url":"https://www.nccih.nih.gov/health/st-johns-wort"}
+mayoclinic:5-htp,Mayo Clinic — 5-HTP,Mayo Clinic supplement monograph,cns-20364666,2022-07-01,{"url":"https://www.mayoclinic.org/drugs-supplements-5-htp/art-20364666"}
+pubmed:9619120,PubMed — Curcumin with Piperine,Planta Medica. 1998;64(4):353-356.,9619120,1998-05-01,{"url":"https://pubmed.ncbi.nlm.nih.gov/9619120/"}
+pubmed:11854487,PubMed — Acetyl-L-Carnitine + Lipoic Acid,Proc Natl Acad Sci U S A. 2002;99(4):1870-1875.,11854487,2002-02-19,{"url":"https://pubmed.ncbi.nlm.nih.gov/11854487/"}
