@@ -34,4 +34,3 @@ buckets:
   high:
     min: 1.51
     label: "High"
-    action: "Avoid"
