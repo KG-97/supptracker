@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, conlist, root_validator, validator
 
+from backend.docsearch import DocumentSearchService
 from backend.synonyms import parse_synonyms
 
 try:  # pragma: no cover - optional dependency
@@ -933,6 +934,24 @@ _INTERACTION_LOOKUP_STATE: Dict[str, Any] = {
     "size": None,
 }
 
+_DOC_SEARCH_SERVICE: Optional[DocumentSearchService] = None
+
+
+def get_doc_search_service() -> DocumentSearchService:
+    """Lazily instantiate the document search helper."""
+
+    global _DOC_SEARCH_SERVICE
+    if _DOC_SEARCH_SERVICE is None:
+        _DOC_SEARCH_SERVICE = DocumentSearchService.from_environment()
+    return _DOC_SEARCH_SERVICE
+
+
+def set_doc_search_service(service: Optional[DocumentSearchService]) -> None:
+    """Allow tests to override the document search implementation."""
+
+    global _DOC_SEARCH_SERVICE
+    _DOC_SEARCH_SERVICE = service
+
 # Indexes populated from ``COMPOUNDS`` for fast lookup and ranking.  The
 # structure of the caches is documented in ``build_compound_indexes``.
 
@@ -1437,6 +1456,30 @@ def search(
     # while historic API clients rely on ``results``. To avoid breaking either
     # consumer we provide both keys pointing to the same list.
     return {"results": results, "compounds": results}
+
+
+@app.get("/api/docs/search")
+def search_documents(
+    q: Optional[str] = Query(None, min_length=1),
+    query: Optional[str] = Query(None, min_length=1),
+    limit: int = Query(5, ge=1, le=25),
+):
+    """Search supplemental documentation using Gemini embeddings when available."""
+
+    search_term_raw = query or q
+    search_term = search_term_raw.strip() if isinstance(search_term_raw, str) else None
+    if not search_term:
+        raise HTTPException(status_code=422, detail="Missing search parameter")
+
+    service = get_doc_search_service()
+    results = service.search(search_term, limit=limit)
+    meta = {
+        "uses_embeddings": service.uses_embeddings,
+        "documents_indexed": service.documents_indexed,
+        "source": service.source_description,
+        "embedding_model": service.embedding_model,
+    }
+    return {"results": results, "meta": meta}
 
 @app.get("/api/interaction")
 def interaction(a: str, b: str):

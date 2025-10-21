@@ -7,6 +7,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from backend.docsearch import DocumentSearchService
 import api.risk_api as app_module
 
 
@@ -59,6 +60,24 @@ async def client():
         }
     ]
     app_module.SOURCES = {"s1": {"id": "s1", "citation": "Example source"}}
+    doc_service = DocumentSearchService.from_texts(
+        [
+            (
+                "playbook",
+                "Creatine pairs well with caffeine for acute alertness but may increase sleep disruption. Consider magnesium"
+                " at night to offset muscle cramps.",
+                "Launch night supplement notes",
+            ),
+            (
+                "faq",
+                "Monitor for any gastrointestinal side effects such as bloating when stacking creatine, beta-alanine, and"
+                " caffeine before intense sessions.",
+                "Stack FAQ",
+            ),
+        ],
+        source_description="tests/knowledge-base",
+    )
+    app_module.set_doc_search_service(doc_service)
     app_module.build_compound_indexes()
     transport = httpx.ASGITransport(app=app_module.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as async_client:
@@ -116,6 +135,21 @@ async def test_search_handles_special_characters(client):
     assert resp.status_code == 200
     ids = {item["id"] for item in resp.json().get("results", [])}
     assert "st_johns_wort" in ids
+
+
+async def test_docs_search_returns_results(client):
+    resp = await client.get("/api/docs/search", params={"q": "creatine side effects"})
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert "results" in payload
+    assert payload["results"]
+    assert payload.get("meta", {}).get("documents_indexed", 0) >= 2
+    assert payload.get("meta", {}).get("uses_embeddings") is False
+
+
+async def test_docs_search_requires_query(client):
+    resp = await client.get("/api/docs/search")
+    assert resp.status_code == 422
 
 
 async def test_search_missing_query_param(client):

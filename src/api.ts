@@ -1,5 +1,6 @@
 import type {
   Compound,
+  DocumentSearchResponse,
   HealthResponse,
   InteractionResponse,
   InteractionWithRisk,
@@ -75,6 +76,19 @@ export async function searchCompounds(query: string): Promise<Compound[]> {
     `/search?q=${encodeURIComponent(query)}`
   )
   return data.results ?? data.compounds ?? []
+}
+
+export async function searchDocuments(query: string, limit = 5): Promise<DocumentSearchResponse> {
+  const trimmed = query.trim()
+  if (!trimmed) {
+    return { results: [], meta: { uses_embeddings: false, documents_indexed: 0 } }
+  }
+  const params = new URLSearchParams({ q: trimmed, limit: String(limit) })
+  const data = await request<DocumentSearchResponse>(`/docs/search?${params.toString()}`)
+  return {
+    results: data.results ?? [],
+    meta: data.meta,
+  }
 }
 
 export async function fetchHealth(): Promise<HealthResponse> {

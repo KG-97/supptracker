@@ -18,6 +18,7 @@ A comprehensive supplement interaction tracking system that helps users make inf
 • ⚡ **Real-time**: Instant interaction analysis with severity scoring  
 • 📊 **Evidence-based**: Risk assessments based on research data
 • 🧾 **Broader Coverage**: Includes cardiometabolic interactions like omega-3 with warfarin, calcium with levothyroxine, and melatonin with antihypertensives
+• 🧠 **Gemini-backed research search**: Query curated documentation with semantic relevance scoring
 
 ## 🚀 Quick Start
 
@@ -149,6 +150,15 @@ The Gemini document search uses:
 git clone https://github.com/KG-97/supptracker.git
 cd supptracker
 
+| Variable | Purpose | Default |
+|----------|---------|--------|
+| `SUPPTRACKER_DATA_DIR` | Override data folder location | `<repo>/data` |
+| `RISK_RULES_PATH` | Alternative YAML rule set path | `api/rules.yaml` |
+| `SUPPTRACKER_DOCS_DIR` | Override document corpus for knowledge-base search | `<repo>/docs` |
+| `GEMINI_API_KEY` | Gemini API key for embeddings (fallback search is used when unset) | _not set_ |
+| `GEMINI_EMBEDDING_MODEL` | Gemini embedding model identifier | `gemini-pro-embeddings` |
+
+### Frontend (React + Vite)
 # Backend setup
 cd backend
 pip install -r requirements.txt
