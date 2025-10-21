@@ -22,7 +22,6 @@ A comprehensive supplement interaction tracking system that helps users make inf
 ## 🚀 Quick Start
 
 ### Try the Live App
-
 Visit [https://supptracker-production.up.railway.app](https://supptracker-production.up.railway.app) to start checking supplement interactions immediately.
 
 ### Use the Public API
@@ -42,147 +41,198 @@ curl https://supptracker-production.up.railway.app/docs
 
 ```json
 {
-  "compound1": "Warfarin",
-  "compound2": "Vitamin K",
-  "interaction_severity": "high",
-  "risk_score": 8.5,
-  "description": "Vitamin K can significantly reduce warfarin effectiveness",
-  "recommendation": "Consult healthcare provider before combining"
+  "interactions": [
+    {
+      "compound_1": "Warfarin",
+      "compound_2": "Vitamin K",
+      "severity": "high",
+      "description": "May reduce anticoagulant effectiveness",
+      "recommendation": "Monitor INR closely"
+    }
+  ]
 }
 ```
 
-## 💻 Local Development
+## 🔧 Gemini Embeddings Document Search
 
-### Backend (FastAPI)
+This project includes a **Gemini-powered document search API** that uses Google's embeddings for semantic search.
+
+### Setting Up Gemini API
+
+1. **Get a Gemini API Key**:
+   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Sign in with your Google account
+   - Click "Get API key" or "Create API key"
+   - Copy your API key
+
+2. **Set the API Key as Environment Variable**:
+
+   **For Local Development:**
+   ```bash
+   # Linux/macOS
+   export GEMINI_API_KEY="your-api-key-here"
+   
+   # Windows (Command Prompt)
+   set GEMINI_API_KEY=your-api-key-here
+   
+   # Windows (PowerShell)
+   $env:GEMINI_API_KEY="your-api-key-here"
+   ```
+
+   **For Production (Railway/Docker):**
+   - Add `GEMINI_API_KEY` as an environment variable in your deployment platform
+   - For Railway: Settings → Variables → Add `GEMINI_API_KEY`
+   - For Docker: Use `-e GEMINI_API_KEY=your-key` or add to docker-compose.yml
+
+3. **Install Dependencies**:
+   ```bash
+   pip install google-generativeai numpy
+   ```
+   
+   Or use the updated `requirements.txt`:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Use the Gemini Doc Search Endpoint**:
+
+   ```bash
+   curl -X POST https://supptracker-production.up.railway.app/api/gemini-doc-search \
+     -H "Content-Type: application/json" \
+     -d '{
+       "documents": [
+         "Vitamin D helps with calcium absorption",
+         "Omega-3 fatty acids support heart health",
+         "Magnesium aids in muscle relaxation"
+       ],
+       "query": "What helps with bone health?"
+     }'
+   ```
+
+   **Response:**
+   ```json
+   {
+     "results": [
+       {
+         "document": "Vitamin D helps with calcium absorption",
+         "index": 0,
+         "similarity_score": 0.87
+       },
+       {
+         "document": "Magnesium aids in muscle relaxation",
+         "index": 2,
+         "similarity_score": 0.42
+       },
+       {
+         "document": "Omega-3 fatty acids support heart health",
+         "index": 1,
+         "similarity_score": 0.31
+       }
+     ]
+   }
+   ```
+
+### How It Works
+
+The Gemini document search uses:
+- **Google's text-embedding-004 model** for generating embeddings
+- **Cosine similarity** for ranking documents by relevance
+- **FastAPI route** at `/api/gemini-doc-search`
+- Supports multiple documents and returns ranked results
+
+## 💻 For Developers
+
+### Local Development Setup
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Clone the repository
+git clone https://github.com/KG-97/supptracker.git
+cd supptracker
+
+# Backend setup
+cd backend
 pip install -r requirements.txt
-uvicorn api.risk_api:app --reload --host 0.0.0.0 --port 8000
-```
+uvicorn app:app --reload
 
-**Environment Variables:**
-
-| Variable | Purpose | Default |
-|----------|---------|--------|
-| `SUPPTRACKER_DATA_DIR` | Override data folder location | `<repo>/data` |
-| `RISK_RULES_PATH` | Alternative YAML rule set path | `api/rules.yaml` |
-
-### Frontend (React + Vite)
-
-```bash
+# Frontend setup (new terminal)
+cd frontend
 npm install
-npm run dev     # Development server
-npm run build   # Production build
-npm run preview # Preview production build
+npm start
 ```
 
-**Configuration:**
-• `VITE_API_BASE` - API base URL (auto-detects if unset)
+The API will be available at `http://localhost:8000` and the frontend at `http://localhost:3000`.
 
-### Docker Deployment
+### API Documentation
 
-```bash
-docker compose build
-docker compose up
+Interactive API documentation is available at:
+- **Swagger UI**: `https://supptracker-production.up.railway.app/docs`
+- **ReDoc**: `https://supptracker-production.up.railway.app/redoc`
+
+### Available Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/search` | GET | Search for supplements by name or synonym |
+| `/api/interaction` | GET | Check interaction between two compounds |
+| `/api/stack` | POST | Analyze a complete supplement stack |
+| `/api/gemini-doc-search` | POST | Semantic document search using Gemini embeddings |
+| `/health` | GET | Health check endpoint |
+
+### Example Stack Check
+
+```python
+import requests
+
+stack = {
+    "supplements": ["Vitamin D", "Calcium", "Magnesium", "Omega-3"]
+}
+
+response = requests.post(
+    "https://supptracker-production.up.railway.app/api/stack",
+    json=stack
+)
+
+print(response.json())
 ```
 
-Access: UI at http://localhost:5173, API at http://localhost:8000
+## 📚 Technology Stack
 
-## 🤖 ChatGPT Integration
+### Backend
+- **FastAPI**: Modern, fast web framework for building APIs
+- **Python 3.11+**: Latest Python features and performance
+- **Pandas**: Data manipulation and analysis
+- **Google Generative AI**: Embeddings for semantic search
+- **NumPy**: Numerical computations for similarity calculations
+- **Uvicorn**: ASGI server for production
 
-SuppTracker is designed to work seamlessly with ChatGPT and other AI assistants:
+### Frontend
+- **React 18**: Modern UI library with hooks
+- **Material-UI**: Polished component library
+- **Axios**: HTTP client for API calls
+- **React Router**: Client-side routing
 
-### For Users:
+### Deployment
+- **Railway**: Cloud platform for deployment
+- **Docker**: Containerization for consistency
+- **GitHub Actions**: CI/CD automation
 
-• Ask ChatGPT: "Check if I can safely take [supplement A] with [supplement B]"  
-• ChatGPT can query our API to provide evidence-based interaction information  
-• Get personalized supplement stack analysis through AI-powered conversations  
+## 🔬 Data Sources
 
-### For Developers:
+Our interaction data is compiled from:
+- Clinical research papers
+- Drug-supplement interaction databases
+- Peer-reviewed medical literature
+- Expert clinical guidelines
 
-• Integrate our API into ChatGPT plugins or custom AI applications  
-• Use structured JSON responses for easy AI processing  
-• Enable natural language supplement interaction queries  
+## ⚠️ Disclaimer
 
-### Example ChatGPT Prompt:
+This tool is for informational purposes only and should not replace professional medical advice. Always consult with a healthcare provider before starting, stopping, or changing any supplement regimen.
 
-```
-"I'm taking these supplements: [list]. Can you check for interactions using the SuppTracker API at https://supptracker-production.up.railway.app/api and provide safety recommendations?"
-```
-
-## 📚 API Documentation
-
-### Endpoints
-
-#### 🔍 Search Supplements
-```
-GET /api/search?query={search_term}&limit={max_results}
-```
-
-#### ⚠️ Check Interaction
-```
-GET /api/interaction?compound1={name1}&compound2={name2}
-```
-
-#### 🏥 Health Check
-```
-GET /api/health
-```
-
-#### 📖 Interactive Documentation
-Visit `/docs` for complete Swagger/OpenAPI documentation with live testing interface.
-
-## 🏗️ Project Structure
-
-```
-supptracker/
-├── api/              # FastAPI backend application
-├── frontend/         # React frontend application
-├── data/             # Supplement data and risk rules
-├── tests/            # Test suites
-├── docker/           # Docker configurations
-└── .github/          # CI/CD workflows
-```
-
-## 🧾 Compound Data Schema
-
-Each row in `data/compounds.csv` describes a single compound and supports rich metadata so the API and UI can surface trusted external resources.
-
-| Column | Description |
-| --- | --- |
-| `externalIds` | JSON object mapping an external system to its identifier (e.g. `{ "rxnorm": "83367", "wikidata": "Q418423" }`). |
-| `referenceUrls` | JSON object mapping the same systems (or other reputable sources) to canonical URLs (e.g. `{ "nih": "https://ods.od.nih.gov/factsheets/StJohnsWort-Consumer/" }`). |
-
-When adding new compounds:
-
-1. Prefer authoritative databases such as **NIH Office of Dietary Supplements**, **MedlinePlus**, **RxNorm**, **DrugBank**, **PubChem**, or **Wikidata**.
-2. Use stable URLs that point directly to the compound’s reference page. Avoid shortened links or commercial vendor pages.
-3. Keep identifier keys lowercase and snake_case (e.g. `medlineplus`, `pubchem`).
-4. Ensure the IDs in `externalIds` correspond to the provided URLs where possible so the frontend can display human-friendly link labels.
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=api tests/
-
-# Run frontend tests
-npm test
-```
-
-## 🛡️ Safety & Disclaimers
-
-⚠️ **Important**: This tool is for informational purposes only and does not replace professional medical advice. Always consult healthcare providers before making supplement decisions.
-
-• Risk assessments are based on available research data  
-• Individual responses may vary  
-• Not all potential interactions are included  
-• Regular data updates ensure current information  
+**Important Notes:**
+- Risk assessments are based on available research data  
+- Individual responses may vary  
+- Not all potential interactions are included  
+- Regular data updates ensure current information  
 
 ## 🤝 Contributing
 
@@ -196,13 +246,12 @@ We welcome contributions! Whether you're fixing bugs, adding features, or improv
 6. Open a Pull Request
 
 ### Areas for Contribution:
-
-• 🔬 Expand the supplement interaction database  
-• 📱 Improve mobile user experience  
-• 🧠 Enhance AI/ChatGPT integration features  
-• 🔧 Add new API endpoints  
-• 📚 Improve documentation  
-• 🧪 Add more comprehensive tests  
+- 🔬 Expand the supplement interaction database  
+- 📱 Improve mobile user experience  
+- 🧠 Enhance AI/ChatGPT integration features  
+- 🔧 Add new API endpoints  
+- 📚 Improve documentation  
+- 🧪 Add more comprehensive tests  
 
 ## 📄 License
 
