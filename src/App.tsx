@@ -7,6 +7,7 @@ import {
   fetchInteraction,
   fetchInteractionsList,
   searchCompounds,
+  searchDocuments,
 } from '../api'
 import type {
   Compound,
@@ -16,6 +17,8 @@ import type {
   InteractionWithRisk,
   Source,
   StackInteraction,
+  DocumentSearchMeta,
+  DocumentSearchResult,
 } from '../types'
 
 // Helper function to resolve sources from API response
@@ -107,6 +110,14 @@ function formatSourceKey(key: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function formatDocumentScore(score: number | undefined): string {
+  if (typeof score !== 'number' || Number.isNaN(score)) {
+    return '—'
+  }
+  const rounded = score >= 1 ? score.toFixed(2) : score.toFixed(3)
+  return rounded
 }
 
 type NormalisedExternalLink = { label?: string; identifier?: string; url: string }
@@ -282,6 +293,12 @@ export default function App(): JSX.Element {
   const [searchResults, setSearchResults] = useState<Compound[]>([])
   const [searchError, setSearchError] = useState<string | null>(null)
 
+  const [docQuery, setDocQuery] = useState('')
+  const [docStatus, setDocStatus] = useState<AsyncStatus>('idle')
+  const [docResults, setDocResults] = useState<DocumentSearchResult[]>([])
+  const [docError, setDocError] = useState<string | null>(null)
+  const [docMeta, setDocMeta] = useState<DocumentSearchMeta | null>(null)
+
   const [pairA, setPairA] = useState('')
   const [pairB, setPairB] = useState('')
   const [pairStatus, setPairStatus] = useState<AsyncStatus>('idle')
@@ -325,6 +342,7 @@ export default function App(): JSX.Element {
   }, [])
 
   const hasSearchResults = searchResults.length > 0
+  const hasDocResults = docResults.length > 0
   const stackHasInteractions = !!stackInteractions && stackInteractions.length > 0
 
   const compoundLookup = useMemo(() => {
@@ -383,6 +401,36 @@ export default function App(): JSX.Element {
       setSearchStatus('error')
       setSearchResults([])
       setSearchError(error instanceof Error ? error.message : 'Search failed')
+    }
+  }
+
+  async function handleDocumentSearch(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
+    const trimmed = docQuery.trim()
+    if (!trimmed) {
+      setDocResults([])
+      setDocMeta(null)
+      setDocStatus('idle')
+      setDocError('Enter a research question to search the knowledge base.')
+      return
+    }
+
+    setDocStatus('loading')
+    setDocError(null)
+    setDocMeta(null)
+    try {
+      const payload = await searchDocuments(trimmed)
+      setDocResults(payload.results)
+      setDocMeta(payload.meta ?? null)
+      setDocStatus('success')
+      if (!payload.results || payload.results.length === 0) {
+        setDocError('No supporting passages found for that question.')
+      }
+    } catch (error) {
+      setDocStatus('error')
+      setDocResults([])
+      setDocMeta(null)
+      setDocError(error instanceof Error ? error.message : 'Document search failed')
     }
   }
 
@@ -624,6 +672,58 @@ export default function App(): JSX.Element {
                   </li>
                 )
               })}
+            </ul>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="card-header">
+            <h2>Research library search</h2>
+            <p>Run semantic queries across curated supplement documentation.</p>
+          </div>
+          <form onSubmit={handleDocumentSearch} className="stacked">
+            <label className="sr-only" htmlFor="doc-search-input">
+              Document search query
+            </label>
+            <div className="input-row">
+              <input
+                id="doc-search-input"
+                value={docQuery}
+                onChange={(event) => setDocQuery(event.target.value)}
+                placeholder="e.g. creatine sleep disruption"
+                autoComplete="off"
+              />
+              <button type="submit" className="primary">
+                Search notes
+              </button>
+            </div>
+          </form>
+          {docStatus === 'loading' && <p className="status">Searching documents…</p>}
+          {docError && (
+            <p className={`status ${docStatus === 'error' ? 'status-error' : 'status-info'}`}>
+              {docError}
+            </p>
+          )}
+          {docMeta && (
+            <p className="status status-info doc-meta">
+              {docMeta.uses_embeddings
+                ? `Gemini embeddings${docMeta.embedding_model ? ` (${docMeta.embedding_model})` : ''} active`
+                : 'Fallback keyword search (Gemini disabled)'}
+              {docMeta.documents_indexed > 0 && ` • ${docMeta.documents_indexed} passages indexed`}
+            </p>
+          )}
+          {hasDocResults && (
+            <ul className="doc-list" aria-live="polite">
+              {docResults.map((result) => (
+                <li key={result.id} className="doc-result">
+                  <div className="doc-result-header">
+                    <span className="doc-title">{result.title}</span>
+                    <span className="doc-score">Score: {formatDocumentScore(result.score)}</span>
+                  </div>
+                  <p className="doc-snippet">{result.snippet}</p>
+                  <p className="doc-source">Source: {result.source ?? 'Knowledge base'}</p>
+                </li>
+              ))}
             </ul>
           )}
         </section>

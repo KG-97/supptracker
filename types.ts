@@ -88,3 +88,23 @@ export interface HealthResponse {
   sources_loaded: number
   issues?: HealthIssue[]
 }
+
+export interface DocumentSearchResult {
+  id: string
+  title: string
+  snippet: string
+  score: number
+  source?: string
+}
+
+export interface DocumentSearchMeta {
+  uses_embeddings: boolean
+  documents_indexed: number
+  source?: string
+  embedding_model?: string | null
+}
+
+export interface DocumentSearchResponse {
+  results: DocumentSearchResult[]
+  meta?: DocumentSearchMeta
+}

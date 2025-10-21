@@ -248,6 +248,59 @@ button.ghost:hover {
   text-decoration: underline;
 }
 
+.doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.doc-result {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+.doc-result-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.doc-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.doc-score {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.doc-snippet {
+  margin: 0;
+  color: var(--muted-2);
+  line-height: 1.5;
+}
+
+.doc-source {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.doc-meta {
+  margin-top: -4px;
+}
+
 .status {
   margin: 0;
   font-size: 0.95rem;
