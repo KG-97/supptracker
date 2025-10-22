@@ -7,7 +7,7 @@ import pandas as pd
 import yaml
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, conlist, root_validator, validator
+from pydantic import BaseModel, Field, conlist, validator
 
 from backend.synonyms import parse_synonyms
 
@@ -142,13 +142,10 @@ def find_interaction(a: str, b: str):
 
 
 class StackCheckRequest(BaseModel):
-    items: conlist(str, min_items=2)
+    items: conlist(str, min_items=2) = Field(..., alias="compounds")
 
-    @root_validator(pre=True)
-    def alias_items(cls, values: Dict[str, Any]):
-        if "items" not in values and "compounds" in values:
-            values["items"] = values.pop("compounds")
-        return values
+    class Config:
+        allow_population_by_field_name = True
 
     @validator("items", pre=True)
     def validate_items(cls, value: Any):
