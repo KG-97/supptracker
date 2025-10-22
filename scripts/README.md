@@ -16,6 +16,7 @@ Usage (dry run by default):
    RUN=1 GITHUB_TOKEN=ghp_xxx ./scripts/grant_gemini.sh
 
 Security notes:
+
 - Do not paste long-lived personal access tokens into chats.
 - Prefer using `gh auth login` and an environment variable with limited-lifetime tokens.
 - If `gemini` is a GitHub App rather than a user, follow the GitHub App installation flow instead of using collaborator APIs.
