@@ -30,7 +30,7 @@ def load_yaml(name: str) -> dict:
     with open(p, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-app = FastAPI(title="Supplement Interaction API", version="0.1.0")
+app = FastAPI(title="Supplement Interaction API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
