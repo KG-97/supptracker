@@ -4,7 +4,7 @@ export type SeverityLevel = 'None' | 'Mild' | 'Moderate' | 'Severe'
 export interface Compound {
   id: string
   name: string
-  synonyms: string[]
+  synonyms?: string[] | null
   class?: string | null
   typicalDoseAmount?: string | null
   typicalDoseUnit?: string | null

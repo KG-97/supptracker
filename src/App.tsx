@@ -106,10 +106,66 @@ function formatDose(compound: Compound): string {
 
 function formatSourceKey(key: string): string {
   return key
-    .split(/[_\s]+/)
+    .split(/[_\s-]+/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function normaliseSynonyms(compound: Compound): string[] {
+  const seen = new Set<string>()
+  const synonyms: string[] = []
+
+  const addValue = (value: string | null | undefined) => {
+    if (!value) {
+      return
+    }
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return
+    }
+    const key = trimmed.toLowerCase()
+    if (seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    synonyms.push(trimmed)
+  }
+
+  const parseCandidate = (candidate: unknown) => {
+    if (!candidate) {
+      return
+    }
+    if (Array.isArray(candidate)) {
+      for (const entry of candidate) {
+        if (typeof entry === 'string') {
+          addValue(entry)
+        }
+      }
+      return
+    }
+    if (typeof candidate === 'string') {
+      const parts = candidate
+        .split(/[,;|\/]+/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+      if (parts.length === 0) {
+        addValue(candidate)
+      } else {
+        parts.forEach(addValue)
+      }
+    }
+  }
+
+  parseCandidate(compound.synonyms)
+  const record = compound as Record<string, unknown>
+  parseCandidate(record.synonym)
+  parseCandidate(record.synonyms_string)
+  parseCandidate(record.synonym_list)
+  parseCandidate(record.alternate_names)
+  parseCandidate(record.also_known_as)
+
+  return synonyms
 }
 
 function formatDocumentScore(score: number | undefined): string {
@@ -165,6 +221,51 @@ function parseExternalLinksValue(value: unknown): NormalisedExternalLink[] {
 
   if (typeof value === 'object') {
     const record = value as ExternalLink & Record<string, unknown>
+    if (record && Object.keys(record).length > 0) {
+      const looksLikeLinkObject =
+        typeof record.url === 'string' ||
+        typeof (record as Record<string, unknown>).href === 'string' ||
+        typeof (record as Record<string, unknown>).link === 'string'
+
+      if (!looksLikeLinkObject) {
+        const aggregated: NormalisedExternalLink[] = []
+        for (const [key, entry] of Object.entries(record)) {
+          if (typeof entry === 'string') {
+            const trimmed = entry.trim()
+            if (!trimmed) {
+              continue
+            }
+            const identifier = typeof key === 'string' ? key.trim() : undefined
+            const label = identifier ? formatSourceKey(identifier) : undefined
+            aggregated.push({
+              url: trimmed,
+              ...(identifier ? { identifier } : {}),
+              ...(label ? { label } : {}),
+            })
+            continue
+          }
+
+          const nestedLinks = parseExternalLinksValue(entry)
+          for (const nested of nestedLinks) {
+            const identifier =
+              nested.identifier ?? (typeof key === 'string' ? key.trim() : undefined)
+            const label =
+              nested.label ??
+              (typeof key === 'string' ? formatSourceKey(key.trim()) : undefined)
+            aggregated.push({
+              url: nested.url,
+              ...(identifier ? { identifier } : {}),
+              ...(label ? { label } : {}),
+            })
+          }
+        }
+
+        if (aggregated.length > 0) {
+          return aggregated
+        }
+      }
+    }
+
     const urlCandidate =
       (typeof record.url === 'string' && record.url.trim()) ||
       (typeof (record as Record<string, unknown>).href === 'string'
@@ -573,6 +674,7 @@ export default function App(): JSX.Element {
                     <ul className="compound-list">
                       {allCompounds.map((compound) => {
                         const externalLinks = compoundExternalLinks(compound)
+                        const synonyms = normaliseSynonyms(compound)
                         return (
                           <li key={compound.id}>
                             <div className="compound-name-row">
@@ -588,10 +690,10 @@ export default function App(): JSX.Element {
                                 <dt>Route</dt>
                                 <dd>{compound.route ?? 'Not specified'}</dd>
                               </div>
-                              {compound.synonyms.length > 0 && (
+                              {synonyms.length > 0 && (
                                 <div>
                                   <dt>Also known as</dt>
-                                  <dd>{compound.synonyms.join(', ')}</dd>
+                                  <dd>{synonyms.join(', ')}</dd>
                                 </div>
                               )}
                               {externalLinks.length > 0 && (
@@ -652,11 +754,12 @@ export default function App(): JSX.Element {
             <ul className="pill-grid" aria-live="polite">
               {searchResults.map((compound) => {
                 const externalLinks = compoundExternalLinks(compound)
+                const synonyms = normaliseSynonyms(compound)
                 return (
                   <li key={compound.id} className="pill">
                     <span className="pill-name">{compound.name}</span>
-                    {compound.synonyms.length > 0 && (
-                      <span className="pill-meta">Also known as {compound.synonyms.join(', ')}</span>
+                    {synonyms.length > 0 && (
+                      <span className="pill-meta">Also known as {synonyms.join(', ')}</span>
                     )}
                     {externalLinks.length > 0 && (
                       <ul className="link-list">
