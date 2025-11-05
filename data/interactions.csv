@@ -22,3 +22,75 @@ magnesium,zinc,Mild,C,absorption;competition;timing,examine:magnesium;examine:zi
 st-johns-wort,5-htp,Severe,C,serotonergic;serotonin-syndrome;CNS,nccih:st-johns-wort;mayoclinic:5-htp,Avoid combining; seek medical guidance immediately if serotonergic symptoms appear.,Additive elevation of serotonin from precursor loading and reuptake inhibition,"Risk of serotonin syndrome with agitation, hypertension, or confusion",High
 curcumin,piperine,None,B,bioavailability;absorption;synergy,pubmed:9619120,Use ~20 mg piperine alongside curcumin to boost absorption while monitoring tolerance.,Piperine inhibits glucuronidation and intestinal efflux pumps,Increases curcumin exposure by up to 20-fold in humans,Low
 acetyl-l-carnitine,alpha-lipoic-acid,None,B,mitochondrial;oxidative-stress;synergy,pubmed:11854487,Co-supplement to support mitochondrial metabolism; monitor glucose in insulin-sensitive users.,Complementary mitochondrial substrate support and antioxidant recycling,Improves mitochondrial function and reduces oxidative stress markers,Low
+
+
+vitamin-k2-mk7,warfarin,Severe,B,vitamin-k-antagonism;anticoagulant-reduction,1;2;3,avoid-or-monitor,Vitamin K2 reduces warfarin anticoagulant effect by promoting clotting factors,Sudden vitamin K increases can decrease warfarin efficacy and increase clotting risk,high,true
+fish-oil,warfarin,Moderate,C,antiplatelet;bleeding-risk,2;3,monitor,Omega-3 fatty acids have antiplatelet effects that add to warfarin,Increased bleeding risk when combined,moderate,true
+garlic,warfarin,Mild,C,antiplatelet;bleeding-risk,2;3,monitor,Garlic has antiplatelet properties,May increase bleeding risk with warfarin,moderate,true
+ginger,warfarin,Mild,C,antiplatelet;bleeding-risk,2;3,caution,Ginger has antiplatelet effects,Potential for increased bleeding,moderate,true
+ginkgo,warfarin,Moderate,C,antiplatelet;bleeding-risk,2;3,caution,Ginkgo has anticoagulant and antiplatelet properties,Increased bleeding risk,moderate,true
+curcumin,warfarin,Mild,C,antiplatelet;bleeding-risk,2;3,monitor,Turmeric/curcumin has antiplatelet effects,May potentiate warfarin bleeding risk,moderate,true
+stjohns-wort,warfarin,Severe,C,cyp-induction;reduced-efficacy,2;4,avoid,St John's Wort induces CYP enzymes that metabolize warfarin,Reduces warfarin levels and anticoagulant effect leading to clotting risk,high,true
+aspirin,warfarin,Severe,B,antiplatelet;bleeding-risk,1;2,avoid-or-monitor,Aspirin antiplatelet effect combined with warfarin anticoagulation,Very high bleeding risk; avoid combination unless medically supervised,very-high,true
+ibuprofen,warfarin,Severe,B,antiplatelet;bleeding-risk;gi-irritation,1;2,avoid-or-monitor,NSAIDs inhibit platelets and irritate GI tract,Major bleeding risk especially GI bleeding,very-high,true
+acetaminophen,warfarin,Moderate,C,cyp-inhibition;inr-increase,5,monitor-inr,High-dose acetaminophen inhibits warfarin metabolism,Can increase INR at doses over 1-2g/day; monitor INR closely,moderate,false
+aspirin,ibuprofen,Moderate,B,nsaid-combination;gi-bleeding;reduced-cardioprotection,6,avoid-or-separate,Both NSAIDs increase GI bleeding risk; ibuprofen may block aspirin's antiplatelet effect,Increased GI bleeding and reduced cardiac protection,moderate,false
+warfarin,vitamin-k,Severe,A,vitamin-k-antagonism,1;2;3,consistent-intake,Warfarin blocks vitamin K dependent clotting factors,Inconsistent vitamin K intake causes INR fluctuations,high,true
+warfarin,vitamin-k1,Severe,A,vitamin-k-antagonism,1;2;3,consistent-intake,Warfarin inhibits vitamin K1 recycling,Vitamin K1 from diet can reduce warfarin effect,high,true
+lisinopril,potassium,Moderate,B,hyperkalemia-risk,7,avoid-high-dose,ACE inhibitors reduce potassium excretion,Risk of dangerous hyperkalemia,moderate,false
+losartan,potassium,Moderate,B,hyperkalemia-risk,7,avoid-high-dose,ARBs reduce potassium excretion,Risk of hyperkalemia especially with supplements,moderate,false
+sertraline,fish-oil,Mild,C,bleeding-risk,8,monitor,SSRIs affect platelet serotonin; omega-3 antiplatelet,Minor increased bleeding risk,low,false
+sertraline,aspirin,Moderate,B,bleeding-risk,8,monitor,SSRI plus antiplatelet increases bleeding,Increased GI and other bleeding risk,moderate,false
+citalopram,aspirin,Moderate,B,bleeding-risk;qt-prolongation,8,monitor,SSRI affects platelets; both can prolong QT,Bleeding risk and potential cardiac effects,moderate,false
+fluoxetine,aspirin,Moderate,B,bleeding-risk;cyp-interaction,8,monitor,Fluoxetine affects platelet function and inhibits CYP enzymes,Increased bleeding and potential drug interactions,moderate,false
+alprazolam,diphenhydramine,Moderate,B,cns-depression,9,caution,Both are CNS depressants,Increased sedation; respiratory depression risk,moderate,false
+lorazepam,diphenhydramine,Moderate,B,cns-depression,9,caution,Additive sedation,Risk of excessive drowsiness and impaired function,moderate,false
+zolpidem,diphenhydramine,Moderate,B,cns-depression,9,avoid,Both cause sedation,Dangerous level of CNS depression,moderate,false
+prednisone,aspirin,Moderate,B,gi-bleeding-risk,10,monitor,Corticosteroids thin GI lining; aspirin antiplatelet,Significantly increased GI bleeding risk,moderate,false
+simvastatin,red-yeast-rice,Moderate,B,statin-duplication;myopathy,11,avoid,Red yeast rice contains lovastatin,Doubling statin dose increases myopathy risk,moderate,false
+atorvastatin,red-yeast-rice,Moderate,B,statin-interaction;myopathy,11,avoid,Red yeast rice has statin-like compounds,Increased risk of muscle damage,moderate,false
+calcium,iron,Mild,B,absorption-competition,12,separate-timing,Both compete for absorption,Reduce effectiveness; take 2+ hours apart,low,false
+calcium,levothyroxine,Moderate,B,absorption-reduction,13,separate-timing,Calcium binds thyroid hormone,Reduced thyroid medication absorption; take 4 hours apart,moderate,false
+iron,levothyroxine,Moderate,B,absorption-reduction,13,separate-timing,Iron reduces thyroid hormone absorption,Take iron 2-4 hours away from thyroid medication,moderate,false
+omeprazole,calcium,Mild,C,absorption-reduction,14,monitor,PPIs reduce stomach acid needed for calcium absorption,May reduce calcium absorption over long term,low,false
+omeprazole,iron,Moderate,C,absorption-reduction,14,monitor,Reduced stomach acid decreases iron absorption,May worsen iron deficiency,moderate,false
+metformin,vitamin-b12,Moderate,B,absorption-reduction,15,monitor-b12,Metformin reduces B12 absorption,Long-term use can cause B12 deficiency,moderate,false
+metformin,folate,Mild,C,absorption-reduction,15,monitor,Metformin may affect folate levels,Minor effect; monitor in pregnancy,low,false
+albuterol,beta-alanine,None,C,beta-receptor,16,ok,Different beta receptors,No significant interaction,none,false
+albuterol,metoprolol,Moderate,A,beta-antagonism,17,avoid,Beta blocker opposes beta agonist,Reduces bronchodilator effectiveness; can worsen asthma,moderate,false
+montelukast,aspirin,Mild,C,leukotriene-aspirin-sensitivity,18,monitor,Aspirin sensitive asthma concern,Generally safe but monitor in aspirin-sensitive patients,low,false
+fexofenadine,grapefruit,Moderate,B,absorption-reduction,19,avoid,Grapefruit juice reduces fexofenadine absorption,Decreased effectiveness,moderate,false
+amlodipine,grapefruit,Moderate,B,cyp3a4-inhibition,20,avoid,Grapefruit inhibits metabolism of calcium channel blockers,Increased drug levels and side effects,moderate,false
+simvastatin,grapefruit,Severe,A,cyp3a4-inhibition;myopathy,20,avoid,Grapefruit dramatically increases simvastatin levels,Very high risk of myopathy and rhabdomyolysis,high,false
+kava,alprazolam,Moderate,B,cns-depression;hepatotoxicity,21,avoid,Both affect CNS; kava has liver toxicity risk,Excessive sedation and potential liver damage,moderate,false
+kava,lorazepam,Moderate,B,cns-depression,21,avoid,Additive CNS depression,Dangerous sedation levels,moderate,false
+valerian,alprazolam,Mild,C,cns-depression,22,caution,Valerian has sedative properties,Increased drowsiness,low,false
+valerian,zolpidem,Moderate,B,cns-depression,22,avoid,Both promote sleep,Excessive sedation,moderate,false
+saw-palmetto,warfarin,Mild,C,antiplatelet,23,monitor,May have mild antiplatelet effects,Monitor for increased bleeding,low,false
+cranberry,warfarin,Moderate,C,cyp-interaction;inr-increase,3;24,monitor,May affect warfarin metabolism,Reports of INR increases; monitor closely,moderate,true
+black-cohosh,hepatotoxic-drugs,Moderate,C,hepatotoxicity,25,caution,Rare liver toxicity reports,Avoid with other hepatotoxic medications,moderate,false
+fenugreek,warfarin,Mild,C,anticoagulant-potentiation,26,monitor,May have anticoagulant properties,Theoretical bleeding risk,low,true
+fenugreek,metformin,Mild,C,blood-sugar-lowering,26,monitor,Both lower blood sugar,Risk of hypoglycemia,low,false
+hawthorn,digoxin,Moderate,C,cardiac-glycoside-potentiation,27,monitor,May potentiate cardiac glycosides,Use with caution in heart failure medications,moderate,false
+hawthorn,beta-blocker,Mild,C,additive-cardiovascular,27,monitor,Both affect cardiovascular system,Generally safe but monitor blood pressure,low,false
+milk-thistle,simvastatin,Mild,C,cyp-interaction,28,monitor,May affect drug metabolism,Possible alteration of statin levels,low,false
+milk-thistle,metformin,None,C,none,28,ok,No known significant interaction,Generally safe together,none,false
+echinacea,immunosuppressants,Moderate,B,immune-stimulation,29,avoid,Echinacea stimulates immune system,May counteract immunosuppressive therapy,moderate,false
+spirulina,warfarin,Mild,C,vitamin-k-content,30,monitor,Spirulina contains vitamin K,May affect INR,low,true
+chlorella,warfarin,Mild,C,vitamin-k-content,30,monitor,Chlorella is rich in vitamin K,Can reduce warfarin effectiveness,low,true
+vitamin-e,warfarin,Moderate,C,bleeding-risk,31,limit-dose,High-dose vitamin E has antiplatelet effects,Doses over 400 IU may increase bleeding,moderate,true
+vitamin-e,aspirin,Mild,C,bleeding-risk,31,monitor,Both affect platelet function,Minor increased bleeding risk at high vitamin E doses,low,false
+vitamin-a,vitamin-d,None,C,fat-soluble-vitamins,32,ok,Both fat-soluble; high doses compete,Generally safe at normal doses,none,false
+vitamin-d,calcium,None,A,synergy,32,ok,Vitamin D enhances calcium absorption,Beneficial combination,none,false
+vitamin-b6,levodopa,Severe,A,drug-inactivation,33,avoid,B6 enhances peripheral levodopa metabolism,Reduces levodopa effectiveness in Parkinson's,high,false
+vitamin-b3,statin,Moderate,B,myopathy-risk,34,monitor,High-dose niacin plus statin,Increased risk of muscle problems,moderate,false
+vitamin-b9,methotrexate,Moderate,A,drug-antagonism,35,coordinate,Folate can reduce methotrexate efficacy,Often prescribed together but timing matters,moderate,false
+zinc,copper,Moderate,B,absorption-competition,36,balance,High zinc reduces copper absorption,Take in balanced ratio; monitor copper status,moderate,false
+zinc,calcium,Mild,C,absorption-competition,36,separate,May compete for absorption,Minor effect; separate if taking high doses,low,false
+iron,calcium,Moderate,B,absorption-competition,12,separate-timing,Compete for absorption,Significantly reduces iron absorption,moderate,false
+magnesium,calcium,Mild,C,absorption-competition,37,balance,May compete at very high doses,Generally safe together,low,false
+potassium,lisinopril,Moderate,B,hyperkalemia,7,avoid-high-dose,ACE inhibitors retain potassium,Dangerous potassium levels,moderate,false
+potassium,losartan,Moderate,B,hyperkalemia,7,avoid-high-dose,ARBs retain potassium,Risk of hyperkalemia,moderate,false
+selenium,warfarin,None,C,none,38,ok,No significant interaction documented,Generally safe,none,false
+boron,estrogen,Mild,C,hormone-modulation,39,monitor,Boron may affect estrogen metabolism,Theoretical interaction; monitor,low,false
+collagen,protein-supplements,None,C,none,40,ok,Both are proteins,No interaction; additive protein intake,none,false
