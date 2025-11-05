@@ -29,6 +29,7 @@ l-citrulline,L-Citrulline,citrulline malate;L-citrulline DL-malate,amino acid,or
 taurine,Taurine,2-aminoethanesulfonic acid,amino acid derivative,oral,500–2000 mg/day,Low,Often included in energy drinks; generally well tolerated.,supplements/taurine,"[{""label"":""Examine"",""url"":""https://examine.com/supplements/taurine""}]"
 zinc,Zinc (elemental),zinc picolinate;zinc gluconate;zinc citrate;zinc monomethionine,mineral,oral,10–25 mg/day (elemental),Low,Take away from iron/calcium to optimize absorption.,supplements/zinc,"[{""label"":""Examine"",""url"":""https://examine.com/supplements/zinc""}]"
 vitamin-b12,Vitamin B12,methylcobalamin;cyanocobalamin;adenosylcobalamin;hydroxocobalamin,vitamin,oral,500–1000 mcg/day (varies),Low,Form and route depend on absorption status.,supplements/vitamin-b12,"[{""label"":""Examine"",""url"":""https://examine.com/supplements/vitamin-b12""}]"
+
 5-htp,5-HTP (5-Hydroxytryptophan),5-hydroxytryptophan;griffonia simplicifolia extract;oxitriptan,amino acid derivative,oral,100–300 mg/day (split),Unknown,Use enteric-coated forms with food; avoid combining with serotonergic drugs.,supplements/5-htp,"[{""label"":""Examine"",""url"":""https://examine.com/supplements/5-htp""},{""label"":""Mayo Clinic"",""url"":""https://www.mayoclinic.org/drugs-supplements-5-htp/art-20364666""}]"
 glycine,Glycine,glycine powder;aminoacetic acid;glycine amino acid,amino acid,oral,3–5 g at bedtime or per need,Low,Dissolves readily in water; may support sleep quality and thermoregulation.,supplements/glycine,"[{""label"":""Examine"",""url"":""https://examine.com/supplements/glycine""},{""label"":""PubChem"",""url"":""https://pubchem.ncbi.nlm.nih.gov/compound/750""}]"
 lions-mane,Lion's Mane Mushroom,hericium erinaceus;yamabushitake;mushroom nootropic,medicinal mushroom,oral,500–1000 mg 1–3×/day (fruiting body extract),Unknown,Standardize to hericenones/erinacines; monitor for mushroom allergies.,supplements/lions-mane,"[{""label"":""Examine"",""url"":""https://examine.com/supplements/lions-mane""},{""label"":""MSKCC"",""url"":""https://www.mskcc.org/cancer-care/integrative-medicine/herbs/lion-s-mane-mushroom""}]"
@@ -36,3 +37,78 @@ piperine,Piperine (Black Pepper Extract),black pepper extract;bioperine;chavicin
 st-johns-wort,St. John's Wort,hypericum perforatum;hypericum extract;SJW,herb,oral,300 mg 3×/day (0.3% hypericin),Unknown,Potent inducer of CYP3A4 and P-gp; significant drug-supplement interactions.,supplements/st-johns-wort,"[{""label"":""Examine"",""url"":""https://examine.com/supplements/st-johns-wort""},{""label"":""NCCIH"",""url"":""https://www.nccih.nih.gov/health/st-johns-wort""}]"
 acetyl-l-carnitine,Acetyl-L-Carnitine (ALCAR),acetylcarnitine;acetyl L-carnitine;ALCAR,amino acid derivative,oral,500–2000 mg/day,Unknown,Supports mitochondrial energy and may pair with alpha-lipoic acid.,supplements/acetyl-l-carnitine,"[{""label"":""Examine"",""url"":""https://examine.com/supplements/acetyl-l-carnitine""},{""label"":""PubChem"",""url"":""https://pubchem.ncbi.nlm.nih.gov/compound/439302""}]"
 alpha-lipoic-acid,Alpha-Lipoic Acid (ALA),thioctic acid;alpha lipoic acid;racemic ALA,antioxidant,oral,300–600 mg/day,Low,Take on an empty stomach for best absorption; can lower blood glucose.,supplements/alpha-lipoic-acid,"[{""label"":""Examine"",""url"":""https://examine.com/supplements/alpha-lipoic-acid""},{""label"":""NCCIH"",""url"":""https://www.nccih.nih.gov/health/alpha-lipoic-acid""}]"
+
+warfarin,Warfarin,coumadin;jantoven,anticoagulant,oral,5 mg daily (typical);2-10 mg,vitamin K antagonist anticoagulant,High,Keep vitamin-K intake consistent; frequent INR monitoring required
+aspirin,Aspirin,acetylsalicylic acid;ASA,antiplatelet;NSAID,oral,81-325 mg/day,Low-Moderate,Antiplatelet and pain relief; avoid with other NSAIDs
+ibuprofen,Ibuprofen,advil;motrin,NSAID,oral,200-800 mg/dose,Moderate,Antiinflammatory; increases bleeding risk; may reduce aspirin efficacy
+acetaminophen,Acetaminophen,paracetamol;tylenol,analgesic,oral,325-1000 mg/dose (max 4000 mg/day),Low-Moderate,Pain reliever; high doses can increase INR with warfarin
+naproxen,Naproxen,aleve;naprosyn,NSAID,oral,220-500 mg/dose,Moderate,Antiinflammatory; bleeding risk with anticoagulants
+omeprazole,Omeprazole,prilosec,proton pump inhibitor,oral,20-40 mg/day,Low,Reduces stomach acid; may affect absorption of other drugs
+pantoprazole,Pantoprazole,protonix,proton pump inhibitor,oral,40 mg/day,Low,PPI for GERD
+metformin,Metformin,glucophage,antidiabetic,oral,500-2000 mg/day,Low-Moderate,Type 2 diabetes; avoid excess alcohol; B12 monitoring
+lisinopril,Lisinopril,prinivil;zestril,ACE inhibitor,oral,10-40 mg/day,Moderate,Blood pressure; monitor potassium levels
+atorvastatin,Atorvastatin,lipitor,statin,oral,10-80 mg/day,Moderate,Cholesterol lowering; myopathy risk with some interactions
+simvastatin,Simvastatin,zocor,statin,oral,10-40 mg/day,Moderate,Statin; avoid grapefruit; myopathy risk
+levothyroxine,Levothyroxine,synthroid,thyroid hormone,oral,25-200 mcg/day,Low-Moderate,Hypothyroidism; take on empty stomach
+amlodipine,Amlodipine,norvasc,calcium channel blocker,oral,5-10 mg/day,Low,Blood pressure; grapefruit interaction
+losartan,Losartan,cozaar,ARB,oral,25-100 mg/day,Moderate,Blood pressure; monitor potassium
+metoprolol,Metoprolol,lopressor;toprol,beta blocker,oral,25-200 mg/day,Moderate,Blood pressure and heart rate
+sertraline,Sertraline,zoloft,SSRI,oral,50-200 mg/day,Moderate,Antidepressant; serotonin syndrome risk
+escitalopram,Escitalopram,lexapro,SSRI,oral,10-20 mg/day,Moderate,Antidepressant; serotonin and bleeding risks
+fluoxetine,Fluoxetine,prozac,SSRI,oral,20-80 mg/day,Moderate,SSRI; long half-life; CYP interactions
+citalopram,Citalopram,celexa,SSRI,oral,20-40 mg/day,Moderate,SSRI; QT prolongation at high doses
+alprazolam,Alprazolam,xanax,benzodiazepine,oral,0.25-2 mg/dose,High,Anxiety; CNS depressant; dependence risk
+lorazepam,Lorazepam,ativan,benzodiazepine,oral,0.5-2 mg/dose,High,Benzodiazepine; CNS depression with alcohol
+zolpidem,Zolpidem,ambien,hypnotic,oral,5-10 mg at bedtime,Moderate,Sleep aid; CNS depressant
+prednisone,Prednisone,deltasone,corticosteroid,oral,5-60 mg/day,Moderate-High,Antiinflammatory; many interactions and side effects
+albuterol,Albuterol,proventil;ventolin,beta-2 agonist,inhaled,90 mcg/puff PRN,Low,Bronchodilator for asthma
+montelukast,Montelukast,singulair,leukotriene inhibitor,oral,10 mg/day,Low,Asthma and allergies
+fexofenadine,Fexofenadine,allegra,antihistamine,oral,60-180 mg/day,Low,Allergy relief; non-sedating
+cetirizine,Cetirizine,zyrtec,antihistamine,oral,5-10 mg/day,Low,Antihistamine; minimal sedation
+loratadine,Loratadine,claritin,antihistamine,oral,10 mg/day,Low,Non-drowsy antihistamine
+diphenhydramine,Diphenhydramine,benadryl,antihistamine,oral,25-50 mg/dose,Low-Moderate,Sedating antihistamine; CNS effects
+omega-6,Omega-6 Fatty Acids,linoleic acid;arachidonic acid,essential fatty acid,oral,variable,Low,Inflammatory precursor; balance with omega-3
+turmeric,Turmeric,curcuma longa,herb;spice,oral,500-2000 mg/day,Low-Moderate,Antiinflammatory; bleeding risk with anticoagulants
+garlic,Garlic,allium sativum,herb,oral,600-1200 mg/day,Low-Moderate,Cardiovascular support; antiplatelet effects
+milk-thistle,Milk Thistle,silybum marianum;silymarin,hepatoprotective herb,oral,140-420 mg/day,Low,Liver support; may affect drug metabolism
+echinacea,Echinacea,purple coneflower,immune herb,oral,300-500 mg TID,Low,Immune support; avoid in autoimmune conditions
+valerian,Valerian,valeriana officinalis,sedative herb,oral,300-600 mg before bed,Low-Moderate,Sleep aid; CNS depression with other sedatives
+kava,Kava,piper methysticum,anxiolytic herb,oral,250-500 mg/day,Moderate-High,Anxiety; hepatotoxicity risk; avoid with liver issues
+saw-palmetto,Saw Palmetto,serenoa repens,herb,oral,320 mg/day,Low,Prostate health
+cranberry,Cranberry,vaccinium macrocarpon,fruit extract,oral,500-1500 mg/day,Low,Urinary tract health; may interact with warfarin
+black-cohosh,Black Cohosh,actaea racemosa;cimicifuga,herb,oral,20-40 mg twice daily,Low-Moderate,Menopause symptoms; potential liver concerns
+fenugreek,Fenugreek,trigonella foenum-graecum,herb,oral,500-600 mg/day,Low,Blood sugar support; may affect warfarin
+hawthorn,Hawthorn,crataegus,cardiovascular herb,oral,160-900 mg/day,Low-Moderate,Heart health; may interact with cardiac drugs
+red-yeast-rice,Red Yeast Rice,monascus purpureus,supplement,oral,1200-2400 mg/day,Moderate,Contains lovastatin; statin-like effects and risks
+glucomannan,Glucomannan,konjac fiber,fiber,oral,2-4 g before meals,Low,Weight management; may reduce drug absorption
+spirulina,Spirulina,arthrospira,algae supplement,oral,1-8 g/day,Low,Nutrient-dense; immune modulation
+chlorella,Chlorella,green algae,algae supplement,oral,2-3 g/day,Low,Detoxification support
+lutein,Lutein,carotenoid,antioxidant,oral,6-20 mg/day,Low,Eye health
+zeaxanthin,Zeaxanthin,carotenoid,antioxidant,oral,2 mg/day,Low,Macular health
+astaxanthin,Astaxanthin,carotenoid,antioxidant,oral,4-12 mg/day,Low,Powerful antioxidant; eye and skin health
+lycopene,Lycopene,carotenoid,antioxidant,oral,10-30 mg/day,Low,Prostate and cardiovascular health
+beta-carotene,Beta-Carotene,provitamin A,antioxidant,oral,3-15 mg/day,Low,Converted to vitamin A; avoid high doses in smokers
+vitamin-a,Vitamin A,retinol,vitamin,oral,900 mcg RAE/day,Moderate,Vision and immune; teratogenic at high doses
+vitamin-e,Vitamin E,tocopherol,vitamin,oral,15 mg/day (22.4 IU),Low-Moderate,Antioxidant; bleeding risk at high doses
+vitamin-c,Vitamin C,ascorbic acid,vitamin,oral,75-2000 mg/day,Low,Antioxidant and immune support
+vitamin-b1,Vitamin B1,thiamine,vitamin,oral,1.1-1.2 mg/day,Low,Energy metabolism
+vitamin-b2,Vitamin B2,riboflavin,vitamin,oral,1.1-1.3 mg/day,Low,Energy and antioxidant
+vitamin-b3,Vitamin B3,niacin;nicotinic acid,vitamin,oral,14-16 mg/day (up to 2000 mg for lipids),Low-Moderate,Cholesterol; flushing at high doses
+vitamin-b5,Vitamin B5,pantothenic acid,vitamin,oral,5 mg/day,Low,Coenzyme A synthesis
+vitamin-b6,Vitamin B6,pyridoxine,vitamin,oral,1.3-2 mg/day,Low-Moderate,Amino acid metabolism; neuropathy at very high doses
+vitamin-b7,Vitamin B7,biotin,vitamin,oral,30 mcg/day,Low,Hair; skin; and nail health
+vitamin-b9,Vitamin B9,folate;folic acid,vitamin,oral,400 mcg DFE/day,Low-Moderate,DNA synthesis; important in pregnancy
+folate,Folate,vitamin B9;folic acid;5-MTHF,vitamin,oral,400-800 mcg/day,Low,Methylation and DNA synthesis
+vitamin-k,Vitamin K,phylloquinone;menaquinone,vitamin,oral,90-120 mcg/day,Moderate,Clotting; antagonizes warfarin
+vitamin-k1,Vitamin K1,phylloquinone,vitamin,oral,90-120 mcg/day,Moderate,Coagulation; found in leafy greens
+calcium,Calcium,elemental,mineral,oral,1000-1200 mg/day,Low-Moderate,Bone health; may interfere with absorption of other minerals
+iron,Iron,ferrous sulfate;ferrous fumarate,mineral,oral,8-18 mg/day (higher if deficient),Moderate,Anemia prevention; avoid with tea/coffee; GI upset
+potassium,Potassium,elemental,mineral,oral,2600-3400 mg/day,Moderate,Electrolyte; caution with ACE inhibitors and ARBs
+selenium,Selenium,elemental,mineral,oral,55 mcg/day,Low-Moderate,Antioxidant; thyroid function; toxic at high doses
+copper,Copper,elemental,mineral,oral,900 mcg/day,Low,Enzyme cofactor; balance with zinc
+manganese,Manganese,elemental,mineral,oral,1.8-2.3 mg/day,Low,Bone and metabolism
+chromium,Chromium,elemental,mineral,oral,25-35 mcg/day,Low,Glucose metabolism
+molybdenum,Molybdenum,elemental,mineral,oral,45 mcg/day,Low,Enzyme cofactor
+boron,Boron,elemental,trace mineral,oral,1-3 mg/day,Low,Bone and hormone health
+silicon,Silicon,elemental,trace mineral,oral,5-50 mg/day,Low,Connective tissue health
+collagen,Collagen,hydrolyzed collagen peptides,protein supplement,oral,10-20 g/day,Low,Skin; joint; and bone support
