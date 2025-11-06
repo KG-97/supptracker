@@ -169,8 +169,11 @@ def parse_synonyms(value: Any) -> List[str]:
             token_clean = token.strip()
             if not token_clean:
                 continue
-            if token_clean not in seen:
-                seen.add(token_clean)
+            # Case-fold to treat aliases with different casing as duplicates while
+            # still preserving the first-seen capitalisation for display.
+            dedupe_key = token_clean.casefold()
+            if dedupe_key not in seen:
+                seen.add(dedupe_key)
                 ordered.append(token_clean)
 
     return ordered
