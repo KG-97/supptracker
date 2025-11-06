@@ -183,10 +183,17 @@ Interactive API documentation is available at:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/search` | GET | Search for supplements by name or synonym |
+| `/api/compounds/{compound_id}` | GET | Retrieve compound details with related interaction summaries |
 | `/api/interaction` | GET | Check interaction between two compounds |
 | `/api/stack` | POST | Analyze a complete supplement stack |
 | `/api/gemini-doc-search` | POST | Semantic document search using Gemini embeddings |
 | `/health` | GET | Health check endpoint |
+
+The compound detail endpoint accepts IDs, common names, or synonyms and
+returns the canonical record augmented with a sorted list of related
+interactions, including computed risk scores and citation metadata. This makes
+it easy to surface the highest-risk partners for a given supplement in a single
+request.
 
 ### Example Stack Check
 
