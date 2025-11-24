@@ -1,7 +1,7 @@
-import { render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import App from './App'
-import type { Compound } from './types'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { beforeEach, describe, expect, it, test, vi } from 'vitest'
+import App, { parseStackData } from './App'
+import type { Compound, StackResponse } from './types'
 
 const defaultHealthResponse = {
   status: 'healthy',
@@ -218,5 +218,172 @@ describe('App external links', () => {
     const compoundScope = within(compoundItem as HTMLElement)
     expect(compoundScope.getByText('Also known as')).toBeInTheDocument()
     expect(compoundScope.getByText('arctic root, roseroot')).toBeInTheDocument()
+  })
+
+  it('requires at least two compounds before running a stack check', async () => {
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Creatine' } })
+    fireEvent.click(submitButton)
+
+    expect(await screen.findByText(/at least two compounds/i)).toBeInTheDocument()
+    expect(apiMocks.checkStack).not.toHaveBeenCalled()
+  })
+
+  it('surfaces resolved stack items returned by the API', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      interactions: [
+        {
+          a: 'caffeine',
+          b: 'aspirin',
+          severity: 'Moderate',
+          evidence: 'B',
+          risk_score: 1.6,
+        },
+      ],
+      resolved_items: ['caffeine', 'aspirin'],
+    })
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Coffee\nAspirin' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Coffee', 'Aspirin'])
+    expect(await screen.findByText(/interactions found for caffeine, aspirin/i)).toBeInTheDocument()
+  })
+
+  it('shows resolved stack items even when no interactions are found', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      interactions: [],
+      resolved_items: ['caffeine', 'ashwagandha'],
+    })
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Caffeine, Ashwagandha' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
+    expect(await screen.findByText(/no interactions detected in caffeine, ashwagandha/i)).toBeInTheDocument()
+  })
+
+  it('surfaces normalized stack names when the API omits interaction data', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      resolved_items: ['caffeine', 'ashwagandha'],
+    } as unknown as StackResponse)
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Caffeine, Ashwagandha' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
+    expect(await screen.findByText(/no interactions detected in caffeine, ashwagandha/i)).toBeInTheDocument()
+  })
+
+  it('falls back to stack items when resolved names are missing', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      interactions: null,
+      items: ['caffeine', 'ashwagandha'],
+    } as unknown as StackResponse)
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Caffeine, Ashwagandha' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
+    expect(await screen.findByText(/no interactions detected in caffeine, ashwagandha/i)).toBeInTheDocument()
+  })
+
+  it('falls back to submitted names when neither resolved nor items are provided', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      interactions: undefined,
+    } as unknown as StackResponse)
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Rhodiola, Kava' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Rhodiola', 'Kava'])
+    expect(await screen.findByText(/no interactions detected in rhodiola, kava/i)).toBeInTheDocument()
+  })
+
+  it('uses cells as a fallback when interactions are omitted', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      cells: [
+        {
+          a: 'caffeine',
+          b: 'ashwagandha',
+          severity: 'Mild',
+          evidence: 'B',
+          risk_score: 0.75,
+        },
+      ],
+      resolved_items: ['caffeine', 'ashwagandha'],
+    } as unknown as StackResponse)
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Caffeine, Ashwagandha' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
+    expect(await screen.findByText(/interactions found for caffeine, ashwagandha/i)).toBeInTheDocument()
+    expect(screen.getByRole('table')).toBeInTheDocument()
+  })
+})
+
+describe('parseStackData', () => {
+  test('throws error if < 2 compounds', () => {
+    expect(() => parseStackData({}, ['A'])).toThrow(
+      'List at least two compounds to evaluate the stack.',
+    )
+  })
+
+  test('uses resolved_items first', () => {
+    const result = parseStackData({ resolved_items: ['A', 'B'] }, [])
+    expect(result.compounds).toEqual(['A', 'B'])
+  })
+
+  test('uses items if resolved_items missing', () => {
+    const result = parseStackData({ items: ['A', 'B'] }, [])
+    expect(result.compounds).toEqual(['A', 'B'])
+  })
+
+  test('falls back to user input', () => {
+    const result = parseStackData({}, ['A', 'B'])
+    expect(result.compounds).toEqual(['A', 'B'])
+  })
+
+  test('handles null/undefined interactions', () => {
+    const result = parseStackData({ interactions: null }, ['A', 'B'])
+    expect(result.interactions).toBeNull()
+
+    const result2 = parseStackData({}, ['A', 'B'])
+    expect(result2.interactions).toBeNull()
   })
 })
