@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import App from './App'
+import { beforeEach, describe, expect, it, test, vi } from 'vitest'
+import App, { parseStackData } from './App'
 import type { Compound, StackResponse } from './types'
 
 const defaultHealthResponse = {
@@ -354,5 +354,36 @@ describe('App external links', () => {
     expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
     expect(await screen.findByText(/interactions found for caffeine, ashwagandha/i)).toBeInTheDocument()
     expect(screen.getByRole('table')).toBeInTheDocument()
+  })
+})
+
+describe('parseStackData', () => {
+  test('throws error if < 2 compounds', () => {
+    expect(() => parseStackData({}, ['A'])).toThrow(
+      'List at least two compounds to evaluate the stack.',
+    )
+  })
+
+  test('uses resolved_items first', () => {
+    const result = parseStackData({ resolved_items: ['A', 'B'] }, [])
+    expect(result.compounds).toEqual(['A', 'B'])
+  })
+
+  test('uses items if resolved_items missing', () => {
+    const result = parseStackData({ items: ['A', 'B'] }, [])
+    expect(result.compounds).toEqual(['A', 'B'])
+  })
+
+  test('falls back to user input', () => {
+    const result = parseStackData({}, ['A', 'B'])
+    expect(result.compounds).toEqual(['A', 'B'])
+  })
+
+  test('handles null/undefined interactions', () => {
+    const result = parseStackData({ interactions: null }, ['A', 'B'])
+    expect(result.interactions).toBeNull()
+
+    const result2 = parseStackData({}, ['A', 'B'])
+    expect(result2.interactions).toBeNull()
   })
 })

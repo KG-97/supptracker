@@ -43,6 +43,17 @@ type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
 export const DEFAULT_STACK_EXAMPLE = 'creatine, caffeine, magnesium'
 
+export function parseStackData(apiData: any, userCompounds: string[]) {
+  const compounds = apiData?.resolved_items ?? apiData?.items ?? userCompounds
+  const interactions = apiData?.interactions ?? apiData?.cells ?? null
+
+  if (!compounds || compounds.length < 2) {
+    throw new Error('List at least two compounds to evaluate the stack.')
+  }
+
+  return { compounds, interactions }
+}
+
 function parseStackInput(value: string): string[] {
   return value
     .split(/[\n,]+/)
@@ -471,7 +482,7 @@ export default function App(): JSX.Element {
   }, [stackCompounds, datasetCompoundLookup, compoundLookup])
 
   const shouldShowStackResults =
-    stackStatus === 'success' && (stackHasInteractions || stackCompoundLabels.length > 0)
+    stackStatus === 'success' && (stackInteractions !== null || stackCompoundLabels.length > 0)
 
   const topInteractions = useMemo(() => {
     const severityRanking: Record<string, number> = {
@@ -588,10 +599,10 @@ export default function App(): JSX.Element {
     setStackError(null)
     try {
       const data = await checkStack(compounds)
-      const interactions = data.interactions ?? data.cells ?? null
+      const parsed = parseStackData(data, compounds)
 
-      setStackInteractions(interactions)
-      setStackCompounds(data.resolved_items ?? data.items ?? compounds)
+      setStackInteractions(parsed.interactions)
+      setStackCompounds(parsed.compounds)
       setStackStatus('success')
       setStackError(null)
     } catch (error) {
