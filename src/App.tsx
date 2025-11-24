@@ -460,6 +460,16 @@ export default function App(): JSX.Element {
     }, {})
   }, [allCompounds])
 
+  const stackCompoundLabels = useMemo(() => {
+    return stackCompounds.map((compound) => {
+      return (
+        datasetCompoundLookup[compound]?.name ??
+        compoundLookup[compound]?.name ??
+        compound
+      )
+    })
+  }, [stackCompounds, datasetCompoundLookup, compoundLookup])
+
   const topInteractions = useMemo(() => {
     const severityRanking: Record<string, number> = {
       severe: 3,
@@ -936,8 +946,10 @@ export default function App(): JSX.Element {
             <div className="stack-results" aria-live="polite">
               <h3>
                 {stackHasInteractions
-                  ? `Interactions found for ${stackCompounds.join(', ')}`
-                  : 'No interactions detected in this stack'
+                  ? `Interactions found for ${stackCompoundLabels.join(', ')}`
+                  : stackCompoundLabels.length > 0
+                    ? `No interactions detected in ${stackCompoundLabels.join(', ')}`
+                    : 'No interactions detected in this stack'
                 }
               </h3>
               {stackHasInteractions && (

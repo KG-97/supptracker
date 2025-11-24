@@ -258,4 +258,22 @@ describe('App external links', () => {
     expect(apiMocks.checkStack).toHaveBeenCalledWith(['Coffee', 'Aspirin'])
     expect(await screen.findByText(/interactions found for caffeine, aspirin/i)).toBeInTheDocument()
   })
+
+  it('shows resolved stack items even when no interactions are found', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      interactions: [],
+      resolved_items: ['caffeine', 'ashwagandha'],
+    })
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Caffeine, Ashwagandha' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
+    expect(await screen.findByText(/no interactions detected in caffeine, ashwagandha/i)).toBeInTheDocument()
+  })
 })
