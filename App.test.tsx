@@ -328,4 +328,31 @@ describe('App external links', () => {
     expect(apiMocks.checkStack).toHaveBeenCalledWith(['Rhodiola', 'Kava'])
     expect(await screen.findByText(/no interactions detected in rhodiola, kava/i)).toBeInTheDocument()
   })
+
+  it('uses cells as a fallback when interactions are omitted', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      cells: [
+        {
+          a: 'caffeine',
+          b: 'ashwagandha',
+          severity: 'Mild',
+          evidence: 'B',
+          risk_score: 0.75,
+        },
+      ],
+      resolved_items: ['caffeine', 'ashwagandha'],
+    } as unknown as StackResponse)
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Caffeine, Ashwagandha' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
+    expect(await screen.findByText(/interactions found for caffeine, ashwagandha/i)).toBeInTheDocument()
+    expect(screen.getByRole('table')).toBeInTheDocument()
+  })
 })
