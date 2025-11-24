@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import type { Compound } from './types'
@@ -218,5 +218,44 @@ describe('App external links', () => {
     const compoundScope = within(compoundItem as HTMLElement)
     expect(compoundScope.getByText('Also known as')).toBeInTheDocument()
     expect(compoundScope.getByText('arctic root, roseroot')).toBeInTheDocument()
+  })
+
+  it('requires at least two compounds before running a stack check', async () => {
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Creatine' } })
+    fireEvent.click(submitButton)
+
+    expect(await screen.findByText(/at least two compounds/i)).toBeInTheDocument()
+    expect(apiMocks.checkStack).not.toHaveBeenCalled()
+  })
+
+  it('surfaces resolved stack items returned by the API', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      interactions: [
+        {
+          a: 'caffeine',
+          b: 'aspirin',
+          severity: 'Moderate',
+          evidence: 'B',
+          risk_score: 1.6,
+        },
+      ],
+      resolved_items: ['caffeine', 'aspirin'],
+    })
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Coffee\nAspirin' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Coffee', 'Aspirin'])
+    expect(await screen.findByText(/interactions found for caffeine, aspirin/i)).toBeInTheDocument()
   })
 })

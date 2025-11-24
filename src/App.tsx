@@ -563,11 +563,11 @@ export default function App(): JSX.Element {
   async function handleStackSubmit(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault()
     const compounds = parseStackInput(stackText)
-    if (compounds.length === 0) {
+    if (compounds.length < 2) {
       setStackStatus('error')
       setStackInteractions(null)
       setStackCompounds([])
-      setStackError('List at least one compound to evaluate the stack.')
+      setStackError('List at least two compounds to evaluate the stack.')
       return
     }
 
@@ -576,7 +576,7 @@ export default function App(): JSX.Element {
     try {
       const data = await checkStack(compounds)
       setStackInteractions(data.interactions ?? data.cells ?? [])
-      setStackCompounds(data.items ?? compounds)
+      setStackCompounds(data.resolved_items ?? data.items ?? compounds)
       setStackStatus('success')
       setStackError(null)
     } catch (error) {
