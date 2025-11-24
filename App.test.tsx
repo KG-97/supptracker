@@ -293,4 +293,39 @@ describe('App external links', () => {
     expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
     expect(await screen.findByText(/no interactions detected in caffeine, ashwagandha/i)).toBeInTheDocument()
   })
+
+  it('falls back to stack items when resolved names are missing', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      interactions: null,
+      items: ['caffeine', 'ashwagandha'],
+    } as unknown as StackResponse)
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Caffeine, Ashwagandha' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
+    expect(await screen.findByText(/no interactions detected in caffeine, ashwagandha/i)).toBeInTheDocument()
+  })
+
+  it('falls back to submitted names when neither resolved nor items are provided', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      interactions: undefined,
+    } as unknown as StackResponse)
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Rhodiola, Kava' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Rhodiola', 'Kava'])
+    expect(await screen.findByText(/no interactions detected in rhodiola, kava/i)).toBeInTheDocument()
+  })
 })
