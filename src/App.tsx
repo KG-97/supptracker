@@ -470,6 +470,9 @@ export default function App(): JSX.Element {
     })
   }, [stackCompounds, datasetCompoundLookup, compoundLookup])
 
+  const shouldShowStackResults =
+    stackStatus === 'success' && (stackHasInteractions || stackCompoundLabels.length > 0)
+
   const topInteractions = useMemo(() => {
     const severityRanking: Record<string, number> = {
       severe: 3,
@@ -585,7 +588,9 @@ export default function App(): JSX.Element {
     setStackError(null)
     try {
       const data = await checkStack(compounds)
-      setStackInteractions(data.interactions ?? data.cells ?? [])
+      const interactions = data.interactions ?? data.cells ?? null
+
+      setStackInteractions(interactions)
       setStackCompounds(data.resolved_items ?? data.items ?? compounds)
       setStackStatus('success')
       setStackError(null)
@@ -942,7 +947,7 @@ export default function App(): JSX.Element {
               {stackError}
             </p>
           )}
-          {stackStatus === 'success' && stackInteractions && (
+          {shouldShowStackResults && (
             <div className="stack-results" aria-live="polite">
               <h3>
                 {stackHasInteractions

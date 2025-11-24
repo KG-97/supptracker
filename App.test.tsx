@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import type { Compound } from './types'
+import type { Compound, StackResponse } from './types'
 
 const defaultHealthResponse = {
   status: 'healthy',
@@ -264,6 +264,23 @@ describe('App external links', () => {
       interactions: [],
       resolved_items: ['caffeine', 'ashwagandha'],
     })
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    const submitButton = within(form).getByRole('button', { name: /check stack/i })
+    fireEvent.change(textarea, { target: { value: 'Caffeine, Ashwagandha' } })
+    fireEvent.click(submitButton)
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
+    expect(await screen.findByText(/no interactions detected in caffeine, ashwagandha/i)).toBeInTheDocument()
+  })
+
+  it('surfaces normalized stack names when the API omits interaction data', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({
+      resolved_items: ['caffeine', 'ashwagandha'],
+    } as unknown as StackResponse)
 
     render(<App />)
 
