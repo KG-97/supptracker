@@ -1,0 +1,27 @@
+name: Mark stale issues and PRs
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-pr-stale: 30
+          days-before-pr-close: 7
+          days-before-issue-stale: -1
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-pr-label: 'stale'
+          close-pr-label: 'closed-stale'
+          stale-pr-message: |
+            This pull request has been automatically marked as stale due to 30 days of inactivity. Please update, rebase, or comment to keep it active.
+          close-pr-message: |
+            Closing this pull request after a week of inactivity following the stale warning. If the work should continue, please reopen with a fresh rebase and context.
