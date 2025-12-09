@@ -1,0 +1,12 @@
+# Automatically apply labels based on changed files
+"type: docs":
+  - any: ['**/*.md', 'docs/**']
+
+"type: feature":
+  - any: ['frontend/**', 'frontend_dist/**', 'src/**', 'App.*', 'index.html', 'vite.config.ts', 'vite-env.d.ts', 'tsconfig.json']
+
+"type: fix":
+  - any: ['backend/**', 'api/**', 'app.py', 'api.ts', 'data/**']
+
+"type: chore":
+  - any: ['.github/**', 'scripts/**', 'docker/**', 'Dockerfile', 'docker-compose.yml', 'railway.toml']
