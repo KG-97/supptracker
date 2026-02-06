@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+import json
 import sys, yaml, pandas as pd
 from pathlib import Path
 
@@ -52,6 +53,25 @@ def compile_compounds(data_dir: str = "data"):
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out, index=False)
     print(f"[ok] wrote {out} ({len(df)} rows)")
+
+    json_rows = []
+    for _, row in df.iterrows():
+        synonyms = str(row.get("synonyms") or "")
+        aliases = [s.strip() for s in synonyms.split(";") if s.strip()]
+        item = {
+            "id": str(row.get("id") or "").strip(),
+            "name": str(row.get("name") or "").strip(),
+        }
+        if aliases:
+            item["aliases"] = aliases
+        json_rows.append(item)
+
+    json_out = Path(data_dir) / "compounds.json"
+    json_out.write_text(
+        json.dumps(json_rows, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(f"[ok] wrote {json_out} ({len(json_rows)} rows)")
     return 0
 
 if __name__ == "__main__":

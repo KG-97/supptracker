@@ -1,17 +1,859 @@
 [
   {
     "id": "creatine",
-    "name": "Creatine",
-    "aliases": ["creatine monohydrate"]
+    "name": "Creatine Monohydrate",
+    "aliases": [
+      "creatine",
+      "creatine monohydrate",
+      "creatine anhydrous",
+      "creatine supplement"
+    ]
   },
   {
     "id": "caffeine",
     "name": "Caffeine",
-    "aliases": ["coffee"]
+    "aliases": [
+      "1,3,7-trimethylxanthine",
+      "coffee",
+      "tea extract",
+      "caffeine anhydrous"
+    ]
+  },
+  {
+    "id": "l-theanine",
+    "name": "L-Theanine",
+    "aliases": [
+      "theanine",
+      "gamma-glutamylethylamide"
+    ]
   },
   {
     "id": "magnesium",
-    "name": "Magnesium",
-    "aliases": ["mg"]
+    "name": "Magnesium (elemental)",
+    "aliases": [
+      "magnesium citrate",
+      "magnesium glycinate",
+      "magnesium bisglycinate",
+      "magnesium oxide",
+      "magnesium malate",
+      "magnesium supplement"
+    ]
+  },
+  {
+    "id": "vitamin-d3",
+    "name": "Vitamin D3 (Cholecalciferol)",
+    "aliases": [
+      "cholecalciferol",
+      "vitamin d",
+      "colecalciferol"
+    ]
+  },
+  {
+    "id": "vitamin-k2-mk7",
+    "name": "Vitamin K2 (MK-7)",
+    "aliases": [
+      "menaquinone-7",
+      "vitamin k2"
+    ]
+  },
+  {
+    "id": "fish-oil",
+    "name": "Fish Oil (Omega-3)",
+    "aliases": [
+      "epa",
+      "dha",
+      "omega-3",
+      "fish oil concentrate"
+    ]
+  },
+  {
+    "id": "ashwagandha",
+    "name": "Ashwagandha",
+    "aliases": [
+      "withania somnifera",
+      "ksm-66",
+      "sensoril"
+    ]
+  },
+  {
+    "id": "rhodiola",
+    "name": "Rhodiola Rosea",
+    "aliases": [
+      "rhodiola rosea",
+      "salidroside",
+      "rosavins"
+    ]
+  },
+  {
+    "id": "berberine",
+    "name": "Berberine",
+    "aliases": [
+      "berberine hcl",
+      "coptis extract"
+    ]
+  },
+  {
+    "id": "melatonin",
+    "name": "Melatonin",
+    "aliases": [
+      "n-acetyl-5-methoxytryptamine"
+    ]
+  },
+  {
+    "id": "curcumin",
+    "name": "Curcumin",
+    "aliases": [
+      "turmeric extract",
+      "curcuminoids",
+      "BCM-95",
+      "meriva"
+    ]
+  },
+  {
+    "id": "ginger",
+    "name": "Ginger",
+    "aliases": [
+      "zingiber officinale",
+      "gingerol",
+      "shogaol"
+    ]
+  },
+  {
+    "id": "green-tea-extract",
+    "name": "Green Tea Extract (EGCG)",
+    "aliases": [
+      "EGCG",
+      "camellia sinensis"
+    ]
+  },
+  {
+    "id": "niacin",
+    "name": "Niacin (Vitamin B3)",
+    "aliases": [
+      "nicotinic acid",
+      "niacinamide",
+      "nicotinamide"
+    ]
+  },
+  {
+    "id": "nac",
+    "name": "N-Acetylcysteine (NAC)",
+    "aliases": [
+      "n-acetyl-l-cysteine",
+      "n-acetyl cysteine"
+    ]
+  },
+  {
+    "id": "alpha-gpc",
+    "name": "Alpha-GPC",
+    "aliases": [
+      "L-alpha glycerylphosphorylcholine",
+      "alpha glycerylphosphorylcholine"
+    ]
+  },
+  {
+    "id": "bacopa",
+    "name": "Bacopa Monnieri",
+    "aliases": [
+      "bacopa monnieri",
+      "brahmi",
+      "bacosides"
+    ]
+  },
+  {
+    "id": "ginkgo",
+    "name": "Ginkgo Biloba",
+    "aliases": [
+      "ginkgo biloba",
+      "ginkgoflavone glycosides",
+      "terpene lactones"
+    ]
+  },
+  {
+    "id": "coq10",
+    "name": "Coenzyme Q10 (CoQ10)",
+    "aliases": [
+      "ubiquinone",
+      "ubiquinol"
+    ]
+  },
+  {
+    "id": "resveratrol",
+    "name": "Resveratrol",
+    "aliases": [
+      "trans-resveratrol",
+      "polygonum cuspidatum extract"
+    ]
+  },
+  {
+    "id": "chromium-picolinate",
+    "name": "Chromium Picolinate",
+    "aliases": [
+      "chromium(III) picolinate",
+      "chromium"
+    ]
+  },
+  {
+    "id": "glucosamine",
+    "name": "Glucosamine",
+    "aliases": [
+      "glucosamine sulfate",
+      "glucosamine HCl"
+    ]
+  },
+  {
+    "id": "chondroitin",
+    "name": "Chondroitin",
+    "aliases": [
+      "chondroitin sulfate"
+    ]
+  },
+  {
+    "id": "msm",
+    "name": "MSM (Methylsulfonylmethane)",
+    "aliases": [
+      "methylsulfonylmethane",
+      "dimethyl sulfone"
+    ]
+  },
+  {
+    "id": "beta-alanine",
+    "name": "Beta-Alanine",
+    "aliases": [
+      "β-alanine"
+    ]
+  },
+  {
+    "id": "l-citrulline",
+    "name": "L-Citrulline",
+    "aliases": [
+      "citrulline malate",
+      "L-citrulline DL-malate"
+    ]
+  },
+  {
+    "id": "taurine",
+    "name": "Taurine",
+    "aliases": [
+      "2-aminoethanesulfonic acid"
+    ]
+  },
+  {
+    "id": "zinc",
+    "name": "Zinc (elemental)",
+    "aliases": [
+      "zinc picolinate",
+      "zinc gluconate",
+      "zinc citrate",
+      "zinc monomethionine"
+    ]
+  },
+  {
+    "id": "vitamin-b12",
+    "name": "Vitamin B12",
+    "aliases": [
+      "methylcobalamin",
+      "cyanocobalamin",
+      "adenosylcobalamin",
+      "hydroxocobalamin"
+    ]
+  },
+  {
+    "id": "5-htp",
+    "name": "5-HTP (5-Hydroxytryptophan)",
+    "aliases": [
+      "5-hydroxytryptophan",
+      "griffonia simplicifolia extract",
+      "oxitriptan"
+    ]
+  },
+  {
+    "id": "glycine",
+    "name": "Glycine",
+    "aliases": [
+      "glycine powder",
+      "aminoacetic acid",
+      "glycine amino acid"
+    ]
+  },
+  {
+    "id": "lions-mane",
+    "name": "Lion's Mane Mushroom",
+    "aliases": [
+      "hericium erinaceus",
+      "yamabushitake",
+      "mushroom nootropic"
+    ]
+  },
+  {
+    "id": "piperine",
+    "name": "Piperine (Black Pepper Extract)",
+    "aliases": [
+      "black pepper extract",
+      "bioperine",
+      "chavicine"
+    ]
+  },
+  {
+    "id": "st-johns-wort",
+    "name": "St. John's Wort",
+    "aliases": [
+      "hypericum perforatum",
+      "hypericum extract",
+      "SJW"
+    ]
+  },
+  {
+    "id": "acetyl-l-carnitine",
+    "name": "Acetyl-L-Carnitine (ALCAR)",
+    "aliases": [
+      "acetylcarnitine",
+      "acetyl L-carnitine",
+      "ALCAR"
+    ]
+  },
+  {
+    "id": "alpha-lipoic-acid",
+    "name": "Alpha-Lipoic Acid (ALA)",
+    "aliases": [
+      "thioctic acid",
+      "alpha lipoic acid",
+      "racemic ALA"
+    ]
+  },
+  {
+    "id": "warfarin",
+    "name": "Warfarin",
+    "aliases": [
+      "coumadin",
+      "jantoven"
+    ]
+  },
+  {
+    "id": "aspirin",
+    "name": "Aspirin",
+    "aliases": [
+      "acetylsalicylic acid",
+      "ASA"
+    ]
+  },
+  {
+    "id": "ibuprofen",
+    "name": "Ibuprofen",
+    "aliases": [
+      "advil",
+      "motrin"
+    ]
+  },
+  {
+    "id": "acetaminophen",
+    "name": "Acetaminophen",
+    "aliases": [
+      "paracetamol",
+      "tylenol"
+    ]
+  },
+  {
+    "id": "naproxen",
+    "name": "Naproxen",
+    "aliases": [
+      "aleve",
+      "naprosyn"
+    ]
+  },
+  {
+    "id": "omeprazole",
+    "name": "Omeprazole",
+    "aliases": [
+      "prilosec"
+    ]
+  },
+  {
+    "id": "pantoprazole",
+    "name": "Pantoprazole",
+    "aliases": [
+      "protonix"
+    ]
+  },
+  {
+    "id": "metformin",
+    "name": "Metformin",
+    "aliases": [
+      "glucophage"
+    ]
+  },
+  {
+    "id": "lisinopril",
+    "name": "Lisinopril",
+    "aliases": [
+      "prinivil",
+      "zestril"
+    ]
+  },
+  {
+    "id": "atorvastatin",
+    "name": "Atorvastatin",
+    "aliases": [
+      "lipitor"
+    ]
+  },
+  {
+    "id": "simvastatin",
+    "name": "Simvastatin",
+    "aliases": [
+      "zocor"
+    ]
+  },
+  {
+    "id": "levothyroxine",
+    "name": "Levothyroxine",
+    "aliases": [
+      "synthroid"
+    ]
+  },
+  {
+    "id": "amlodipine",
+    "name": "Amlodipine",
+    "aliases": [
+      "norvasc"
+    ]
+  },
+  {
+    "id": "losartan",
+    "name": "Losartan",
+    "aliases": [
+      "cozaar"
+    ]
+  },
+  {
+    "id": "metoprolol",
+    "name": "Metoprolol",
+    "aliases": [
+      "lopressor",
+      "toprol"
+    ]
+  },
+  {
+    "id": "sertraline",
+    "name": "Sertraline",
+    "aliases": [
+      "zoloft"
+    ]
+  },
+  {
+    "id": "escitalopram",
+    "name": "Escitalopram",
+    "aliases": [
+      "lexapro"
+    ]
+  },
+  {
+    "id": "fluoxetine",
+    "name": "Fluoxetine",
+    "aliases": [
+      "prozac"
+    ]
+  },
+  {
+    "id": "citalopram",
+    "name": "Citalopram",
+    "aliases": [
+      "celexa"
+    ]
+  },
+  {
+    "id": "alprazolam",
+    "name": "Alprazolam",
+    "aliases": [
+      "xanax"
+    ]
+  },
+  {
+    "id": "lorazepam",
+    "name": "Lorazepam",
+    "aliases": [
+      "ativan"
+    ]
+  },
+  {
+    "id": "zolpidem",
+    "name": "Zolpidem",
+    "aliases": [
+      "ambien"
+    ]
+  },
+  {
+    "id": "prednisone",
+    "name": "Prednisone",
+    "aliases": [
+      "deltasone"
+    ]
+  },
+  {
+    "id": "albuterol",
+    "name": "Albuterol",
+    "aliases": [
+      "proventil",
+      "ventolin"
+    ]
+  },
+  {
+    "id": "montelukast",
+    "name": "Montelukast",
+    "aliases": [
+      "singulair"
+    ]
+  },
+  {
+    "id": "fexofenadine",
+    "name": "Fexofenadine",
+    "aliases": [
+      "allegra"
+    ]
+  },
+  {
+    "id": "cetirizine",
+    "name": "Cetirizine",
+    "aliases": [
+      "zyrtec"
+    ]
+  },
+  {
+    "id": "loratadine",
+    "name": "Loratadine",
+    "aliases": [
+      "claritin"
+    ]
+  },
+  {
+    "id": "diphenhydramine",
+    "name": "Diphenhydramine",
+    "aliases": [
+      "benadryl"
+    ]
+  },
+  {
+    "id": "omega-6",
+    "name": "Omega-6 Fatty Acids",
+    "aliases": [
+      "linoleic acid",
+      "arachidonic acid"
+    ]
+  },
+  {
+    "id": "turmeric",
+    "name": "Turmeric",
+    "aliases": [
+      "curcuma longa"
+    ]
+  },
+  {
+    "id": "garlic",
+    "name": "Garlic",
+    "aliases": [
+      "allium sativum"
+    ]
+  },
+  {
+    "id": "milk-thistle",
+    "name": "Milk Thistle",
+    "aliases": [
+      "silybum marianum",
+      "silymarin"
+    ]
+  },
+  {
+    "id": "echinacea",
+    "name": "Echinacea",
+    "aliases": [
+      "purple coneflower"
+    ]
+  },
+  {
+    "id": "valerian",
+    "name": "Valerian",
+    "aliases": [
+      "valeriana officinalis"
+    ]
+  },
+  {
+    "id": "kava",
+    "name": "Kava",
+    "aliases": [
+      "piper methysticum"
+    ]
+  },
+  {
+    "id": "saw-palmetto",
+    "name": "Saw Palmetto",
+    "aliases": [
+      "serenoa repens"
+    ]
+  },
+  {
+    "id": "cranberry",
+    "name": "Cranberry",
+    "aliases": [
+      "vaccinium macrocarpon"
+    ]
+  },
+  {
+    "id": "black-cohosh",
+    "name": "Black Cohosh",
+    "aliases": [
+      "actaea racemosa",
+      "cimicifuga"
+    ]
+  },
+  {
+    "id": "fenugreek",
+    "name": "Fenugreek",
+    "aliases": [
+      "trigonella foenum-graecum"
+    ]
+  },
+  {
+    "id": "hawthorn",
+    "name": "Hawthorn",
+    "aliases": [
+      "crataegus"
+    ]
+  },
+  {
+    "id": "red-yeast-rice",
+    "name": "Red Yeast Rice",
+    "aliases": [
+      "monascus purpureus"
+    ]
+  },
+  {
+    "id": "glucomannan",
+    "name": "Glucomannan",
+    "aliases": [
+      "konjac fiber"
+    ]
+  },
+  {
+    "id": "spirulina",
+    "name": "Spirulina",
+    "aliases": [
+      "arthrospira"
+    ]
+  },
+  {
+    "id": "chlorella",
+    "name": "Chlorella",
+    "aliases": [
+      "green algae"
+    ]
+  },
+  {
+    "id": "lutein",
+    "name": "Lutein",
+    "aliases": [
+      "carotenoid"
+    ]
+  },
+  {
+    "id": "zeaxanthin",
+    "name": "Zeaxanthin",
+    "aliases": [
+      "carotenoid"
+    ]
+  },
+  {
+    "id": "astaxanthin",
+    "name": "Astaxanthin",
+    "aliases": [
+      "carotenoid"
+    ]
+  },
+  {
+    "id": "lycopene",
+    "name": "Lycopene",
+    "aliases": [
+      "carotenoid"
+    ]
+  },
+  {
+    "id": "beta-carotene",
+    "name": "Beta-Carotene",
+    "aliases": [
+      "provitamin A"
+    ]
+  },
+  {
+    "id": "vitamin-a",
+    "name": "Vitamin A",
+    "aliases": [
+      "retinol"
+    ]
+  },
+  {
+    "id": "vitamin-e",
+    "name": "Vitamin E",
+    "aliases": [
+      "tocopherol"
+    ]
+  },
+  {
+    "id": "vitamin-c",
+    "name": "Vitamin C",
+    "aliases": [
+      "ascorbic acid"
+    ]
+  },
+  {
+    "id": "vitamin-b1",
+    "name": "Vitamin B1",
+    "aliases": [
+      "thiamine"
+    ]
+  },
+  {
+    "id": "vitamin-b2",
+    "name": "Vitamin B2",
+    "aliases": [
+      "riboflavin"
+    ]
+  },
+  {
+    "id": "vitamin-b3",
+    "name": "Vitamin B3",
+    "aliases": [
+      "niacin",
+      "nicotinic acid"
+    ]
+  },
+  {
+    "id": "vitamin-b5",
+    "name": "Vitamin B5",
+    "aliases": [
+      "pantothenic acid"
+    ]
+  },
+  {
+    "id": "vitamin-b6",
+    "name": "Vitamin B6",
+    "aliases": [
+      "pyridoxine"
+    ]
+  },
+  {
+    "id": "vitamin-b7",
+    "name": "Vitamin B7",
+    "aliases": [
+      "biotin"
+    ]
+  },
+  {
+    "id": "vitamin-b9",
+    "name": "Vitamin B9",
+    "aliases": [
+      "folate",
+      "folic acid"
+    ]
+  },
+  {
+    "id": "folate",
+    "name": "Folate",
+    "aliases": [
+      "vitamin B9",
+      "folic acid",
+      "5-MTHF"
+    ]
+  },
+  {
+    "id": "vitamin-k",
+    "name": "Vitamin K",
+    "aliases": [
+      "phylloquinone",
+      "menaquinone"
+    ]
+  },
+  {
+    "id": "vitamin-k1",
+    "name": "Vitamin K1",
+    "aliases": [
+      "phylloquinone"
+    ]
+  },
+  {
+    "id": "calcium",
+    "name": "Calcium",
+    "aliases": [
+      "elemental"
+    ]
+  },
+  {
+    "id": "iron",
+    "name": "Iron",
+    "aliases": [
+      "ferrous sulfate",
+      "ferrous fumarate"
+    ]
+  },
+  {
+    "id": "potassium",
+    "name": "Potassium",
+    "aliases": [
+      "elemental"
+    ]
+  },
+  {
+    "id": "selenium",
+    "name": "Selenium",
+    "aliases": [
+      "elemental"
+    ]
+  },
+  {
+    "id": "copper",
+    "name": "Copper",
+    "aliases": [
+      "elemental"
+    ]
+  },
+  {
+    "id": "manganese",
+    "name": "Manganese",
+    "aliases": [
+      "elemental"
+    ]
+  },
+  {
+    "id": "chromium",
+    "name": "Chromium",
+    "aliases": [
+      "elemental"
+    ]
+  },
+  {
+    "id": "molybdenum",
+    "name": "Molybdenum",
+    "aliases": [
+      "elemental"
+    ]
+  },
+  {
+    "id": "boron",
+    "name": "Boron",
+    "aliases": [
+      "elemental"
+    ]
+  },
+  {
+    "id": "silicon",
+    "name": "Silicon",
+    "aliases": [
+      "elemental"
+    ]
+  },
+  {
+    "id": "collagen",
+    "name": "Collagen",
+    "aliases": [
+      "hydrolyzed collagen peptides"
+    ]
   }
 ]

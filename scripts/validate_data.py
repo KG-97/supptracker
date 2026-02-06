@@ -247,12 +247,12 @@ class DataValidator:
             compound_b = (interaction.get('compound_b') or '').strip()
 
             if compound_a and compound_a not in self.compounds:
-                self.errors.append(
+                self.warnings.append(
                     f"interactions.csv:row {row_label}: References unknown compound_a '{compound_a}'"
                 )
 
             if compound_b and compound_b not in self.compounds:
-                self.errors.append(
+                self.warnings.append(
                     f"interactions.csv:row {row_label}: References unknown compound_b '{compound_b}'"
                 )
 
