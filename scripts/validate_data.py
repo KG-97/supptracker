@@ -64,10 +64,11 @@ class Interaction(BaseModel):
     evidence_grade: Optional[str] = None
     mechanism: str = Field(..., min_length=1)
     effect: str = Field(..., min_length=1)
-    risk_level: str = Field(..., pattern=r'^(Low|Moderate|High|Unknown)$')
+    risk_level: str = Field(...)
     mechanism_tags: Optional[str] = None
     source_ids: Optional[str] = None
     action: Optional[str] = None
+    bidirectional: Optional[str] = None
 
     @validator('evidence_grade', pre=True)
     def validate_evidence_grade(cls, v: Optional[str]) -> Optional[str]:
@@ -79,6 +80,24 @@ class Interaction(BaseModel):
                 raise ValueError(f"evidence_grade must be one of {sorted(allowed)}")
             return v.upper()
         return None
+
+    @validator('risk_level', pre=True)
+    def validate_risk_level(cls, v: Any) -> str:
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError("risk_level is required")
+        normalized = v.strip().lower()
+        aliases = {
+            "none": "None",
+            "low": "Low",
+            "moderate": "Moderate",
+            "high": "High",
+            "very-high": "Very-High",
+            "very high": "Very-High",
+            "unknown": "Unknown",
+        }
+        if normalized not in aliases:
+            raise ValueError("risk_level must be one of None/Low/Moderate/High/Very-High/Unknown")
+        return aliases[normalized]
 
 
 class Source(BaseModel):
@@ -146,7 +165,7 @@ class DataValidator:
 
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
+                reader = csv.DictReader(f, restkey='__extra_columns__', restval='')
                 rows = list(reader)
 
             if not rows:
@@ -155,11 +174,28 @@ class DataValidator:
 
             # Check for duplicates
             seen_ids: Set[str] = set()
+            valid_rows = 0
 
             for row_num, row in enumerate(rows, start=2):  # Start at 2 (header is 1)
+                if not any((value or '').strip() for key, value in row.items() if key != '__extra_columns__'):
+                    continue
+
+                extras = row.pop('__extra_columns__', None) or []
+                if extras:
+                    extras = [value.strip() for value in extras if isinstance(value, str) and value.strip()]
+                    if extras:
+                        if model is Interaction and len(extras) == 1 and not row.get('bidirectional'):
+                            row['bidirectional'] = extras[0]
+                        else:
+                            self.errors.append(
+                                f"{filename}:row {row_num}: Unexpected extra column values: {extras}"
+                            )
+                            continue
+
                 # Validate schema
                 try:
                     validated = model(**row)
+                    valid_rows += 1
                     if id_field:
                         row_id = row.get(id_field)
 
@@ -182,7 +218,10 @@ class DataValidator:
                             f"{filename}:row {row_num}:{field}: {msg}"
                         )
 
-            print(f"  ✓ Validated {len(seen_ids)} unique records")
+            if id_field:
+                print(f"  ✓ Validated {len(seen_ids)} unique records")
+            else:
+                print(f"  ✓ Validated {valid_rows} records")
 
         except Exception as e:
             self.errors.append(f"{filename}: Error reading file - {str(e)}")
@@ -247,12 +286,12 @@ class DataValidator:
             compound_b = (interaction.get('compound_b') or '').strip()
 
             if compound_a and compound_a not in self.compounds:
-                self.errors.append(
+                self.warnings.append(
                     f"interactions.csv:row {row_label}: References unknown compound_a '{compound_a}'"
                 )
 
             if compound_b and compound_b not in self.compounds:
-                self.errors.append(
+                self.warnings.append(
                     f"interactions.csv:row {row_label}: References unknown compound_b '{compound_b}'"
                 )
 
