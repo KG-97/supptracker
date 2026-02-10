@@ -43,12 +43,12 @@ Planned UI improvements:
 cd api
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r ../requirements.txt
 # Install any additional backend dependencies required by your implementation
 # Example: sqlalchemy alembic pydantic-settings
 # Run seed/migration script if present
 # Start API server
-uvicorn main:app --reload
+uvicorn risk_api:app --reload
 ```
 
 Health check example:
