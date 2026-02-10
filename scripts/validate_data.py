@@ -99,6 +99,27 @@ class Interaction(BaseModel):
             raise ValueError("risk_level must be one of None/Low/Moderate/High/Very-High/Unknown")
         return aliases[normalized]
 
+    @validator('bidirectional', pre=True)
+    def validate_bidirectional(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        if not isinstance(v, str):
+            raise TypeError("bidirectional must be a string")
+
+        normalized = v.strip().lower()
+        if not normalized:
+            return None
+
+        truthy = {"true", "1", "yes", "y"}
+        falsey = {"false", "0", "no", "n"}
+
+        if normalized in truthy:
+            return "true"
+        if normalized in falsey:
+            return "false"
+
+        raise ValueError("bidirectional must be one of true/false/1/0/yes/no/y/n")
+
 
 class Source(BaseModel):
     """Schema for sources data"""
@@ -177,9 +198,6 @@ class DataValidator:
             valid_rows = 0
 
             for row_num, row in enumerate(rows, start=2):  # Start at 2 (header is 1)
-                if not any((value or '').strip() for key, value in row.items() if key != '__extra_columns__'):
-                    continue
-
                 extras = row.pop('__extra_columns__', None) or []
                 if extras:
                     extras = [value.strip() for value in extras if isinstance(value, str) and value.strip()]
@@ -191,6 +209,9 @@ class DataValidator:
                                 f"{filename}:row {row_num}: Unexpected extra column values: {extras}"
                             )
                             continue
+
+                if not any((value or '').strip() for value in row.values()):
+                    continue
 
                 # Validate schema
                 try:
