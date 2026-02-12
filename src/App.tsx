@@ -198,13 +198,17 @@ function parseExternalLinksValue(value: unknown): NormalisedExternalLink[] {
       return parseExternalLinksValue(parsed)
     } catch {
       const entries = trimmed
-        .split(';')
+        .split(/[;\n]+/)
         .map((segment) => segment.trim())
         .filter(Boolean)
       const links: NormalisedExternalLink[] = []
       for (const entry of entries) {
         const separator = entry.includes('|') ? '|' : entry.includes(',') ? ',' : null
         if (!separator) {
+          const looksLikeUrl = /^[a-z][a-z0-9+.-]*:\/\//i.test(entry) || entry.startsWith('www.')
+          if (looksLikeUrl) {
+            links.push({ url: entry })
+          }
           continue
         }
         const [rawLabel, rawUrl] = entry.split(separator, 2)
