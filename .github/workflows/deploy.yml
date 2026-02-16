@@ -11,7 +11,7 @@ jobs:
       REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
       DEPLOY_WEBHOOK: ${{ secrets.DEPLOY_WEBHOOK }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build docker image
         run: |
           docker build -t supptracker:ci .
