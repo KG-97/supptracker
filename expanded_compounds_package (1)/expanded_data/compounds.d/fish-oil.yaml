@@ -1,0 +1,13 @@
+id: fish-oil
+name: Fish Oil (Omega-3)
+synonyms:
+- epa
+- dha
+- omega-3
+- fish oil concentrate
+class: fatty acid
+route: oral
+common_dose: 1–2 g combined EPA+DHA/day
+qt_risk: Low
+notes: Use with meals to reduce reflux; check EPA:DHA content.
+examine_slug: supplements/fish-oil

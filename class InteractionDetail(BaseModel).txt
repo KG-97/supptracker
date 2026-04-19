@@ -1,0 +1,18 @@
+ class InteractionDetail(BaseModel):
+     """Detailed interaction info for a specific pair."""
+-    a: str = Field(..., description="Canonical ID for compound A")
+-    b: str = Field(..., description="Canonical ID for compound B")
+-    score: float = Field(..., ge=0.0, le=1.0, description="Normalized risk score (0–1)")
+-    bucket: str = Field(..., description="Risk bucket derived from score")
+-    action: str = Field(..., description="Actionable guidance (e.g., 'avoid', 'monitor')")
+-    sources: List[Source] = Field(default_factory=list, description="Supporting citations")
++    a: str = Field(..., description="Canonical ID for compound A")
++    b: str = Field(..., description="Canonical ID for compound B")
++    score: float = Field(..., ge=0.0, le=1.0, description="Normalized risk score (0–1)")
++    bucket: str = Field(..., description="Risk bucket derived from score")
++    action: str = Field(..., description="Actionable guidance (e.g., 'avoid', 'monitor')")
++    effect_summary: Optional[str] = Field(
++        default=None,
++        description="Short human-readable summary of the primary effect/mechanism"
++    )
++    sources: List[Source] = Field(default_factory=list, description="Supporting citations")

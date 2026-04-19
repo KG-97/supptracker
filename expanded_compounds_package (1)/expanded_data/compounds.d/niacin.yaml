@@ -1,0 +1,12 @@
+id: niacin
+name: Niacin (Vitamin B3)
+synonyms:
+- nicotinic acid
+- niacinamide
+- nicotinamide
+class: vitamin
+route: oral
+common_dose: 16–100 mg/day (varies by form)
+qt_risk: Low
+notes: Nicotinic acid may cause flushing; extended-release cautions apply.
+examine_slug: supplements/niacin

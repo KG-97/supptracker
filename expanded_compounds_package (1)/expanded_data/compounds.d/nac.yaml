@@ -1,0 +1,11 @@
+id: nac
+name: N-Acetylcysteine (NAC)
+synonyms:
+- n-acetyl-l-cysteine
+- n-acetyl cysteine
+class: amino acid derivative
+route: oral
+common_dose: 600–1200 mg/day
+qt_risk: Low
+notes: Sulfur odor is normal; hydrate well.
+examine_slug: supplements/nac

@@ -1,0 +1,11 @@
+id: berberine
+name: Berberine
+synonyms:
+- berberine hcl
+- coptis extract
+class: alkaloid
+route: oral
+common_dose: 500 mg 2–3×/day with meals
+qt_risk: Unknown
+notes: May interact with cytochrome enzymes; GI upset possible.
+examine_slug: supplements/berberine

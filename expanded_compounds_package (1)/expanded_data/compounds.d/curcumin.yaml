@@ -1,0 +1,13 @@
+id: curcumin
+name: Curcumin
+synonyms:
+- turmeric extract
+- curcuminoids
+- bcM-95
+- meriva
+class: polyphenol
+route: oral
+common_dose: 500–1000 mg/day (enhanced bioavailability)
+qt_risk: Unknown
+notes: Often combined with piperine or phospholipids for absorption.
+examine_slug: supplements/curcumin

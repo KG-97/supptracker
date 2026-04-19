@@ -1,0 +1,12 @@
+id: ashwagandha
+name: Ashwagandha
+synonyms:
+- withania somnifera
+- ksm-66
+- sensoril
+class: herb adaptogen
+route: oral
+common_dose: 300–600 mg/day (root extract)
+qt_risk: Unknown
+notes: Standardized extracts vary; titrate to effect.
+examine_slug: supplements/ashwagandha

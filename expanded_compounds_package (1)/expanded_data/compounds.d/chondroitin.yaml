@@ -1,0 +1,10 @@
+id: chondroitin
+name: Chondroitin
+synonyms:
+- chondroitin sulfate
+class: glycosaminoglycan
+route: oral
+common_dose: 800–1200 mg/day
+qt_risk: Low
+notes: Often combined with glucosamine.
+examine_slug: supplements/chondroitin

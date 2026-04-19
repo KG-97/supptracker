@@ -1,0 +1,13 @@
+id: caffeine
+name: Caffeine
+synonyms:
+- 1,3,7-trimethylxanthine
+- coffee
+- tea extract
+- caffeine anhydrous
+class: stimulant
+route: oral
+common_dose: 100–400 mg as needed
+qt_risk: Low
+notes: Upper end varies by tolerance. Can disrupt sleep; synergistic with L-theanine.
+examine_slug: supplements/caffeine

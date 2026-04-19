@@ -1,0 +1,11 @@
+id: chromium-picolinate
+name: Chromium Picolinate
+synonyms:
+- chromium(III) picolinate
+- chromium
+class: mineral
+route: oral
+common_dose: 200–400 mcg/day
+qt_risk: Low
+notes: Monitor if on glucose-lowering medication.
+examine_slug: supplements/chromium

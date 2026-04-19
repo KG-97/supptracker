@@ -1,0 +1,12 @@
+id: ginger
+name: Ginger
+synonyms:
+- zingiber officinale
+- gingerol
+- shogaol
+class: herb
+route: oral
+common_dose: 1–2 g/day
+qt_risk: Low
+notes: May have mild antiplatelet effects.
+examine_slug: supplements/ginger

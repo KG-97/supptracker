@@ -1,0 +1,14 @@
+id: magnesium
+name: Magnesium (elemental)
+synonyms:
+- magnesium citrate
+- magnesium glycinate
+- magnesium bisglycinate
+- magnesium oxide
+- magnesium malate
+class: mineral
+route: oral
+common_dose: 200–400 mg/day (elemental)
+qt_risk: Low
+notes: Glycinate/citrate often better tolerated than oxide.
+examine_slug: supplements/magnesium

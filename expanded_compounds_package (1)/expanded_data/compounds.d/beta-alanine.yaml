@@ -1,0 +1,10 @@
+id: beta-alanine
+name: Beta-Alanine
+synonyms:
+- β-alanine
+class: amino acid
+route: oral
+common_dose: 3.2–6.4 g/day (split)
+qt_risk: Low
+notes: Paresthesia (tingles) is benign; split doses.
+examine_slug: supplements/beta-alanine

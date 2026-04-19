@@ -1,0 +1,11 @@
+id: vitamin-k2-mk7
+name: Vitamin K2 (MK-7)
+synonyms:
+- menaquinone-7
+- vitamin k2
+class: vitamin
+route: oral
+common_dose: 90–180 mcg/day
+qt_risk: Unknown
+notes: Often paired with Vitamin D3; interacts with anticoagulants.
+examine_slug: supplements/vitamin-k

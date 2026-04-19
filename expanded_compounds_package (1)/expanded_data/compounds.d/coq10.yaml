@@ -1,0 +1,11 @@
+id: coq10
+name: Coenzyme Q10 (CoQ10)
+synonyms:
+- ubiquinone
+- ubiquinol
+class: quinone
+route: oral
+common_dose: 100–200 mg/day
+qt_risk: Low
+notes: Ubiquinol is the reduced form; take with fat-containing meals.
+examine_slug: supplements/coenzyme-q10

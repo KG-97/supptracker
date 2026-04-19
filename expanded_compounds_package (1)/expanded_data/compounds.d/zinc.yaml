@@ -1,0 +1,13 @@
+id: zinc
+name: Zinc (elemental)
+synonyms:
+- zinc picolinate
+- zinc gluconate
+- zinc citrate
+- zinc monomethionine
+class: mineral
+route: oral
+common_dose: 10–25 mg/day (elemental)
+qt_risk: Low
+notes: Take away from iron/calcium to optimize absorption.
+examine_slug: supplements/zinc

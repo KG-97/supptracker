@@ -1,0 +1,13 @@
+id: vitamin-b12
+name: Vitamin B12
+synonyms:
+- methylcobalamin
+- cyanocobalamin
+- adenosylcobalamin
+- hydroxocobalamin
+class: vitamin
+route: oral
+common_dose: 500–1000 mcg/day (varies)
+qt_risk: Low
+notes: Form and route depend on absorption status.
+examine_slug: supplements/vitamin-b12

@@ -1,0 +1,11 @@
+id: resveratrol
+name: Resveratrol
+synonyms:
+- trans-resveratrol
+- polygonum cuspidatum extract
+class: polyphenol
+route: oral
+common_dose: 100–500 mg/day
+qt_risk: Unknown
+notes: Bioavailability is limited; take away from iron.
+examine_slug: supplements/resveratrol

@@ -1,0 +1,10 @@
+id: melatonin
+name: Melatonin
+synonyms:
+- n-acetyl-5-methoxytryptamine
+class: hormone
+route: oral
+common_dose: 0.3–3 mg near bedtime
+qt_risk: Low
+notes: Start low to minimize grogginess.
+examine_slug: supplements/melatonin

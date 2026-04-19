@@ -1,0 +1,11 @@
+id: green-tea-extract
+name: Green Tea Extract (EGCG)
+synonyms:
+- egcg
+- camellia sinensis
+class: polyphenol
+route: oral
+common_dose: 200–400 mg EGCG/day
+qt_risk: Unknown
+notes: Take with food to reduce GI discomfort.
+examine_slug: supplements/green-tea-extract

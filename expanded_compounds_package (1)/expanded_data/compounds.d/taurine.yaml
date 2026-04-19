@@ -1,0 +1,10 @@
+id: taurine
+name: Taurine
+synonyms:
+- 2-aminoethanesulfonic acid
+class: amino acid derivative
+route: oral
+common_dose: 500–2000 mg/day
+qt_risk: Low
+notes: Often included in energy drinks; generally well tolerated.
+examine_slug: supplements/taurine

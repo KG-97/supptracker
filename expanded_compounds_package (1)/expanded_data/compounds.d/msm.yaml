@@ -1,0 +1,11 @@
+id: msm
+name: MSM (Methylsulfonylmethane)
+synonyms:
+- methylsulfonylmethane
+- dimethyl sulfone
+class: organosulfur
+route: oral
+common_dose: 1500–3000 mg/day
+qt_risk: Low
+notes: Frequently paired with glucosamine/chondroitin.
+examine_slug: supplements/msm

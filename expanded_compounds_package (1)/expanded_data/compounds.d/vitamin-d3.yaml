@@ -1,0 +1,12 @@
+id: vitamin-d3
+name: Vitamin D3 (Cholecalciferol)
+synonyms:
+- cholecalciferol
+- vitamin d
+- colecalciferol
+class: vitamin
+route: oral
+common_dose: 1000–2000 IU/day
+qt_risk: Unknown
+notes: Dose individualized by serum 25(OH)D and clinician guidance.
+examine_slug: supplements/vitamin-d

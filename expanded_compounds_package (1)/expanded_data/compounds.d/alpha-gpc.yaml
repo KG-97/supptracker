@@ -1,0 +1,11 @@
+id: alpha-gpc
+name: Alpha-GPC
+synonyms:
+- l-alpha glycerylphosphorylcholine
+- alpha glycerylphosphorylcholine
+class: choline donor
+route: oral
+common_dose: 300–600 mg/day
+qt_risk: Unknown
+notes: Choline donors may cause fishy odor at high doses.
+examine_slug: supplements/alpha-gpc

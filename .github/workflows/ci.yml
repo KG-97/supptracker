@@ -1,38 +1,38 @@
 name: CI
-
 on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
-  frontend-build:
+  backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Test
+        run: |
+          source .venv/bin/activate
+          pytest -q
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install and build frontend
-        run: |
-          npm ci
-          npm run build
-
-  backend-smoke:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-      - name: Install backend requirements
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install -r requirements.txt
-      - name: Run backend tests
-        run: |
-          python -m pip install --upgrade pip
-          pytest -q
+          cache: 'npm'
+      - name: Install
+        run: npm ci
+      - name: Typecheck (non-blocking)
+        run: npx tsc --noEmit || true
+      - name: Build
+        run: npm run build

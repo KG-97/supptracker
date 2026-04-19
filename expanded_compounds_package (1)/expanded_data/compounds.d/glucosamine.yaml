@@ -1,0 +1,11 @@
+id: glucosamine
+name: Glucosamine
+synonyms:
+- glucosamine sulfate
+- glucosamine hcl
+class: amino sugar
+route: oral
+common_dose: 1500 mg/day
+qt_risk: Low
+notes: Often combined with chondroitin; shellfish allergy caution for some forms.
+examine_slug: supplements/glucosamine

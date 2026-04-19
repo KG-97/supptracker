@@ -1,0 +1,11 @@
+id: l-theanine
+name: L-Theanine
+synonyms:
+- theanine
+- gamma-glutamylethylamide
+class: amino acid
+route: oral
+common_dose: 100–200 mg with caffeine
+qt_risk: Unknown
+notes: Often paired 2:1 theanine:caffeine for smooth focus.
+examine_slug: supplements/theanine
