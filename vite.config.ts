@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react'
 // During development proxy API calls to the FastAPI backend on :8000
 export default defineConfig({
 	plugins: [react()],
+	optimizeDeps: {
+		include: ['react', 'react-dom'],
+	},
 	server: {
 		port: 5173,
 		proxy: {
