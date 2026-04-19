@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SuppTracker — Instantly check supplement interactions, analyse your stack, and understand the science behind what you take." />
+  <title>SuppTracker — Supplement Interaction Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-base: #080b14;
+      --bg-surface: #0e1422;
+      --bg-card: rgba(255,255,255,0.04);
+      --bg-card-hover: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.15);
+      --accent-1: #7c3aed;
+      --accent-2: #06b6d4;
+      --accent-3: #f59e0b;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #475569;
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 16px;
+      --r-xl: 20px;
+      --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
+      --shadow-glow: 0 0 40px rgba(124,58,237,0.15);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+    html { scroll-behavior: smooth }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124,58,237,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 100% 80%, rgba(6,182,212,0.06) 0%, transparent 50%);
+    }
+    #root { max-width: 820px; margin: 0 auto; padding: 40px 20px 80px }
+    /* Header */
+    .header { text-align: center; margin-bottom: 32px }
+    .header-logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 32px; font-weight: 700; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #a78bfa, #67e8f9);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header-sub { color: var(--text-muted); font-size: 14px; margin-top: 6px; letter-spacing: 0.02em }
+    /* Card */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      backdrop-filter: blur(20px);
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.2s;
+    }
+    /* Tabs */
+    .tabs { display: flex; gap: 6px; background: rgba(255,255,255,0.03); border-radius: var(--r-lg); padding: 5px; border: 1px solid var(--border) }
+    .tab {
+      flex: 1; padding: 9px 14px; border-radius: var(--r-md);
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+      color: var(--text-secondary); background: none; border: none; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.05) }
+    .tab.active {
+      background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(6,182,212,0.15));
+      color: #e2e8f0; border: 1px solid rgba(124,58,237,0.3);
+      box-shadow: 0 2px 12px rgba(124,58,237,0.2);
+    }
+    /* Inputs */
+    .input {
+      width: 100%; padding: 11px 14px;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: var(--r-md); color: var(--text-primary);
+      font-family: 'Inter', sans-serif; font-size: 14px;
+      transition: all 0.2s; outline: none; resize: vertical;
+    }
+    .input:focus { border-color: rgba(124,58,237,0.5); background: rgba(255,255,255,0.07); box-shadow: 0 0 0 3px rgba(124,58,237,0.12) }
+    .input::placeholder { color: var(--text-muted) }
+    textarea.input { min-height: 72px }
+    /* Buttons */
+    .btn {
+      padding: 11px 20px; border-radius: var(--r-md); border: none; cursor: pointer;
+      font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+      transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-1), #6366f1);
+      color: white; box-shadow: 0 4px 15px rgba(124,58,237,0.35);
+    }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,0.45) }
+    .btn-primary:active { transform: none }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none }
+    /* Badges */
+    .badge {
+      padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+      display: inline-block;
+    }
+    .badge-none { background: rgba(100,116,139,0.2); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3) }
+    .badge-mild { background: rgba(234,179,8,0.15); color: #fde047; border: 1px solid rgba(234,179,8,0.3) }
+    .badge-moderate { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.3) }
+    .badge-high { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3) }
+    .badge-critical { background: rgba(147,51,234,0.2); color: #c084fc; border: 1px solid rgba(147,51,234,0.4) }
+    /* Error / Empty */
+    .error-box { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: var(--r-md); padding: 12px 16px; color: #fca5a5; font-size: 13px; line-height: 1.5 }
+    .empty-state { text-align: center; color: var(--text-muted); font-size: 14px; padding: 32px 0 }
+    /* Section label */
+    .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted) }
+    /* Search results */
+    .search-results { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px }
+    .search-chip {
+      padding: 8px 14px; border-radius: var(--r-md); background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border); font-size: 13px; font-weight: 500;
+      color: var(--text-secondary); transition: all 0.2s; cursor: default;
+    }
+    .search-chip:hover { border-color: rgba(124,58,237,0.4); color: var(--text-primary); background: rgba(124,58,237,0.1) }
+    /* Pair row */
+    .pair-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap }
+    .pair-cross { font-size: 20px; font-weight: 700; color: var(--text-muted); flex-shrink: 0 }
+    /* Interaction result */
+    .interaction-result {
+      margin-top: 20px; padding: 20px; border-radius: var(--r-lg);
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border); animation: fadeSlideIn 0.35s ease;
+    }
+    /* Score bar */
+    .score-bar-wrap { height: 6px; border-radius: 99px; background: rgba(255,255,255,0.08); overflow: hidden }
+    .score-bar { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(.25,.46,.45,.94) }
+    /* Mechip */
+    .mechip {
+      display: inline-block; padding: 3px 10px; border-radius: 99px; margin: 3px 3px 0 0;
+      background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.25);
+      color: #a5b4fc; font-size: 11px; font-weight: 500;
+    }
+    /* Matrix */
+    .matrix-table { border-collapse: collapse; width: 100%; font-size: 12px }
+    .matrix-table th, .matrix-table td { padding: 8px 12px; text-align: center; border: 1px solid rgba(255,255,255,0.06); border-radius: 4px }
+    .matrix-table thead th { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.04em }
+    .cell-self { color: var(--text-muted) !important; background: rgba(255,255,255,0.02) !important }
+    .cell-empty { color: var(--text-muted) }
+    .cell-low { background: rgba(34,197,94,0.12); color: #86efac; font-weight: 600 }
+    .cell-mild { background: rgba(234,179,8,0.12); color: #fde047; font-weight: 600 }
+    .cell-medium { background: rgba(249,115,22,0.12); color: #fb923c; font-weight: 600 }
+    .cell-high { background: rgba(239,68,68,0.15); color: #f87171; font-weight: 700 }
+    .cell-critical { background: rgba(147,51,234,0.18); color: #c084fc; font-weight: 700 }
+    /* Alert list */
+    .alert-list { display: flex; flex-direction: column; gap: 8px }
+    .alert-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--r-md); background: rgba(255,255,255,0.03); border: 1px solid var(--border) }
+    /* Compound grid */
+    .compound-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px }
+    .compound-card { padding: 16px; border-radius: var(--r-lg); background: var(--bg-card); border: 1px solid var(--border); transition: all 0.2s }
+    .compound-card:hover { border-color: var(--border-hover); transform: translateY(-1px); box-shadow: var(--shadow-card) }
+    /* Legend */
+    .legend { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 20px }
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg) } }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite }
+    /* Animations */
+    @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+    /* Responsive */
+    @media (max-width: 540px) {
+      .pair-row { flex-direction: column }
+      .pair-cross { display: none }
+      .tabs { flex-wrap: wrap }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- CDN React + ReactDOM -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- HTM for JSX-like syntax without build step -->
+<script src="https://unpkg.com/htm@3/dist/htm.js"></script>
+
+<script>
+const { useState, useEffect, useRef } = React;
+const html = htm.bind(React.createElement);
+const API = 'http://localhost:8000/api';
+
+// ── API helpers ──────────────────────────────────────────────────────────────
+async function j(res) {
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    let msg = text;
+    try { const b = JSON.parse(text); msg = (b && (b.detail || b.message)) || JSON.stringify(b) } catch {}
+    throw new Error(`HTTP ${res.status}: ${msg || res.statusText}`);
+  }
+  return res.json();
+}
+const apiSearch = async q => j(await fetch(`${API}/search?q=${encodeURIComponent(q)}`));
+const apiCompounds = async () => j(await fetch(`${API}/compounds`));
+const apiInteraction = async (a, b) => j(await fetch(`${API}/interaction?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`));
+const apiStack = async items => j(await fetch(`${API}/stack/check`, { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({items}) }));
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function sevBadge(s) {
+  const k = (s||'').toLowerCase();
+  if (k==='none'||k==='low') return 'badge badge-none';
+  if (k==='mild') return 'badge badge-mild';
+  if (k==='moderate'||k==='medium') return 'badge badge-moderate';
+  if (k==='high'||k==='severe') return 'badge badge-high';
+  if (k==='critical') return 'badge badge-critical';
+  return 'badge badge-none';
+}
+function cellClass(b) {
+  if (!b) return 'cell-empty';
+  const k = b.toLowerCase();
+  if (k==='low'||k==='none') return 'cell-low';
+  if (k==='mild') return 'cell-mild';
+  if (k==='medium'||k==='moderate') return 'cell-medium';
+  if (k==='high'||k==='severe') return 'cell-high';
+  if (k==='critical') return 'cell-critical';
+  return 'cell-empty';
+}
+function scoreColor(s) {
+  if (s<=0.3) return '#22c55e';
+  if (s<=0.9) return '#eab308';
+  if (s<=1.8) return '#f97316';
+  if (s<=2.7) return '#ef4444';
+  return '#9333ea';
+}
+function classEmoji(cls) {
+  const m = { amino_acid:'🧬',amino_acid_derivative:'🧬',stimulant:'⚡',mineral:'💎',fatty_acid:'🐟',fat_soluble_vitamin:'☀️',water_soluble_vitamin:'🍊',adaptogen:'🌿',hormone:'🌙',antioxidant:'🛡️',alkaloid:'🍃',mushroom:'🍄',neurotransmitter:'🧠',macronutrient:'💪',microbiome:'🦠',protein:'💪' };
+  return m[cls] || '💊';
+}
+
+// ── Components ────────────────────────────────────────────────────────────────
+function Spinner() { return html`<span class="spinner" />`; }
+
+function CompoundCard({ c }) {
+  return html`
+    <div class="compound-card">
+      <div style=${{display:'flex',alignItems:'flex-start',gap:10,marginBottom:8}}>
+        <span style=${{fontSize:26}}>${classEmoji(c.compound_class)}</span>
+        <div style=${{flex:1}}>
+          <div style=${{fontWeight:700,fontSize:14,color:'var(--text-primary)'}}>${c.name}</div>
+          <div style=${{fontSize:11,color:'var(--text-muted)',marginTop:2,textTransform:'capitalize'}}>
+            ${c.compound_class.replace(/_/g,' ')} · ${c.route}
+          </div>
+        </div>
+        ${c.qt_risk && c.qt_risk.toLowerCase()!=='nan' && c.qt_risk.trim()!=='' && html`
+          <span class="badge badge-mild" title="QT prolongation risk">⚠️ QT</span>
+        `}
+      </div>
+      ${c.common_dose && c.common_dose!=='nan' && html`
+        <div style=${{fontSize:12,color:'var(--text-secondary)',marginTop:4}}>
+          <span style=${{color:'var(--text-muted)'}}>Dose: </span>${c.common_dose}
+        </div>
+      `}
+      ${c.notes && c.notes!=='nan' && c.notes.trim()!=='' && html`
+        <div style=${{fontSize:12,color:'var(--text-secondary)',marginTop:6,lineHeight:1.5}}>${c.notes}</div>
+      `}
+      ${c.synonyms && c.synonyms.length>0 && html`
+        <div style=${{marginTop:8,display:'flex',flexWrap:'wrap',gap:4}}>
+          ${c.synonyms.slice(0,3).map((s,i) => html`
+            <span key=${i} style=${{fontSize:10,padding:'2px 7px',borderRadius:99,background:'rgba(255,255,255,0.05)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>${s}</span>
+          `)}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function InteractionResult({ data }) {
+  const { pair, interaction: ix } = data;
+  const mechs = ix.mechanism_tags ? ix.mechanism_tags.split(';').map(m=>m.trim()).filter(Boolean) : [];
+  const pct = Math.min(100, (ix.score/3.5)*100);
+  return html`
+    <div class="interaction-result">
+      <div style=${{display:'flex',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'}}>
+        <span style=${{fontFamily:'Space Grotesk, sans-serif',fontWeight:700,fontSize:17}}>
+          ${pair.a} <span style=${{color:'var(--text-muted)'}}>×</span> ${pair.b}
+        </span>
+        <span class=${sevBadge(ix.severity)}>⬤ ${ix.severity||'None'}</span>
+        <span class=${sevBadge(ix.bucket)} style=${{marginLeft:'auto'}}>${ix.bucket}</span>
+        <span style=${{fontSize:12,color:'var(--text-muted)'}}>Grade ${ix.evidence_grade||'—'}</span>
+      </div>
+      ${ix.effect_summary && html`
+        <p style=${{fontSize:14,color:'var(--text-secondary)',lineHeight:1.6,marginBottom:12}}>${ix.effect_summary}</p>
+      `}
+      <div style=${{padding:'10px 14px',borderRadius:'var(--r-md)',background:'rgba(6,182,212,0.07)',border:'1px solid rgba(6,182,212,0.15)',marginBottom:12}}>
+        <span style=${{fontSize:12,color:'var(--text-muted)'}}>Recommended action: </span>
+        <span style=${{fontSize:13,fontWeight:600,color:'#67e8f9'}}>${ix.action_resolved}</span>
+      </div>
+      <div style=${{marginBottom:12}}>
+        <div style=${{display:'flex',justifyContent:'space-between',fontSize:12,color:'var(--text-muted)',marginBottom:4}}>
+          <span>Risk score</span>
+          <span style=${{fontWeight:600,color:scoreColor(ix.score)}}>${ix.score.toFixed(2)}</span>
+        </div>
+        <div class="score-bar-wrap">
+          <div class="score-bar" style=${{width:`${pct}%`,background:scoreColor(ix.score)}} />
+        </div>
+      </div>
+      ${mechs.length>0 && html`
+        <div style=${{marginBottom:12}}>
+          <div class="section-label" style=${{marginBottom:6}}>Mechanisms</div>
+          ${mechs.map((m,i) => html`<span key=${i} class="mechip">${m.replace(/_/g,' ')}</span>`)}
+        </div>
+      `}
+      ${ix.sources && ix.sources.length>0 && html`
+        <details style=${{marginTop:8}}>
+          <summary style=${{cursor:'pointer',fontSize:13,color:'var(--text-secondary)',fontWeight:500}}>
+            📚 ${ix.sources.length} source${ix.sources.length>1?'s':''}
+          </summary>
+          <ul style=${{marginTop:8,paddingLeft:16,display:'flex',flexDirection:'column',gap:6}}>
+            ${ix.sources.map((s,i) => html`
+              <li key=${i} style=${{fontSize:12,color:'var(--text-secondary)',lineHeight:1.5}}>
+                ${s.citation||s.title}
+                ${s.identifier && html`<span style=${{color:'var(--accent-2)',marginLeft:6}}>${s.identifier}</span>`}
+                ${s.date && html`<span style=${{color:'var(--text-muted)',marginLeft:6}}>(${s.date})</span>`}
+              </li>
+            `)}
+          </ul>
+        </details>
+      `}
+    </div>
+  `;
+}
+
+function SearchTab() {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const doSearch = async () => {
+    if (!q.trim()) return;
+    setLoading(true); setError('');
+    try { const d = await apiSearch(q); setResults(d.compounds||[]); }
+    catch(e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  return html`
+    <div>
+      <div style=${{display:'flex',gap:10}}>
+        <input class="input" value=${q} onInput=${e=>setQ(e.target.value)}
+          placeholder="Search by name, synonym or ID… e.g. magnesium"
+          onKeyDown=${e=>e.key==='Enter'&&doSearch()} />
+        <button id="search-btn" class="btn btn-primary" onClick=${doSearch} disabled=${loading}>
+          ${loading ? html`<${Spinner}/>` : '🔍 Search'}
+        </button>
+      </div>
+      ${error && html`<div class="error-box" style=${{marginTop:12}}>${error}</div>`}
+      ${results.length===0&&!loading&&q&&!error && html`<div class="empty-state">No compounds found for "<strong>${q}</strong>"</div>`}
+      <div class="search-results">
+        ${results.map(r => html`
+          <div key=${r.id} class="search-chip" title=${(r.synonyms||[]).join(' · ')}>
+            💊 ${r.name}
+            <span style=${{marginLeft:6,fontSize:11,color:'var(--text-muted)'}}>(${ r.id})</span>
+          </div>
+        `)}
+      </div>
+    </div>
+  `;
+}
+
+function PairTab() {
+  const [a, setA] = useState('caffeine');
+  const [b, setB] = useState('magnesium');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const check = async () => {
+    if (!a.trim()||!b.trim()) return;
+    setLoading(true); setError(''); setResult(null);
+    try { setResult(await apiInteraction(a.trim(), b.trim())); }
+    catch(e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  return html`
+    <div>
+      <div class="pair-row">
+        <input id="pair-a" class="input" value=${a} onInput=${e=>setA(e.target.value)}
+          placeholder="Compound A — e.g. caffeine" onKeyDown=${e=>e.key==='Enter'&&check()} />
+        <div class="pair-cross">×</div>
+        <input id="pair-b" class="input" value=${b} onInput=${e=>setB(e.target.value)}
+          placeholder="Compound B — e.g. magnesium" onKeyDown=${e=>e.key==='Enter'&&check()} />
+        <button id="pair-check-btn" class="btn btn-primary" onClick=${check} disabled=${loading}>
+          ${loading ? html`<${Spinner}/>` : 'Check'}
+        </button>
+      </div>
+      ${error && html`<div class="error-box" style=${{marginTop:12}}>${error}</div>`}
+      ${result && html`<${InteractionResult} data=${result} />`}
+    </div>
+  `;
+}
+
+function StackTab() {
+  const [stackText, setStackText] = useState('caffeine, magnesium, creatine, l_theanine, omega3, vitamin_d');
+  const [stack, setStack] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [hoveredCell, setHoveredCell] = useState(null);
+
+  const compute = async () => {
+    const items = stackText.split(',').map(s=>s.trim()).filter(Boolean);
+    if (items.length<2) { setError('Enter at least 2 compounds'); return; }
+    setLoading(true); setError(''); setStack(null); setHoveredCell(null);
+    try { setStack(await apiStack(items)); }
+    catch(e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const concerning = stack ? stack.cells.filter(c=>c.bucket!=='Low'&&c.bucket!=='None') : [];
+
+  return html`
+    <div>
+      <div class="section-label">Compound IDs, comma-separated</div>
+      <textarea id="stack-input" class="input" style=${{marginTop:8}} value=${stackText}
+        onInput=${e=>setStackText(e.target.value)} rows=${2}
+        placeholder="e.g. caffeine, magnesium, creatine, l_theanine" />
+      <div style=${{marginTop:10}}>
+        <button id="stack-btn" class="btn btn-primary" onClick=${compute} disabled=${loading}>
+          ${loading ? html`<${Spinner}/> Analysing…` : '🧬 Compute Interaction Matrix'}
+        </button>
+      </div>
+      ${error && html`<div class="error-box" style=${{marginTop:12}}>${error}</div>`}
+      ${stack && html`
+        <div style=${{marginTop:20,animation:'fadeSlideIn 0.35s ease'}}>
+          <div class="section-label" style=${{marginBottom:8}}>Interaction Heatmap</div>
+          <div style=${{overflowX:'auto'}}>
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th style=${{textAlign:'left',color:'var(--text-muted)',fontSize:11}}></th>
+                  ${stack.items.map((it,i) => html`<th key=${i}>${it}</th>`)}
+                </tr>
+              </thead>
+              <tbody>
+                ${stack.items.map((row,i) => html`
+                  <tr key=${i}>
+                    <th style=${{textAlign:'right',color:'var(--text-secondary)',fontSize:12,padding:'8px 12px',fontWeight:600}}>${row}</th>
+                    ${stack.matrix[i].map((cell,j) => {
+                      if (i===j) return html`<td key=${j} class="cell-self">—</td>`;
+                      const mc = stack.cells.find(c=>(c.a===stack.items[i]&&c.b===stack.items[j])||(c.b===stack.items[i]&&c.a===stack.items[j]));
+                      if (cell===null) return html`<td key=${j} class="cell-empty">—</td>`;
+                      return html`
+                        <td key=${j} class=${cellClass(mc?.bucket)}
+                          onMouseEnter=${()=>setHoveredCell(mc||null)}
+                          onMouseLeave=${()=>setHoveredCell(null)}
+                          title=${mc?.effect_summary||''}>
+                          ${cell.toFixed(2)}
+                        </td>
+                      `;
+                    })}
+                  </tr>
+                `)}
+              </tbody>
+            </table>
+          </div>
+          ${hoveredCell && html`
+            <div style=${{marginTop:12,padding:'10px 14px',borderRadius:'var(--r-md)',background:'rgba(124,58,237,0.08)',border:'1px solid rgba(124,58,237,0.2)',fontSize:13,color:'var(--text-secondary)',animation:'fadeSlideIn 0.15s ease'}}>
+              <strong style=${{color:'var(--text-primary)'}}>${hoveredCell.a} × ${hoveredCell.b}: </strong>
+              ${hoveredCell.effect_summary||hoveredCell.action}
+            </div>
+          `}
+          ${concerning.length>0 && html`
+            <div style=${{marginTop:20}}>
+              <div class="section-label" style=${{marginBottom:8}}>⚠️ Interactions to watch</div>
+              <div class="alert-list">
+                ${concerning.sort((a,b)=>b.score-a.score).map((c,i) => html`
+                  <div key=${i} class="alert-item">
+                    <span class=${sevBadge(c.bucket)} style=${{flexShrink:0}}>${c.bucket}</span>
+                    <div>
+                      <div style=${{fontWeight:600,fontSize:13,marginBottom:2}}>${c.a} × ${c.b}</div>
+                      ${c.effect_summary && html`<div style=${{color:'var(--text-secondary)',fontSize:12,lineHeight:1.5}}>${c.effect_summary}</div>`}
+                      <div style=${{marginTop:4,fontSize:12,color:'#67e8f9'}}>→ ${c.action}</div>
+                    </div>
+                    <span style=${{marginLeft:'auto',fontSize:12,fontWeight:700,color:scoreColor(c.score),flexShrink:0}}>${c.score.toFixed(2)}</span>
+                  </div>
+                `)}
+              </div>
+            </div>
+          `}
+          ${concerning.length===0 && html`
+            <div style=${{marginTop:16,padding:'14px',borderRadius:'var(--r-md)',background:'rgba(34,197,94,0.07)',border:'1px solid rgba(34,197,94,0.2)',color:'#86efac',fontSize:13,textAlign:'center'}}>
+              ✅ No significant interactions found in this stack
+            </div>
+          `}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function LibraryTab() {
+  const [compounds, setCompounds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('');
+
+  useEffect(() => {
+    apiCompounds()
+      .then(d => setCompounds(d.compounds||[]))
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const visible = filter
+    ? compounds.filter(c =>
+        c.name.toLowerCase().includes(filter.toLowerCase()) ||
+        c.id.toLowerCase().includes(filter.toLowerCase()) ||
+        c.compound_class.toLowerCase().includes(filter.toLowerCase())
+      )
+    : compounds;
+
+  return html`
+    <div>
+      <input id="library-filter" class="input" value=${filter}
+        onInput=${e=>setFilter(e.target.value)}
+        placeholder="Filter by name, ID or class…" style=${{marginBottom:16}} />
+      ${loading && html`<div class="empty-state"><${Spinner}/> Loading library…</div>`}
+      ${error && html`<div class="error-box">${error}</div>`}
+      ${!loading && !error && html`
+        <div>
+          <div style=${{fontSize:12,color:'var(--text-muted)',marginBottom:12}}>${visible.length} compounds</div>
+          <div class="compound-grid">
+            ${visible.map(c => html`<${CompoundCard} key=${c.id} c=${c} />`)}
+          </div>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function Legend() {
+  const items = [
+    {cls:'badge-none',label:'None / Low'},
+    {cls:'badge-mild',label:'Mild'},
+    {cls:'badge-moderate',label:'Moderate'},
+    {cls:'badge-high',label:'High / Severe'},
+  ];
+  return html`
+    <div class="legend">
+      <span style=${{fontSize:11,color:'var(--text-muted)',fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>Risk:</span>
+      ${items.map(it => html`<span key=${it.cls} class=${'badge '+it.cls} style=${{fontSize:11}}>${it.label}</span>`)}
+    </div>
+  `;
+}
+
+function App() {
+  const [tab, setTab] = useState('pair');
+  const tabs = [
+    {id:'search', label:'Search', icon:'🔍'},
+    {id:'pair', label:'Pair Checker', icon:'⚗️'},
+    {id:'stack', label:'Stack Analyser', icon:'🧬'},
+    {id:'library', label:'Library', icon:'📚'},
+  ];
+
+  return html`
+    <div>
+      <header class="header">
+        <div class="header-logo">⚗️ SuppTracker</div>
+        <p class="header-sub">Science-backed supplement interaction analysis</p>
+      </header>
+      <${Legend}/>
+      <div class="tabs" style=${{marginBottom:20}}>
+        ${tabs.map(t => html`
+          <button key=${t.id} id=${'tab-'+t.id} class=${'tab'+(tab===t.id?' active':'')} onClick=${()=>setTab(t.id)}>
+            ${t.icon} ${t.label}
+          </button>
+        `)}
+      </div>
+      <div class="card" style=${{padding:24}}>
+        ${tab==='search' && html`<${SearchTab}/>`}
+        ${tab==='pair' && html`<${PairTab}/>`}
+        ${tab==='stack' && html`<${StackTab}/>`}
+        ${tab==='library' && html`<${LibraryTab}/>`}
+      </div>
+      <footer style=${{textAlign:'center',marginTop:40,color:'var(--text-muted)',fontSize:12,lineHeight:1.6}}>
+        SuppTracker is for informational purposes only and does not constitute medical advice.<br/>
+        Always consult a qualified healthcare professional before changing your supplement regimen.
+      </footer>
+    </div>
+  `;
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

@@ -8,7 +8,26 @@ export default defineConfig({
 		include: ['react', 'react-dom'],
 	},
 	server: {
-		port: 5173,
+		port: 5174,
+		watch: {
+			// Exclude large binary files, zip archives, and non-source dirs
+			// from the file watcher to prevent freezes on this machine
+			ignored: [
+				'**/node_portable/**',
+				'**/supptracker-improved/**',
+				'**/__pycache__/**',
+				'**/data/**',
+				'**/backend/**',
+				'**/tests/**',
+				'**/.git/**',
+				'**/*.zip',
+				'**/*.py',
+				'**/*.csv',
+				'**/*.pdf',
+				'**/*.sh',
+				'**/*.bat',
+			]
+		},
 		proxy: {
 			// proxy the API endpoints used by the frontend
 			'/search': { target: 'http://localhost:8000', changeOrigin: true },
