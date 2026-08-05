@@ -27,6 +27,11 @@
 
   "postCreateCommand": "bash .devcontainer/post-create.sh",
 
+  // pip installs console scripts (uvicorn, pytest, httpx) into ~/.local/bin,
+  // which isn't on PATH by default in the ssh/terminal shell. Add it so
+  // `uvicorn`/`pytest` work directly (not just via `python -m`).
+  "remoteEnv": { "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin" },
+
   // Useful if you ever open the same Codespace in browser VS Code instead of Gateway.
   "customizations": {
     "vscode": {
