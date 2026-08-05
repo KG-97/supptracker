@@ -1,0 +1,39 @@
+id,name,synonyms,class,route,common_dose,qt_risk,notes
+creatine,Creatine,Creapure|creatine monohydrate|N-amidinosarcosine,amino_acid_derivative,oral,3–5 g/day loading 20 g/day,,Enhances ATP regeneration in muscle
+caffeine,Caffeine,"1,3,7-trimethylxanthine|coffee|guarana|matcha",stimulant,oral,100–200 mg,low,CNS stimulant; half-life 3–5 h
+magnesium,Magnesium,Mg|magnesium citrate|magnesium glycinate|magnesium malate,mineral,oral,200–400 mg,,Essential electrolyte; enzymatic cofactor
+omega3,Omega-3 Fatty Acids,EPA|DHA|fish oil|krill oil,fatty_acid,oral,1–3 g EPA+DHA/day,,Cardiovascular and anti-inflammatory benefits
+vitamin_d,Vitamin D3,cholecalciferol|D3|calcitriol,fat_soluble_vitamin,oral,1000–5000 IU/day,,"Bone health, immune modulation"
+zinc,Zinc,Zn|zinc gluconate|zinc picolinate|zinc citrate,mineral,oral,8–25 mg/day,,"Immune function, testosterone support"
+ashwagandha,Ashwagandha,Withania somnifera|KSM-66|Sensoril|Indian ginseng,adaptogen,oral,300–600 mg/day,,Adaptogen; reduces cortisol
+l_theanine,L-Theanine,theanine|gamma-ethylamino-L-glutamic acid,amino_acid,oral,100–400 mg,,Promotes calm focus; synergizes with caffeine
+melatonin,Melatonin,N-acetyl-5-methoxytryptamine|mel,hormone,oral,0.5–5 mg,,Circadian rhythm regulator
+nac,N-Acetyl Cysteine,NAC|acetylcysteine,antioxidant,oral,600–1800 mg/day,,Glutathione precursor; mucolytic
+berberine,Berberine,berberine HCl|berberis,alkaloid,oral,500 mg 3×/day,,AMPK activator; blood glucose support
+lions_mane,Lion's Mane,Hericium erinaceus|yamabushitake,mushroom,oral,500–1000 mg/day,,NGF support; cognitive function
+rhodiola,Rhodiola Rosea,golden root|arctic root|salidroside,adaptogen,oral,200–600 mg/day,,Adaptogen; anti-fatigue
+vitamin_c,Vitamin C,ascorbic acid|L-ascorbate,water_soluble_vitamin,oral,500–2000 mg/day,,Antioxidant; immune support
+iron,Iron,ferrous sulfate|ferrous gluconate|ferric|heme iron,mineral,oral,8–18 mg/day (RDA),,Heme and non-heme; absorption inhibited by many compounds
+b12,Vitamin B12,cobalamin|methylcobalamin|cyanocobalamin|adenosylcobalamin,water_soluble_vitamin,oral,500–2000 mcg/day,,Neurological function; energy metabolism
+coq10,Coenzyme Q10,CoQ10|ubiquinol|ubiquinone,antioxidant,oral,100–300 mg/day,,Mitochondrial electron transport chain
+collagen,Collagen Peptides,hydrolyzed collagen|collagen type I|bovine collagen,protein,oral,10–20 g/day,,Connective tissue support; requires vitamin C
+protein,Whey Protein,whey isolate|whey concentrate|casein,macronutrient,oral,25–50 g/day,,Muscle protein synthesis
+gaba,GABA,gamma-aminobutyric acid,neurotransmitter,oral,250–750 mg,,Inhibitory neurotransmitter; poor BBB penetration
+probiotics,Probiotics,Lactobacillus|Bifidobacterium|CFU,microbiome,oral,10–100 billion CFU,,Gut microbiome support
+5htp,5-HTP,5-hydroxytryptophan|oxitriptan,amino_acid_derivative,oral,50–200 mg,,Serotonin precursor; mood and sleep
+vitamin-k2-mk7,Vitamin K2 (MK-7),menaquinone-7|vitamin k2,vitamin,oral,90–180 mcg/day,,Often paired with Vitamin D3; interacts with anticoagulants.
+curcumin,Curcumin,turmeric extract|curcuminoids|bcM-95|meriva,polyphenol,oral,500–1000 mg/day (enhanced bioavailability),,Often combined with piperine or phospholipids for absorption.
+ginger,Ginger,zingiber officinale|gingerol|shogaol,herb,oral,1–2 g/day,Low,May have mild antiplatelet effects.
+green-tea-extract,Green Tea Extract (EGCG),egcg|camellia sinensis,polyphenol,oral,200–400 mg EGCG/day,,Take with food to reduce GI discomfort.
+niacin,Niacin (Vitamin B3),nicotinic acid|niacinamide|nicotinamide,vitamin,oral,16–100 mg/day (varies by form),Low,Nicotinic acid may cause flushing; extended-release cautions apply.
+alpha-gpc,Alpha-GPC,l-alpha glycerylphosphorylcholine|alpha glycerylphosphorylcholine,choline donor,oral,300–600 mg/day,,Choline donors may cause fishy odor at high doses.
+bacopa,Bacopa Monnieri,bacopa monnieri|brahmi|bacosides,herb nootropic,oral,300–600 mg/day (standardized),,GI upset possible; take with food.
+ginkgo,Ginkgo Biloba,ginkgo biloba|ginkgoflavone glycosides|terpene lactones,herb,oral,120–240 mg/day,,Potential antiplatelet effects; check extract standardization.
+resveratrol,Resveratrol,trans-resveratrol|polygonum cuspidatum extract,polyphenol,oral,100–500 mg/day,,Bioavailability is limited; take away from iron.
+chromium-picolinate,Chromium Picolinate,chromium(III) picolinate|chromium,mineral,oral,200–400 mcg/day,Low,Monitor if on glucose-lowering medication.
+glucosamine,Glucosamine,glucosamine sulfate|glucosamine hcl,amino sugar,oral,1500 mg/day,Low,Often combined with chondroitin; shellfish allergy caution for some forms.
+chondroitin,Chondroitin,chondroitin sulfate,glycosaminoglycan,oral,800–1200 mg/day,Low,Often combined with glucosamine.
+msm,MSM (Methylsulfonylmethane),methylsulfonylmethane|dimethyl sulfone,organosulfur,oral,1500–3000 mg/day,Low,Frequently paired with glucosamine/chondroitin.
+beta-alanine,Beta-Alanine,β-alanine,amino acid,oral,3.2–6.4 g/day (split),Low,Paresthesia (tingles) is benign; split doses.
+l-citrulline,L-Citrulline,citrulline malate|l-citrulline dl-malate,amino acid,oral,3–8 g pre-workout,Low,Malate form commonly used in sports nutrition.
+taurine,Taurine,2-aminoethanesulfonic acid,amino acid derivative,oral,500–2000 mg/day,Low,Often included in energy drinks; generally well tolerated.

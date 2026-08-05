@@ -1,0 +1,51 @@
+id,title,citation,identifier,date
+SRC1,Caffeine and Magnesium Absorption,Bergman EA et al. Effects of dietary caffeine on renal handling of magnesium. J Am Coll Nutr.,PMID:9463246,1990
+SRC2,Caffeine and Creatine Performance,Vandenberghe K et al. Caffeine counteracts ergogenic action of muscle creatine loading. J Appl Physiol.,PMID:8887211,1996
+SRC3,Caffeine and L-Theanine Synergy,Owen GN et al. The combined effects of L-theanine and caffeine on cognitive performance. Nutr Neurosci.,PMID:18681988,2008
+SRC4,Iron and Vitamin C Absorption,Lynch SR & Cook JD. Interaction of vitamin C and iron. Ann N Y Acad Sci.,PMID:6940487,1980
+SRC5,Iron and Caffeine Inhibition,Hurrell RF et al. Inhibition of non-haem-iron absorption in man by polyphenolic-containing beverages. Br J Nutr.,PMID:10500781,1999
+SRC6,Zinc and Iron Competition,Sandstrom B. Micronutrient interactions: effects on absorption and bioavailability. Br J Nutr.,PMID:11375453,2001
+SRC7,Magnesium and Vitamin D Synergy,Uwitonze AM & Razzaque MS. Role of magnesium in vitamin D activation and function. J Am Osteopath Assoc.,PMID:29480918,2018
+SRC8,Berberine and Glucose Metabolism,Yin J et al. Efficacy of berberine in patients with type 2 diabetes mellitus. Metabolism.,PMID:18442638,2008
+SRC9,NAC and Antioxidant Network,Rushworth GF & Megson IL. Existing and potential therapeutic uses for NAC. Pharmacol Ther.,PMID:24080471,2014
+SRC10,5-HTP and Serotonin Syndrome Risk,Birdsall TC. 5-Hydroxytryptophan: a clinically-effective serotonin precursor. Altern Med Rev.,PMID:9727088,1998
+SRC11,Ashwagandha and Thyroid,Gannon JM et al. Subtle changes in thyroid indices during a placebo-controlled study of an extract of Withania somnifera in persons with bipolar disorder. J Ayurveda Integr Med.,PMID:24812452,2014
+SRC12,CoQ10 and Statin Interaction,Littarru GP & Langsjoen P. Coenzyme Q10 and statins. Mitochondrion.,PMID:17287107,2007
+SRC13,Melatonin and Caffeine,Wright KP et al. Caffeine and light effects on nighttime melatonin and temperature levels. Science.,PMID:9421480,1997
+SRC14,Rhodiola and Adaptogenic Synergy,Panossian A & Wikman G. Effects of adaptogens on the CNS. Pharmaceuticals.,PMID:21072190,2010
+SRC15,Omega-3 and Vitamin D Co-absorption,Dawson-Hughes B et al. Dietary fat increases vitamin D-3 absorption. J Acad Nutr Diet.,PMID:25661189,2015
+SRC16,Zinc and Magnesium Competition,Coudray C et al. Study of magnesium bioavailability from mineral water and magnesium oxide. Eur J Clin Nutr.,PMID:15164101,2005
+SRC17,Caffeine and Melatonin Suppression,Shilo L et al. The effects of coffee consumption on sleep and melatonin secretion. Sleep Med.,PMID:12231420,2002
+SRC18,Collagen and Vitamin C Synthesis,Shaw G et al. Vitamin C-enriched gelatin supplementation before intermittent activity augments collagen synthesis. Am J Clin Nutr.,PMID:27852613,2017
+SRC19,Probiotics and Iron Absorption,Hoppe M et al. The effect of including a probiotic on iron absorption. Eur J Clin Nutr.,PMID:26219417,2015
+SRC20,Berberine and Drug Interactions,Guo Y et al. Interactions of berberine with commonly used drugs via CYP450. Biomed Pharmacother.,PMID:25172286,2014
+examine:alpha-gpc,Examine — Alpha Gpc,Examine.com reference page,supplements/alpha-gpc,
+examine:ashwagandha,Examine — Ashwagandha,Examine.com reference page,supplements/ashwagandha,
+examine:bacopa,Examine — Bacopa,Examine.com reference page,supplements/bacopa-monnieri,
+examine:berberine,Examine — Berberine,Examine.com reference page,supplements/berberine,
+examine:beta-alanine,Examine — Beta Alanine,Examine.com reference page,supplements/beta-alanine,
+examine:caffeine,Examine — Caffeine,Examine.com reference page,supplements/caffeine,
+examine:chondroitin,Examine — Chondroitin,Examine.com reference page,supplements/chondroitin,
+examine:chromium-picolinate,Examine — Chromium Picolinate,Examine.com reference page,supplements/chromium,
+examine:coq10,Examine — Coq10,Examine.com reference page,supplements/coenzyme-q10,
+examine:creatine,Examine — Creatine,Examine.com reference page,supplements/creatine,
+examine:curcumin,Examine — Curcumin,Examine.com reference page,supplements/curcumin,
+examine:fish-oil,Examine — Fish Oil,Examine.com reference page,supplements/fish-oil,
+examine:ginger,Examine — Ginger,Examine.com reference page,supplements/ginger,
+examine:ginkgo,Examine — Ginkgo,Examine.com reference page,supplements/ginkgo-biloba,
+examine:glucosamine,Examine — Glucosamine,Examine.com reference page,supplements/glucosamine,
+examine:green-tea-extract,Examine — Green Tea Extract,Examine.com reference page,supplements/green-tea-extract,
+examine:l-citrulline,Examine — L Citrulline,Examine.com reference page,supplements/citrulline,
+examine:l-theanine,Examine — L Theanine,Examine.com reference page,supplements/theanine,
+examine:magnesium,Examine — Magnesium,Examine.com reference page,supplements/magnesium,
+examine:melatonin,Examine — Melatonin,Examine.com reference page,supplements/melatonin,
+examine:msm,Examine — Msm,Examine.com reference page,supplements/msm,
+examine:nac,Examine — Nac,Examine.com reference page,supplements/n-acetylcysteine,
+examine:niacin,Examine — Niacin,Examine.com reference page,supplements/niacin,
+examine:resveratrol,Examine — Resveratrol,Examine.com reference page,supplements/resveratrol,
+examine:rhodiola,Examine — Rhodiola,Examine.com reference page,supplements/rhodiola-rosea,
+examine:taurine,Examine — Taurine,Examine.com reference page,supplements/taurine,
+examine:vitamin-b12,Examine — Vitamin B12,Examine.com reference page,supplements/vitamin-b12,
+examine:vitamin-d3,Examine — Vitamin D3,Examine.com reference page,supplements/vitamin-d,
+examine:vitamin-k2-mk7,Examine — Vitamin K2 Mk7,Examine.com reference page,supplements/vitamin-k,
+examine:zinc,Examine — Zinc,Examine.com reference page,supplements/zinc,

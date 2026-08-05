@@ -1,0 +1,46 @@
+compound_a,compound_b,severity,evidence_grade,mechanism_tags,effect_summary,action,source_ids
+caffeine,magnesium,Mild,B,absorption_competition,"Caffeine increases urinary magnesium excretion, reducing magnesium status with chronic high intake.",Take magnesium 2+ hours away from caffeine,SRC1
+caffeine,creatine,None,B,ergogenic_synergy,Acute caffeine may blunt creatine-loading phosphocreatine gains; no effect with chronic co-supplementation.,No action needed for maintenance doses,SRC2
+magnesium,creatine,None,D,none,No significant interaction known.,,SRC1
+caffeine,l_theanine,None,A,cns_synergy,L-theanine smooths caffeine's stimulant edge; improves attention and reduces jitteriness.,Combine freely — classic nootropic stack,SRC3
+caffeine,melatonin,Moderate,B,circadian_suppression,Caffeine suppresses melatonin secretion by ~3 h and delays sleep onset.,Avoid caffeine within 6 h of bedtime; take melatonin away from caffeine,SRC13;SRC17
+iron,caffeine,Moderate,B,polyphenol_chelation,"Polyphenols and tannins in coffee bind non-heme iron, reducing absorption by up to 60%.",Separate iron and caffeine intake by at least 2 h,SRC5
+iron,vitamin_c,None,A,reduction_chelation,"Vitamin C reduces ferric to ferrous iron and chelates it, increasing non-heme absorption 2–4×.",Take together for maximum iron absorption,SRC4
+zinc,iron,Mild,B,transporter_competition,High-dose zinc competes with iron for DMT-1 intestinal transporters at doses ≥25 mg zinc.,Avoid taking high-dose zinc and iron simultaneously,SRC6
+zinc,magnesium,Mild,B,transporter_competition,High-dose zinc may compete with magnesium for absorption; effect modest at typical doses.,Space apart if using high doses of both,SRC16
+magnesium,vitamin_d,None,A,enzymatic_cofactor,Magnesium is required for vitamin D hydroxylation and activation; deficiency impairs D3 efficacy.,Take together — magnesium enhances vitamin D function,SRC7
+omega3,vitamin_d,None,B,fat_soluble_coabsorption,Both are fat-soluble; omega-3-rich meal increases vitamin D absorption.,Take both with a fat-containing meal,SRC15
+berberine,l_theanine,None,C,metabolic_synergy,Potential additive blood glucose support; limited direct human data.,Can be combined; monitor blood glucose if diabetic,SRC8
+berberine,caffeine,Mild,C,cyp450_inhibition,"Berberine inhibits CYP3A4 and CYP2D6, potentially slowing caffeine metabolism.",May amplify caffeine effects; lower caffeine dose if sensitive,SRC20
+nac,caffeine,None,C,antioxidant_synergy,NAC supports glutathione; no adverse interaction with caffeine documented.,No action needed,SRC9
+5htp,ashwagandha,None,C,serotonin_modulation,Both may raise serotonin indirectly; theoretical serotonin syndrome risk at high doses.,Use normal doses; avoid combining with other serotonergics,SRC10;SRC11
+5htp,melatonin,None,C,sleep_synergy,Both support sleep via different pathways; may stack well at low doses.,Combine at low doses cautiously; avoid high-dose combinations,SRC10
+ashwagandha,rhodiola,None,C,adaptogenic_synergy,Dual adaptogen stack may have additive cortisol-modulating effects.,Generally considered safe to combine,SRC14
+coq10,omega3,None,C,cardiovascular_synergy,Both support mitochondrial and cardiovascular health; no adverse interaction documented.,Beneficial to combine,SRC12
+collagen,vitamin_c,None,A,collagen_synthesis,Vitamin C is essential cofactor for hydroxylation of proline and lysine in collagen synthesis.,Always take vitamin C with collagen for optimal efficacy,SRC18
+probiotics,iron,Mild,B,microbiome_absorption,Certain probiotic strains may slightly improve non-heme iron absorption.,Take together or space by 30 min; generally compatible,SRC19
+zinc,vitamin_d,None,C,immune_synergy,Both support immune function through complementary pathways; no adverse interaction.,Can be taken together,SRC6
+l_theanine,gaba,None,C,gaba_potentiation,L-theanine increases alpha brain waves and GABA receptor activity; additive calming with GABA.,Combine at low-moderate doses for relaxation,SRC3
+gaba,melatonin,None,C,sleep_synergy,GABA reduces sleep onset latency; melatonin regulates circadian timing. Complementary.,Combine at start of sleep routine,SRC10
+caffeine,5htp,Mild,C,serotonin_depletion,Chronic caffeine may deplete serotonin over time; 5-HTP supplementation may offset this.,Consider 5-HTP for long-term high caffeine users,SRC10
+rhodiola,caffeine,None,C,cns_synergy,Rhodiola reduces mental fatigue; may have additive focus effect with caffeine.,Generally safe to combine at normal doses,SRC14
+ashwagandha,melatonin,None,C,cortisol_sleep,Ashwagandha lowers cortisol and may improve sleep quality independently; additive with melatonin.,Good combination for stress/sleep protocol,SRC11
+lions_mane,nac,None,D,neuroprotection,Both support neurological health via different mechanisms; no adverse interaction documented.,Can be combined,SRC9
+protein,creatine,None,A,ergogenic_synergy,Whey protein and creatine together superior to either alone for lean mass gains.,Excellent combination — take post-workout,SRC2
+b12,iron,None,C,methylation_support,Both critical for erythropoiesis; no competition at normal doses.,Can be taken together,SRC4
+caffeine,vitamin_d,None,D,none,No clinically significant interaction documented.,No action needed,SRC1
+omega3,magnesium,None,C,cardiovascular_synergy,Complementary cardiovascular and anti-inflammatory effects; no adverse interaction.,Good combination for cardiovascular health protocol,SRC7
+alpha-gpc,caffeine,None,C,cholinergic;CNS;focus,Related via: cholinergic;CNS;focus,,examine:alpha-gpc;examine:caffeine
+bacopa,ginkgo,None,C,nootropic;attention;memory,Related via: nootropic;attention;memory,,examine:bacopa;examine:ginkgo
+chromium-picolinate,berberine,Mild,C,glucose-metabolism;additive,Potential additive effect on glucose; monitor for lightheadedness.,Potential additive effect on glucose; monitor for lightheadedness.,examine:chromium-picolinate;examine:berberine
+berberine,nac,Mild,C,glucose-metabolism;caution,"If sensitive to glucose changes, monitor response.","If sensitive to glucose changes, monitor response.",examine:berberine;examine:nac
+beta-alanine,l-citrulline,None,B,exercise;buffering;nitric-oxide;synergy,Related via: exercise;buffering;nitric-oxide;synergy,,examine:beta-alanine;examine:l-citrulline
+green-tea-extract,caffeine,None,B,thermogenesis;synergy;CNS,Related via: thermogenesis;synergy;CNS,,examine:green-tea-extract;examine:caffeine
+taurine,caffeine,Mild,C,CNS;stimulant-load;cardiovascular,Monitor total stimulant load; avoid high-dose combinations.,Monitor total stimulant load; avoid high-dose combinations.,examine:taurine;examine:caffeine
+glucosamine,chondroitin,None,B,joint-health;structural;common-combo,Related via: joint-health;structural;common-combo,,examine:glucosamine;examine:chondroitin
+omega3,curcumin,None,C,anti-inflammatory;nfkb;complementary,Related via: anti-inflammatory;nfkb;complementary,,examine:fish-oil;examine:curcumin
+resveratrol,curcumin,None,C,polyphenols;antioxidant;complementary,Related via: polyphenols;antioxidant;complementary,,examine:resveratrol;examine:curcumin
+omega3,ginger,Mild,C,antiplatelet;bleeding-risk;caution,"If bruising occurs, consider spacing or reducing doses.","If bruising occurs, consider spacing or reducing doses.",examine:fish-oil;examine:ginger
+msm,glucosamine,None,C,joint-health;common-combo,Related via: joint-health;common-combo,,examine:msm;examine:glucosamine
+magnesium,melatonin,None,C,sleep;relaxation;cofactor,Related via: sleep;relaxation;cofactor,,examine:magnesium;examine:melatonin
+vitamin_d,vitamin-k2-mk7,None,B,bone-health;cofactor;calcium-metabolism,Related via: bone-health;cofactor;calcium-metabolism,,examine:vitamin-d3;examine:vitamin-k2-mk7

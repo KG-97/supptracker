@@ -1,0 +1,37 @@
+severity_map:
+  None: 0
+  Mild: 1
+  Moderate: 2
+  Severe: 3
+evidence_grade_map:
+  A: 1
+  B: 2
+  C: 3
+  D: 4
+weights:
+  w_sev: 0.9
+  w_evd: 0.4
+  w_mech: 0.2
+  w_dose: 0.3
+  w_user: 0.3
+buckets:
+  low:
+    min: 0.0
+    max: 1.5
+    label: "Low"
+    advice: "Low concern. Monitor only."
+  medium:
+    min: 1.5
+    max: 3.0
+    label: "Medium"
+    advice: "Use with care. Consider spacing or dose adjustment."
+  high:
+    min: 3.0
+    max: 4.5
+    label: "High"
+    advice: "Avoid combining or consult a clinician."
+  critical:
+    min: 4.5
+    max: 100.0
+    label: "Critical"
+    advice: "Do not combine."
