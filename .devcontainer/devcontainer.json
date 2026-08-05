@@ -1,0 +1,39 @@
+{
+  // supptracker dev container — for GitHub Codespaces + JetBrains Gateway.
+  // The heavy IDE backend (PyCharm Pro / IntelliJ) and both dev servers run
+  // HERE in the cloud; the N100 only runs the thin Gateway client.
+  "name": "supptracker",
+
+  // Debian bookworm (glibc) base — required for the JetBrains remote backend.
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+
+  "features": {
+    // Frontend toolchain: Vite 5 needs Node 18+, use current LTS.
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
+  },
+
+  // Ask Codespaces for a machine big enough to host a JetBrains backend.
+  // The 2-core/4GB default will thrash under PyCharm indexing.
+  "hostRequirements": { "cpus": 4, "memory": "8gb" },
+
+  // Backend (uvicorn) and Vite dev server.
+  "forwardPorts": [8000, 5174],
+  "portsAttributes": {
+    "8000": { "label": "FastAPI backend", "onAutoForward": "notify" },
+    "5174": { "label": "Vite frontend", "onAutoForward": "openBrowser" }
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  // Useful if you ever open the same Codespace in browser VS Code instead of Gateway.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}

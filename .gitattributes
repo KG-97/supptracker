@@ -1,0 +1,2 @@
+# Shell scripts must keep LF endings so they run on Linux (Codespaces / Oracle VM).
+*.sh text eol=lf
