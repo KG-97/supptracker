@@ -9,7 +9,9 @@
 
   "features": {
     // Frontend toolchain: Vite 5 needs Node 18+, use current LTS.
-    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
+    // SSH server — needed for `gh codespace ssh` and JetBrains Gateway connections.
+    "ghcr.io/devcontainers/features/sshd:1": { "version": "latest" }
   },
 
   // Ask Codespaces for a machine big enough to host a JetBrains backend.
