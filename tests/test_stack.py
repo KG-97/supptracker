@@ -23,4 +23,7 @@ def test_stack_check_basic_skip_if_insufficient():
         pytest.skip("Not enough compounds in stub data for stack_check positive test")
     items = [COMPOUNDS[0]["id"], COMPOUNDS[1]["id"]]
     res = stack_check({"items": items})
-    assert "items" in res and "matrix" in res
+    # stack_check returns a Pydantic model, check attributes
+    assert hasattr(res, "items") and hasattr(res, "matrix")
+    assert len(res.items) == 2
+
