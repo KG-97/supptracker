@@ -32,7 +32,7 @@ jobs:
           cache: 'npm'
       - name: Install
         run: npm ci
-      - name: Typecheck (non-blocking)
-        run: npx tsc --noEmit || true
+      - name: Typecheck
+        run: npx tsc --noEmit
       - name: Build
         run: npm run build

@@ -73,7 +73,8 @@ class InteractionPair(BaseModel):
 class InteractionResponse(BaseModel):
     """Response model for the /interaction endpoint."""
     pair: InteractionPair
-    interaction: InteractionDetail
+    interaction: Optional[InteractionDetail] = Field(None)
+    found: bool = Field(True, description="Whether an interaction record was found for this pair")
 
 
 class StackCell(BaseModel):

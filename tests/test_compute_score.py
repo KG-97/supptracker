@@ -16,12 +16,12 @@ def make_inter(severity="Moderate", evidence_grade="B", mechanism_tags=None):
 def test_compute_score_bucket_low():
     inter = make_inter(severity="None", evidence_grade="D")
     score, bucket, action = compute_score(inter)
-    assert bucket == "No meaningful interaction"
+    assert bucket == "Low"
 
 def test_compute_score_bucket_high():
     inter = make_inter(severity="Severe", evidence_grade="A", mechanism_tags="m1;m2;m3")
     score, bucket, action = compute_score(inter)
-    assert bucket in ("High", "Caution")
+    assert bucket in ("High", "Critical")
 
 def test_compute_score_score_range():
     inter = make_inter(severity="Mild", evidence_grade="C")

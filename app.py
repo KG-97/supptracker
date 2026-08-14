@@ -13,10 +13,9 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException, Query, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Any, Optional
-import pandas as pd
-import yaml, os
-from pathlib import Path
-from synonyms import parse_synonyms, normalize_names
+
+from data_loader import load_all_data
+from scoring import make_scoring_engine
 
 # Import models used for request/response validation and OpenAPI generation
 from models import (
@@ -33,29 +32,21 @@ from models import (
     StackCell,
 )
 
-# Determine the directory where CSV/YAML data files are located. You can set
-# the ``SUPPTRACKER_DATA_DIR`` environment variable to override the default
-# ``data/`` directory relative to this file.
-HERE = Path(__file__).parent
-DATA = Path(os.environ.get("SUPPTRACKER_DATA_DIR", HERE / "data"))
+
+# ── Data loading ──────────────────────────────────────────────────────────────
+_data = load_all_data()
+
+_BOOT_ERROR: str = _data["boot_error"]
+COMPOUNDS: List[Dict[str, Any]] = _data["compounds"]
+INTERACTIONS: List[Dict[str, Any]] = _data["interactions"]
+SOURCES: Dict[str, Dict[str, Any]] = _data["sources"]
+INTERACTION_INDEX: Dict[tuple, Dict[str, Any]] = _data["interaction_index"]
+
+# ── Scoring engine ────────────────────────────────────────────────────────────
+_scorer = make_scoring_engine(_data["rules"]) if not _BOOT_ERROR else None
 
 
-def load_csv(name: str) -> pd.DataFrame:
-    """Load a CSV file from the configured data directory."""
-    p = DATA / name
-    if not p.exists():
-        raise FileNotFoundError(f"Missing data file: {name} in {DATA}")
-    return pd.read_csv(p)
-
-
-def load_yaml(name: str) -> dict:
-    """Load a YAML file from the configured data directory."""
-    p = DATA / name
-    with open(p, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
-
-# Instantiate the FastAPI application
+# ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="SuppTracker API",
     version="1.0.0",
@@ -73,140 +64,24 @@ app.add_middleware(
 )
 
 
-@api.get("/health")
-def health() -> Dict[str, str]:
-    """Simple health check endpoint used by readiness/liveness probes."""
-    return {"status": "ok", "service": "supptracker-backend", "version": app.version}
-
-
-# ── Data loading ──────────────────────────────────────────────────────────────
-try:
-    COMPOUNDS_DF = load_csv("compounds.csv")
-    INTERACTIONS_DF = load_csv("interactions.csv")
-    SOURCES_DF = load_csv("sources.csv")
-except Exception as e:
-    COMPOUNDS_DF = pd.DataFrame()
-    INTERACTIONS_DF = pd.DataFrame()
-    SOURCES_DF = pd.DataFrame()
-    _BOOT_ERROR = str(e)
-else:
-    _BOOT_ERROR = ""
-
-# Load risk rules YAML after data is loaded
-RULES: dict = {}
-if not _BOOT_ERROR:
-    try:
-        RULES = load_yaml("risk_rules.yaml")
-    except Exception as e:
-        _BOOT_ERROR = str(e)
-
-
 def _ensure_ready() -> None:
     if _BOOT_ERROR:
         raise HTTPException(status_code=503, detail=f"Service unavailable: {_BOOT_ERROR}")
 
 
-def to_synonyms(s: str) -> List[str]:
-    """Parse synonyms using [|,;/] separators; lowercased and distinct."""
-    if pd.isna(s) or str(s).strip() == "":
-        return []
-    return parse_synonyms(str(s))
-
-
-# Precompute lightweight compound dictionaries for quick search and response
-COMPOUNDS: List[Dict[str, Any]] = []
-if not _BOOT_ERROR:
-    for _, row in COMPOUNDS_DF.iterrows():
-        COMPOUNDS.append(
-            {
-                "id": str(row.get("id", "")),
-                "name": str(row.get("name", "")),
-                "synonyms": to_synonyms(row.get("synonyms", "")),
-                "class": str(row.get("class", "")),
-                "route": str(row.get("route", "")),
-                "common_dose": str(row.get("common_dose", "")),
-                "qt_risk": str(row.get("qt_risk", "")),
-                "notes": str(row.get("notes", "")),
-            }
-        )
-
-# Convert DataFrames into more convenient Python structures
-INTERACTIONS: List[Dict[str, Any]] = (
-    INTERACTIONS_DF.to_dict(orient="records") if not _BOOT_ERROR else []
-)
-SOURCES: Dict[str, Dict[str, Any]] = (
-    {str(row["id"]): row.to_dict() for _, row in SOURCES_DF.iterrows()}
-    if not _BOOT_ERROR
-    else {}
-)
-
-# ── Risk rule configuration ───────────────────────────────────────────────────
-sev_map: Dict[str, int] = RULES.get(
-    "severity_map", {"None": 0, "Mild": 1, "Moderate": 2, "Severe": 3}
-)
-evd_map: Dict[str, int] = RULES.get(
-    "evidence_grade_map", {"A": 1, "B": 2, "C": 3, "D": 4}
-)
-weights: Dict[str, float] = RULES.get(
-    "weights",
-    {"w_sev": 0.9, "w_evd": 0.4, "w_mech": 0.2, "w_dose": 0.3, "w_user": 0.3},
-)
-buckets: Dict[str, Dict[str, Any]] = RULES.get(
-    "buckets",
-    {
-        "low": {"min": 0.0, "max": 1.5, "label": "Low", "advice": "Low concern. Monitor only."},
-        "medium": {"min": 1.5, "max": 3.0, "label": "Medium", "advice": "Use with care."},
-        "high": {"min": 3.0, "max": 4.5, "label": "High", "advice": "Avoid combining or consult a clinician."},
-        "critical": {"min": 4.5, "max": 100.0, "label": "Critical", "advice": "Do not combine."},
-    },
-)
-
-
 def compute_score(
     interaction: Dict[str, Any], doses: Optional[str] = None, flags: Optional[str] = None
 ) -> tuple[float, str, str]:
-    """Compute a risk score and bucket/action for a given interaction record."""
-    sev = sev_map.get(str(interaction.get("severity", "None")), 0)
-    evd = evd_map.get(str(interaction.get("evidence_grade", "D")), 4)
-    mech_tags = (
-        str(interaction.get("mechanism_tags", "")).split(";")
-        if interaction.get("mechanism_tags")
-        else []
-    )
-    mech_boost = 0.05 * len([m for m in mech_tags if m.strip()])
-    dose_factor = 0.1 if doses else 0.0
-    user_factor = (
-        0.1 * len([f for f in (flags or "").split(",") if f.strip()]) if flags else 0.0
-    )
-    score = (
-        weights.get("w_sev", 0.9) * sev
-        + weights.get("w_evd", 0.4) * (1.0 / evd if evd > 0 else 1.0)
-        + weights.get("w_mech", 0.2) * mech_boost
-        + weights.get("w_dose", 0.3) * dose_factor
-        + weights.get("w_user", 0.3) * user_factor
-    )
-    # Determine bucket from ordered severity thresholds
-    bucket_key = "low"
-    for bk in ["critical", "high", "medium"]:
-        if bk in buckets and score >= buckets[bk]["min"]:
-            bucket_key = bk
-            break
-
-    bucket_cfg = buckets.get(bucket_key, buckets.get("low", {}))
-    bucket_label = bucket_cfg.get("label", "Low")
-    action = interaction.get("action") or bucket_cfg.get("advice", "No action needed")
-    return round(float(score), 3), bucket_label, str(action)
+    """Delegate to the scoring engine (kept as module-level function for backward compat)."""
+    assert _scorer is not None
+    return _scorer.compute_score(interaction, doses=doses, flags=flags)
 
 
 def find_interaction(a: str, b: str) -> Optional[Dict[str, Any]]:
-    """Return the first interaction record matching either ordering of a/b pair."""
+    """Return the interaction record matching either ordering of a/b pair using O(1) index."""
     a_norm, b_norm = a.strip().lower(), b.strip().lower()
-    for row in INTERACTIONS:
-        ca = str(row.get("compound_a", "")).lower()
-        cb = str(row.get("compound_b", "")).lower()
-        if (ca == a_norm and cb == b_norm) or (ca == b_norm and cb == a_norm):
-            return row
-    return None
+    key = (min(a_norm, b_norm), max(a_norm, b_norm))
+    return INTERACTION_INDEX.get(key)
 
 
 def search_compounds(q: str) -> List[Dict[str, Any]]:
@@ -253,6 +128,12 @@ def _build_source_models(interaction: Dict[str, Any]) -> List[InteractionSource]
 
 
 # ── API endpoints ──────────────────────────────────────────────────────────────
+
+@api.get("/health")
+def health() -> Dict[str, str]:
+    """Simple health check endpoint used by readiness/liveness probes."""
+    return {"status": "ok", "service": "supptracker-backend", "version": app.version}
+
 
 @api.get(
     "/search",
@@ -315,7 +196,7 @@ def interaction(
     _ensure_ready()
     inter = find_interaction(a, b)
     if not inter:
-        raise HTTPException(status_code=404, detail=f"No interaction found for pair: {a} × {b}")
+        return InteractionResponse(pair=InteractionPair(a=a, b=b), interaction=None, found=False)
     score, bucket, action = compute_score(inter, doses=doses, flags=flags)
     source_models = _build_source_models(inter)
     detail = InteractionDetail(

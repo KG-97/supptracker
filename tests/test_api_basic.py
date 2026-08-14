@@ -15,11 +15,14 @@ def make_temp_data(tmp):
         {"id":"s1","title":"Some Study","citation":"J Imaginary 2020"}
     ]).to_csv(d/"sources.csv", index=False)
     yaml.safe_dump({
+        "severity_map": {"None": 0, "Mild": 1, "Moderate": 2, "Severe": 3},
+        "evidence_grade_map": {"A": 1, "B": 2, "C": 3, "D": 4},
         "weights":{"w_sev":0.9,"w_evd":0.4,"w_mech":0.2,"w_dose":0.3,"w_user":0.3},
         "buckets":{
-            "low":{"max":0.7,"label":"No meaningful interaction","action":"No meaningful interaction"},
-            "caution":{"min":0.71,"max":1.5,"label":"Caution","action":"Monitor"},
-            "high":{"min":1.51,"label":"High","action":"Avoid"}
+            "low":{"min": 0.0, "max":1.5,"label":"Low","advice":"Low concern. Monitor only."},
+            "medium":{"min":1.5,"max":3.0,"label":"Medium","advice":"Use with care."},
+            "high":{"min":3.0,"max":4.5,"label":"High","advice":"Avoid combining or consult a clinician."},
+            "critical":{"min":4.5,"max":100.0,"label":"Critical","advice":"Do not combine."},
         }
     }, open(d/"risk_rules.yaml","w"))
 
@@ -27,6 +30,11 @@ def test_api_endpoints(tmp_path, monkeypatch):
     make_temp_data(tmp_path)
     monkeypatch.setenv("SUPPTRACKER_DATA_DIR", str(tmp_path))
 
+    # Reload the modular backend
+    import data_loader
+    importlib.reload(data_loader)
+    import scoring
+    importlib.reload(scoring)
     import app as backend
     importlib.reload(backend)
 
@@ -39,8 +47,16 @@ def test_api_endpoints(tmp_path, monkeypatch):
 
     r = client.get("/api/interaction", params={"a":"caffeine","b":"magnesium"}); assert r.status_code == 200
     body = r.json()
+    assert body["found"] is True
     assert body["interaction"]["score"] >= 0
+
+    # Test not-found returns found=false instead of 404
+    r = client.get("/api/interaction", params={"a":"caffeine","b":"nonexistent"}); assert r.status_code == 200
+    body = r.json()
+    assert body["found"] is False
+    assert body["interaction"] is None
 
     r = client.post("/api/stack/check", json={"items":["caffeine","magnesium"]})
     assert r.status_code == 200
     assert r.json()["matrix"][0][1] is not None
+

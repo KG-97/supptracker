@@ -29,11 +29,6 @@ export default defineConfig({
 			]
 		},
 		proxy: {
-			// proxy the API endpoints used by the frontend
-			'/search': { target: 'http://localhost:8000', changeOrigin: true },
-			'/interaction': { target: 'http://localhost:8000', changeOrigin: true },
-			'/stack': { target: 'http://localhost:8000', changeOrigin: true },
-			// fallback for any other API paths
 			'/api': { target: 'http://localhost:8000', changeOrigin: true }
 		}
 	}

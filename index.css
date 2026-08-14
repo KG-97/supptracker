@@ -418,6 +418,104 @@ textarea.input { resize: vertical; min-height: 80px; }
   animation: fadeSlideIn 0.3s ease both;
 }
 
+/* ── Autocomplete ──────────────────────────────────────────────────────── */
+.autocomplete-container {
+  position: relative;
+  width: 100%;
+}
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: rgba(15, 15, 25, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--r-md);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  max-height: 280px;
+  overflow-y: auto;
+  animation: fadeSlideIn 0.15s ease;
+}
+
+.autocomplete-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.12s;
+  gap: 8px;
+}
+.autocomplete-item:hover,
+.autocomplete-item.active {
+  background: rgba(124, 58, 237, 0.15);
+}
+.autocomplete-item + .autocomplete-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.autocomplete-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.autocomplete-id {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'Space Grotesk', monospace;
+}
+
+/* ── Skeleton loading ──────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--r-sm);
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-card {
+  height: 120px;
+  border-radius: var(--r-lg);
+}
+
+.skeleton-line {
+  height: 14px;
+  margin-bottom: 8px;
+}
+.skeleton-line:last-child { width: 60%; }
+
+/* ── Scroll indicator ──────────────────────────────────────────────────── */
+.scroll-container {
+  position: relative;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 100%;
+  background: linear-gradient(to left, var(--bg), transparent);
+  pointer-events: none;
+  opacity: 0.8;
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .pair-row { grid-template-columns: 1fr 1fr; }
@@ -425,4 +523,11 @@ textarea.input { resize: vertical; min-height: 80px; }
   .tabs { flex-wrap: wrap; }
   .tab { flex: unset; font-size: 12px; padding: 8px 12px; }
   .header-logo { font-size: 28px; }
+  .header { padding: 32px 16px 24px; }
+  .app-container { padding: 0 12px 40px; }
+  .compound-grid { grid-template-columns: 1fr; }
+  .matrix-table { font-size: 11px; }
+  .matrix-table th { padding: 4px 6px; font-size: 10px; }
+  .matrix-table td { padding: 6px; font-size: 10px; }
+  .autocomplete-dropdown { max-height: 200px; }
 }

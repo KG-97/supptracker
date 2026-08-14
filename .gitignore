@@ -1,19 +1,36 @@
+# Python
 /.venv
-/data
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+dist/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
 uvicorn.pid
-node_modules/
-dist/
-.env
-.vscode/*.history
-*.log
-__pycache__/
-*.pyc
-.DS_Store
-node_modules/
-dist/
-.env
-.vscode/*.history
-*.log
-__pycache__/
-*.pyc
-.DS_Store
+
+# Large binary files — should not be in git
+*.zip
+node_portable/
+
+# Expanded data packages (unzipped staging dirs)
+expanded_interactions_package/
+expanded_compounds_package*/
+
+# Vite temp files
+*.timestamp-*.mjs
