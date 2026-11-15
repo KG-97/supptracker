@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, test, vi } from 'vitest'
 import App, { parseStackData } from './App'
 import type { Compound, StackResponse } from './types'
@@ -506,6 +506,113 @@ describe('App external links', () => {
     expect(apiMocks.checkStack).toHaveBeenCalledWith(['caffeine', 'unobtainium'])
     expect(await screen.findByText(/No FDA label statement in this collection names these together\. This does not mean the combination is safe\./)).toBeInTheDocument()
     expect(screen.getByText(/Not named in the label statement collection: unobtainium\./)).toBeInTheDocument()
+  })
+
+  it('drops the pair answer and its label statements as soon as a name is edited', async () => {
+    apiMocks.fetchInteraction.mockRejectedValueOnce(new Error('One or both compounds not found'))
+    apiMocks.fetchLabelStatementLookup.mockResolvedValueOnce(caffeineLookup)
+
+    render(<App />)
+
+    fireEvent.change(await screen.findByLabelText('Compound A'), { target: { value: 'caffeine' } })
+    fireEvent.change(screen.getByLabelText('Compound B'), { target: { value: 'adenosine' } })
+    fireEvent.click(screen.getByRole('button', { name: /check pair/i }))
+    expect(await screen.findByText('A verbatim label sentence naming caffeine.')).toBeInTheDocument()
+    expect(screen.getByText(/nothing was assessed/i)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Compound A'), { target: { value: 'caffeinex' } })
+
+    // The names on screen are no longer the names that were checked.
+    expect(screen.queryByText('A verbatim label sentence naming caffeine.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/nothing was assessed/i)).not.toBeInTheDocument()
+  })
+
+  it('ignores a pair reply that arrives after the names were edited', async () => {
+    let reply: (value: unknown) => void = () => {}
+    apiMocks.fetchInteraction.mockReturnValueOnce(
+      new Promise((resolve) => {
+        reply = resolve
+      })
+    )
+
+    render(<App />)
+
+    fireEvent.change(await screen.findByLabelText('Compound A'), { target: { value: 'caffeine' } })
+    fireEvent.change(screen.getByLabelText('Compound B'), { target: { value: 'aspirin' } })
+    fireEvent.click(screen.getByRole('button', { name: /check pair/i }))
+    fireEvent.change(screen.getByLabelText('Compound A'), { target: { value: 'caffeine citrate' } })
+    await act(async () => {
+      reply({ assessment: 'not_assessed', message: 'A late reply for the earlier names.' })
+    })
+
+    expect(screen.queryByText('A late reply for the earlier names.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/checking interaction/i)).not.toBeInTheDocument()
+  })
+
+  it('clears stack results when the example is loaded or the list is edited', async () => {
+    apiMocks.checkStack.mockResolvedValue({ interactions: [], resolved_items: ['caffeine', 'adenosine'] })
+    apiMocks.fetchLabelStatementLookup.mockResolvedValue(caffeineLookup)
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    fireEvent.change(textarea, { target: { value: 'caffeine; adenosine' } })
+    fireEvent.click(within(form).getByRole('button', { name: /check stack/i }))
+    expect(await screen.findByText('A verbatim label sentence naming caffeine.')).toBeInTheDocument()
+    expect(screen.getByText(/No assessed interactions were found in/)).toBeInTheDocument()
+
+    fireEvent.click(within(form).getByRole('button', { name: /use example/i }))
+    expect(screen.queryByText('A verbatim label sentence naming caffeine.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/No assessed interactions were found in/)).not.toBeInTheDocument()
+
+    fireEvent.click(within(form).getByRole('button', { name: /check stack/i }))
+    expect(await screen.findByText('A verbatim label sentence naming caffeine.')).toBeInTheDocument()
+    fireEvent.change(textarea, { target: { value: 'caffeine; adenosine; zinc' } })
+    expect(screen.queryByText('A verbatim label sentence naming caffeine.')).not.toBeInTheDocument()
+  })
+
+  it('does not leave an earlier stack result under a list that is too short', async () => {
+    apiMocks.checkStack.mockResolvedValue({ interactions: [], resolved_items: ['caffeine', 'adenosine'] })
+    apiMocks.fetchLabelStatementLookup.mockResolvedValue(caffeineLookup)
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    fireEvent.change(textarea, { target: { value: 'caffeine; adenosine' } })
+    fireEvent.click(within(form).getByRole('button', { name: /check stack/i }))
+    expect(await screen.findByText('A verbatim label sentence naming caffeine.')).toBeInTheDocument()
+
+    fireEvent.change(textarea, { target: { value: 'caffeine' } })
+    fireEvent.click(within(form).getByRole('button', { name: /check stack/i }))
+
+    expect(await screen.findByText('List at least two compounds to evaluate the stack.')).toBeInTheDocument()
+    expect(screen.queryByText('A verbatim label sentence naming caffeine.')).not.toBeInTheDocument()
+  })
+
+  it('removes the label statement note for an earlier search when the box is emptied', async () => {
+    apiMocks.fetchLabelStatementLookup.mockResolvedValueOnce({
+      ...caffeineLookup,
+      message: '',
+      names: [{ input: 'creatine', supplements: [], drug_total: 0, drugs: [] }],
+      total_pairs: 0,
+      pairs: [],
+    })
+
+    render(<App />)
+
+    const input = await screen.findByLabelText('Compound search query')
+    const form = input.closest('form') as HTMLFormElement
+    fireEvent.change(input, { target: { value: 'creatine' } })
+    fireEvent.submit(form)
+    expect(await screen.findByText(/“creatine” is not named in the FDA label statement collection/)).toBeInTheDocument()
+
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.submit(form)
+
+    expect(await screen.findByText('Enter a compound name to search.')).toBeInTheDocument()
+    expect(screen.queryByText(/“creatine” is not named/)).not.toBeInTheDocument()
   })
 
   it('tells the reader when no interaction records are loaded', async () => {

@@ -14,31 +14,30 @@ const UNCHECKED_MESSAGE =
 type LookupState = 'idle' | 'loading' | 'done' | 'error'
 
 function useLookup(names: string[], requestId: number, minimumNames: number) {
-  const [state, setState] = useState<LookupState>('idle')
-  const [lookup, setLookup] = useState<LabelStatementsLookup | null>(null)
+  // The reply is kept with the request it answers, so a reply for earlier names is never shown.
+  const [reply, setReply] = useState<{
+    requestId: number
+    state: LookupState
+    lookup: LabelStatementsLookup | null
+  }>({ requestId: 0, state: 'idle', lookup: null })
+  const inactive = requestId === 0 || names.length < minimumNames
 
   useEffect(() => {
-    if (requestId === 0 || names.length < minimumNames) {
-      setState('idle')
-      setLookup(null)
+    if (inactive) {
       return
     }
 
     let active = true
-    setState('loading')
-    setLookup(null)
 
     fetchLabelStatementLookup(names)
       .then((response) => {
         if (active) {
-          setLookup(response)
-          setState('done')
+          setReply({ requestId, state: 'done', lookup: response })
         }
       })
       .catch(() => {
         if (active) {
-          setLookup(null)
-          setState('error')
+          setReply({ requestId, state: 'error', lookup: null })
         }
       })
 
@@ -49,7 +48,15 @@ function useLookup(names: string[], requestId: number, minimumNames: number) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId])
 
-  return { state, lookup }
+  // Decided while rendering, not in an effect, so cleared names hide the block in the same
+  // paint and a new check never flashes the previous answer.
+  if (inactive) {
+    return { state: 'idle' as LookupState, lookup: null }
+  }
+  if (reply.requestId !== requestId) {
+    return { state: 'loading' as LookupState, lookup: null }
+  }
+  return { state: reply.state, lookup: reply.lookup }
 }
 
 function labelCountText(count: string): string {

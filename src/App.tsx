@@ -1,4 +1,4 @@
-import React, { FormEvent, useEffect, useMemo, useState } from 'react'
+import React, { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import LabelStatements from './LabelStatements'
 import type { LabelStatementsRequest } from './LabelStatements'
@@ -444,6 +444,10 @@ export default function App(): React.JSX.Element {
   const [stackLookup, setStackLookup] = useState<{ names: string[]; id: number }>({ names: [], id: 0 })
   const [searchLookup, setSearchLookup] = useState<{ name: string; id: number }>({ name: '', id: 0 })
   const [labelRequest, setLabelRequest] = useState<LabelStatementsRequest | null>(null)
+  // Each check gets a number. A reply is ignored once a newer check has started or the
+  // names it was made for have been edited.
+  const pairRequest = useRef(0)
+  const stackRequest = useRef(0)
 
   const [overviewStatus, setOverviewStatus] = useState<AsyncStatus>('loading')
   const [overviewError, setOverviewError] = useState<string | null>(null)
@@ -525,6 +529,30 @@ export default function App(): React.JSX.Element {
       .slice(0, 4)
   }, [allInteractions])
 
+  // Results describe the names that were submitted. Once those names are edited or fail
+  // validation, drop the results so the page never shows an answer for other inputs.
+  function clearPairResults() {
+    pairRequest.current += 1
+    setPairStatus('idle')
+    setPairError(null)
+    setPairData(null)
+    setPairLookup((previous) =>
+      previous.names.length === 0 ? previous : { names: [], id: previous.id + 1 }
+    )
+  }
+
+  function clearStackResults() {
+    stackRequest.current += 1
+    setStackStatus('idle')
+    setStackError(null)
+    setStackInteractions(null)
+    setStackCompounds((previous) => (previous.length === 0 ? previous : []))
+    setStackCoverage(null)
+    setStackLookup((previous) =>
+      previous.names.length === 0 ? previous : { names: [], id: previous.id + 1 }
+    )
+  }
+
   async function handleSearch(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault()
     const trimmed = query.trim()
@@ -532,6 +560,7 @@ export default function App(): React.JSX.Element {
       setSearchResults([])
       setSearchStatus('idle')
       setSearchError('Enter a compound name to search.')
+      setSearchLookup((previous) => ({ name: '', id: previous.id + 1 }))
       return
     }
 
@@ -588,12 +617,13 @@ export default function App(): React.JSX.Element {
     const b = pairB.trim()
 
     if (!a || !b) {
+      clearPairResults()
       setPairStatus('error')
-      setPairData(null)
       setPairError('Enter two compounds to run a pair check.')
       return
     }
 
+    const request = ++pairRequest.current
     setPairStatus('loading')
     setPairError(null)
     // Label statements are looked up separately, so they still show when the names are not
@@ -601,9 +631,11 @@ export default function App(): React.JSX.Element {
     setPairLookup((previous) => ({ names: [a, b], id: previous.id + 1 }))
     try {
       const data = await fetchInteraction(a, b)
+      if (request !== pairRequest.current) return
       setPairData(data)
       setPairStatus('success')
     } catch (error) {
+      if (request !== pairRequest.current) return
       setPairData(null)
       setPairStatus('error')
       setPairError(explainLookupError(error instanceof Error ? error.message : 'Interaction lookup failed'))
@@ -614,18 +646,19 @@ export default function App(): React.JSX.Element {
     event?.preventDefault()
     const compounds = parseStackInput(stackText)
     if (compounds.length < 2) {
+      clearStackResults()
       setStackStatus('error')
-      setStackInteractions(null)
-      setStackCompounds([])
       setStackError('List at least two compounds to evaluate the stack.')
       return
     }
 
+    const request = ++stackRequest.current
     setStackStatus('loading')
     setStackError(null)
     setStackLookup((previous) => ({ names: compounds, id: previous.id + 1 }))
     try {
       const data = await checkStack(compounds)
+      if (request !== stackRequest.current) return
       const parsed = parseStackData(data, compounds)
 
       setStackInteractions(parsed.interactions)
@@ -634,6 +667,7 @@ export default function App(): React.JSX.Element {
       setStackStatus('success')
       setStackError(null)
     } catch (error) {
+      if (request !== stackRequest.current) return
       setStackInteractions(null)
       setStackCompounds([])
       setStackCoverage(null)
@@ -918,7 +952,7 @@ export default function App(): React.JSX.Element {
                 value={pairA}
                 onChange={(event) => {
                   setPairA(event.target.value)
-                  setPairError(null)
+                  clearPairResults()
                 }}
                 placeholder="First compound"
                 autoComplete="off"
@@ -933,7 +967,7 @@ export default function App(): React.JSX.Element {
                 value={pairB}
                 onChange={(event) => {
                   setPairB(event.target.value)
-                  setPairError(null)
+                  clearPairResults()
                 }}
                 placeholder="Second compound"
                 autoComplete="off"
@@ -996,7 +1030,10 @@ export default function App(): React.JSX.Element {
               id="stack-input"
               rows={4}
               value={stackText}
-              onChange={(event) => setStackText(event.target.value)}
+              onChange={(event) => {
+                setStackText(event.target.value)
+                clearStackResults()
+              }}
               placeholder={DEFAULT_STACK_EXAMPLE}
               spellCheck={false}
             />
@@ -1008,6 +1045,7 @@ export default function App(): React.JSX.Element {
                 type="button"
                 onClick={() => {
                   setStackText(DEFAULT_STACK_EXAMPLE)
+                  clearStackResults()
                 }}
                 className="ghost"
               >
