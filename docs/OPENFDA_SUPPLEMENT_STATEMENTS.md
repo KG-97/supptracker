@@ -30,6 +30,7 @@ Do not alter the generated files by hand.
 
 - It is a pointer to label text. It does not change the pair or stack response, and every lookup response carries `assessment: "not_assessed"`, whether or not statements were found.
 - A supplement name matches by identifier, by name, or by the dictionary's wording (so `calcium` is tried as `calcium supplements`).
+- A short list of everyday spellings is also accepted (`LOOKUP_ALIASES` in `api/label_statements.py`): `grapefruit juice`, `CoQ10`, `K2`, `D3`, `B6`, `B12`, `5 HTP`, `L-tryptophan`, `vitamin B3`, `Saint John's wort`, `retinol`, `cholecalciferol`. Each is an exact whole-name match for one supplement, so a fragment such as `q10` or `k` still finds nothing. The list is used by the lookup only; it does not change the mining dictionary or its recorded hash.
 - A drug name matches by whole words only: `warfarin` finds `warfarin sodium`; `war` finds nothing. A combination product matches on any of its ingredients, and its full name is shown.
 - Results are ordered by how many labels carry the text. That is not a risk ranking.
 - The supplement filter on the other statement endpoints ignores letter case.

@@ -422,3 +422,70 @@ def test_lookup_works_without_the_optional_dictionary(tmp_path):
     payload = label_statements.label_statements_lookup(names=["caffeine", "ciprofloxacin"])
     assert payload["total_pairs"] >= 1
     assert payload["assessment"] == "not_assessed"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_lookup_accepts_everyday_spellings_as_exact_aliases_only(client):
+    spellings = {
+        "grapefruit juice": "grapefruit",
+        "CoQ10": "coenzyme-q10",
+        "Co-Q10": "coenzyme-q10",
+        "K2": "vitamin-k",
+        "D3": "vitamin-d",
+        "cholecalciferol": "vitamin-d",
+        "B6": "vitamin-b6",
+        "b12": "vitamin-b12",
+        "vitamin B3": "niacin",
+        "5 HTP": "tryptophan-5htp",
+        "5htp": "tryptophan-5htp",
+        "L-tryptophan": "tryptophan-5htp",
+        "Saint John's wort": "st-johns-wort",
+        "retinol": "vitamin-a",
+    }
+    response = await client.get(
+        "/api/label-statements/lookup", params=[("names", name) for name in spellings]
+    )
+    assert response.status_code == 200
+    names = {entry["input"]: entry for entry in response.json()["names"]}
+    for spelling, supplement_id in spellings.items():
+        found = [item["supplement_id"] for item in names[spelling]["supplements"]]
+        assert found == [supplement_id], spelling
+
+    # An alias is a whole name. A fragment or a look-alike still resolves to nothing.
+    fragments = ["k", "d", "b", "b1", "q10", "juice", "john", "vitamin"]
+    response = await client.get(
+        "/api/label-statements/lookup", params=[("names", name) for name in fragments]
+    )
+    assert response.status_code == 200
+    for entry in response.json()["names"]:
+        assert entry["supplements"] == [] and entry["drug_total"] == 0, entry["input"]
+
+
+@pytest.mark.anyio("asyncio")
+async def test_lookup_alias_points_at_the_same_statements_as_the_full_name(client):
+    async def statements(first: str, second: str) -> list:
+        response = await client.get(
+            "/api/label-statements/lookup", params=[("names", first), ("names", second)]
+        )
+        payload = response.json()
+        # An alias changes which label text is shown, never the assessment.
+        assert payload["assessment"] == "not_assessed"
+        return [
+            (group["supplement_id"], group["drug_id"], [item["statement_id"] for item in group["items"]])
+            for group in payload["pairs"]
+        ]
+
+    assert await statements("K2", "warfarin") == await statements("vitamin k", "warfarin") != []
+    assert (
+        await statements("grapefruit juice", "simvastatin")
+        == await statements("grapefruit", "simvastatin")
+        != []
+    )
+
+
+def test_lookup_aliases_are_normalised_and_name_dictionary_supplements():
+    dictionary = Path(__file__).resolve().parents[1] / "data" / "openfda_supplement_statements" / "supplement_terms.json"
+    known = {entry["id"] for entry in json.loads(dictionary.read_text(encoding="utf-8"))["entries"]}
+    for alias, supplement_id in label_statements.LOOKUP_ALIASES.items():
+        assert label_statements._normalise_name(alias) == alias, alias
+        assert supplement_id in known, supplement_id

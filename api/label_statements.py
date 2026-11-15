@@ -428,6 +428,35 @@ LOOKUP_NONE_MESSAGE = (
     "mean the combination is safe."
 )
 
+# Everyday spellings that label wording does not cover. Each is an exact, whole-name match
+# for one supplement, so a partial or unknown name still resolves to nothing. They are used
+# by the lookup only: the mining dictionary, and the hash recorded for it, are not touched.
+LOOKUP_ALIASES: Dict[str, str] = {
+    "grapefruit juice": "grapefruit",
+    "coq10": "coenzyme-q10",
+    "co q10": "coenzyme-q10",
+    "coq 10": "coenzyme-q10",
+    "co q 10": "coenzyme-q10",
+    "k1": "vitamin-k",
+    "k2": "vitamin-k",
+    "d2": "vitamin-d",
+    "d3": "vitamin-d",
+    "cholecalciferol": "vitamin-d",
+    "ergocalciferol": "vitamin-d",
+    "b6": "vitamin-b6",
+    "b12": "vitamin-b12",
+    "b 12": "vitamin-b12",
+    "b3": "niacin",
+    "vitamin b3": "niacin",
+    "5 htp": "tryptophan-5htp",
+    "5htp": "tryptophan-5htp",
+    "5 hydroxytryptophan": "tryptophan-5htp",
+    "l tryptophan": "tryptophan-5htp",
+    "saint john s wort": "st-johns-wort",
+    "saint johns wort": "st-johns-wort",
+    "retinol": "vitamin-a",
+}
+
 _LOOKUP_INDEX: Dict[str, Any] = {"owner": None}
 
 
@@ -494,6 +523,9 @@ def _lookup_index() -> Dict[str, Any]:
     for supplement_id, supplement in supplements.items():
         supplement["keys"] |= patterns.get(supplement_id, {}).get("search", set())
         supplement["keys"].discard("")
+    for alias, supplement_id in LOOKUP_ALIASES.items():
+        if supplement_id in supplements:
+            supplements[supplement_id]["keys"].add(alias)
     for drug in drugs.values():
         drug["keys"].discard("")
 
@@ -560,9 +592,18 @@ def label_statements_lookup(names: List[str] = Query(...)) -> Dict[str, Any]:
     resolved = []
     for name in cleaned:
         normalised = _normalise_name(name)
-        usable = len(normalised) >= 3
-        supplement_ids = _resolve_supplements(name, normalised, index) if usable else []
-        drug_ids = _resolve_drugs(normalised, index) if usable else []
+        if len(normalised) >= 3:
+            supplement_ids = _resolve_supplements(name, normalised, index)
+            drug_ids = _resolve_drugs(normalised, index)
+        else:
+            # Too short to match by wording. An exact key such as "K2" or "B6" is still
+            # unambiguous; anything else resolves to nothing.
+            supplement_ids = [
+                supplement_id
+                for supplement_id, supplement in sorted(index["supplements"].items())
+                if normalised and normalised in supplement["keys"]
+            ]
+            drug_ids = []
         resolved.append((name, supplement_ids, drug_ids))
 
     groups: Dict[tuple[str, str], Dict[str, Any]] = {}
