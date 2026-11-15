@@ -144,6 +144,22 @@ describe('App external links', () => {
     expect(examineLink).toHaveAttribute('href', 'https://examine.com/supplements/creatine')
   })
 
+  it('renders dataset external links provided as plain URLs', async () => {
+    apiMocks.fetchAllCompounds.mockResolvedValueOnce([
+      {
+        id: 'berberine',
+        name: 'Berberine',
+        synonyms: [],
+        external_links: 'https://example.com/berberine',
+      } as unknown as Compound,
+    ])
+
+    render(<App />)
+
+    const externalLink = await screen.findByRole('link', { name: 'Https://example.com/berberine' })
+    expect(externalLink).toHaveAttribute('href', 'https://example.com/berberine')
+  })
+
   it('renders dataset external links provided as object maps', async () => {
     apiMocks.fetchAllCompounds.mockImplementation(async () => [
       {
