@@ -200,11 +200,13 @@ interface NameHitsProps {
   name: string
   requestId: number
   onShow: (filter: LabelStatementsFilterRequest) => void
+  // How many compounds the same search found. "either" is only true when it found none.
+  compoundMatches?: number
 }
 
 // Shown under the compound search: tells the person whether the name they searched is named
 // in the label statement collection, and opens those statements.
-export function LabelStatementNameHits({ name, requestId, onShow }: NameHitsProps) {
+export function LabelStatementNameHits({ name, requestId, onShow, compoundMatches = 0 }: NameHitsProps) {
   const { state, lookup } = useLookup(name ? [name] : [], requestId, 1)
 
   if (state !== 'done' || !lookup || lookup.status !== 'available') {
@@ -215,7 +217,8 @@ export function LabelStatementNameHits({ name, requestId, onShow }: NameHitsProp
   if (!entry || (entry.supplements.length === 0 && entry.drug_total === 0)) {
     return (
       <p className="label-statements-source" role="status">
-        “{name}” is not named in the FDA label statement collection either.
+        “{name}” is not named in the FDA label statement collection
+        {compoundMatches > 0 ? '.' : ' either.'}
       </p>
     )
   }
@@ -249,7 +252,7 @@ export function LabelStatementNameHits({ name, requestId, onShow }: NameHitsProp
               Drug label · {drug.statements} {drug.statements === 1 ? 'statement' : 'statements'}
             </span>
             <button type="button" className="ghost" onClick={() => onShow({ drug: drug.drug_id })}>
-              Show statements for {drug.drug_id}
+              Show statements for {drug.drug_names_raw}
             </button>
           </li>
         ))}

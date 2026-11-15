@@ -619,6 +619,9 @@ describe('App external links', () => {
     render(<App />)
 
     expect(await screen.findByText(/None loaded: pair and stack checks can only report "not assessed"/)).toBeInTheDocument()
+    // With nothing assessed, the sources cannot be "powering recommendations".
+    expect(screen.getByText('Loaded, but not yet cited by any assessed record')).toBeInTheDocument()
+    expect(screen.queryByText('Citations powering recommendations')).not.toBeInTheDocument()
   })
 })
 

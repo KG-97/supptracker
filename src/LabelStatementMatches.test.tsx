@@ -174,4 +174,61 @@ describe('label statement lookups', () => {
     expect(Array.from(container.querySelectorAll('details')).map((item) => item.open)).toEqual([true, true])
     expect(screen.queryByRole('button', { name: /expand all/i })).not.toBeInTheDocument()
   })
+
+  it('only says "either" when the compound search found nothing', async () => {
+    const unnamed = {
+      ...envelope,
+      message: '',
+      names: [{ input: 'aspirin', supplements: [], drug_total: 0, drugs: [] }],
+      total_pairs: 0,
+      truncated: false,
+      pairs: [],
+    }
+    apiMocks.fetchLabelStatementLookup.mockResolvedValue(unnamed)
+
+    const { unmount } = render(
+      <LabelStatementNameHits name="aspirin" requestId={1} compoundMatches={3} onShow={vi.fn()} />
+    )
+    expect(
+      await screen.findByText('“aspirin” is not named in the FDA label statement collection.')
+    ).toBeInTheDocument()
+    unmount()
+
+    render(<LabelStatementNameHits name="aspirin" requestId={1} compoundMatches={0} onShow={vi.fn()} />)
+    expect(
+      await screen.findByText('“aspirin” is not named in the FDA label statement collection either.')
+    ).toBeInTheDocument()
+  })
+
+  it('labels a drug hit with its name and still filters by its identifier', async () => {
+    apiMocks.fetchLabelStatementLookup.mockResolvedValueOnce({
+      ...envelope,
+      message: '',
+      names: [
+        {
+          input: 'sodium',
+          supplements: [],
+          drug_total: 1,
+          drugs: [
+            {
+              drug_id: 'omeprazole+sodium-bicarbonate',
+              drug_names_raw: 'OMEPRAZOLE; SODIUM BICARBONATE',
+              statements: 6,
+            },
+          ],
+        },
+      ],
+      total_pairs: 0,
+      truncated: false,
+      pairs: [],
+    })
+    const onShow = vi.fn()
+
+    render(<LabelStatementNameHits name="sodium" requestId={1} onShow={onShow} />)
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Show statements for OMEPRAZOLE; SODIUM BICARBONATE' })
+    )
+    expect(onShow).toHaveBeenCalledWith({ drug: 'omeprazole+sodium-bicarbonate' })
+  })
 })

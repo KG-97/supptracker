@@ -722,7 +722,11 @@ export default function App(): React.JSX.Element {
                 <li className="stat">
                   <span className="stat-label">Evidence sources</span>
                   <strong className="stat-value">{health.sources_loaded}</strong>
-                  <span className="stat-footnote">Citations powering recommendations</span>
+                  <span className="stat-footnote">
+                    {health.interactions_loaded > 0
+                      ? 'Citations powering recommendations'
+                      : 'Loaded, but not yet cited by any assessed record'}
+                  </span>
                 </li>
               </ul>
 
@@ -879,6 +883,7 @@ export default function App(): React.JSX.Element {
           <LabelStatementNameHits
             name={searchLookup.name}
             requestId={searchLookup.id}
+            compoundMatches={searchResults.length}
             onShow={(filter) =>
               setLabelRequest((previous) => ({ ...filter, token: (previous?.token ?? 0) + 1 }))
             }
