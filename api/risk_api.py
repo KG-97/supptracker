@@ -1631,6 +1631,105 @@ def compute_risk(interaction: Dict[str, Any]) -> float:
     return round(float(raw_score), 2)
 
 
+def _compound_partner_snapshot(compound_id: str) -> Dict[str, Any]:
+    """Return a lightweight snapshot for a compound referenced in an interaction."""
+
+    partner = COMPOUNDS.get(compound_id)
+    if not partner:
+        # Fall back to the identifier we have – this keeps the response useful even
+        # if the partner compound has been filtered out of the active dataset.
+        return {"id": compound_id, "name": compound_id}
+
+    keys_of_interest = (
+        "id",
+        "name",
+        "synonyms",
+        "aliases",
+        "class",
+        "route",
+        "externalIds",
+        "referenceUrls",
+    )
+    snapshot = {key: partner[key] for key in keys_of_interest if key in partner}
+    snapshot.setdefault("id", compound_id)
+    snapshot.setdefault("name", snapshot.get("id", compound_id))
+    return snapshot
+
+
+def _list_interactions_for_compound(compound_id: str) -> List[Dict[str, Any]]:
+    """Return all interactions involving the provided compound identifier."""
+
+    related: List[Dict[str, Any]] = []
+    seen_pairs: set[Tuple[str, str]] = set()
+
+    for interaction in INTERACTIONS:
+        a_id = interaction.get("a")
+        b_id = interaction.get("b")
+        if not a_id or not b_id:
+            continue
+
+        a_id = str(a_id)
+        b_id = str(b_id)
+        if compound_id != a_id and compound_id != b_id:
+            continue
+
+        other_id = b_id if compound_id == a_id else a_id
+        pair_key = tuple(sorted((compound_id, other_id)))
+        if pair_key in seen_pairs:
+            continue
+        seen_pairs.add(pair_key)
+
+        record = interaction.copy()
+        try:
+            risk_score = compute_risk(record)
+        except ValueError:
+            # A record that cannot be scored is treated as not assessed, never as low risk.
+            seen_pairs.discard(pair_key)
+            continue
+
+        source_ids = record.get("sources") or []
+        if not isinstance(source_ids, list):
+            source_ids = [
+                str(item).strip()
+                for item in _coerce_iterable(source_ids)
+                if str(item).strip()
+            ]
+
+        sources_detail = [
+            SOURCES[source_id]
+            for source_id in source_ids
+            if source_id in SOURCES
+        ]
+
+        partner_snapshot = _compound_partner_snapshot(other_id)
+
+        related.append(
+            {
+                "pair": {"a": a_id, "b": b_id},
+                "with": partner_snapshot,
+                "interaction_id": record.get("id"),
+                "risk_score": risk_score,
+                "severity": record.get("severity"),
+                "evidence": record.get("evidence"),
+                "mechanism": record.get("mechanism"),
+                "effect": record.get("effect"),
+                "action": record.get("action"),
+                "notes": record.get("notes"),
+                "bidirectional": record.get("bidirectional"),
+                "source_ids": source_ids,
+                "sources": sources_detail,
+            }
+        )
+
+    related.sort(
+        key=lambda item: (
+            -item["risk_score"],
+            (item["with"].get("name") or item["with"].get("id") or "").lower(),
+        )
+    )
+    return related
+
+
 # Load data and rules on startup
 apply_rules()
 load_data()
@@ -1694,10 +1793,28 @@ def list_label_candidates(compound_id: Optional[str] = None, limit: int = 100):
 
 @app.get("/api/compounds/{compound_id}")
 def get_compound(compound_id: str):
-    """Get specific compound by ID."""
-    if compound_id not in COMPOUNDS:
+    """Get specific compound details, including related interaction summaries."""
+
+    resolved_id = resolve_compound(compound_id)
+    if not resolved_id or resolved_id not in COMPOUNDS:
         raise HTTPException(status_code=404, detail="Compound not found")
-    return COMPOUNDS[compound_id]
+
+    compound = dict(COMPOUNDS[resolved_id])
+    interactions = _list_interactions_for_compound(resolved_id)
+
+    # Preserve backward compatibility by keeping existing fields at the top
+    # level while layering in richer metadata.
+    compound["resolved_id"] = resolved_id
+    compound["requested_identifier"] = compound_id
+    compound["counts"] = {"interactions": len(interactions)}
+    compound["interactions"] = interactions
+    # Fail-closed wording: an empty or short list must never read as "nothing interacts with this".
+    compound["interactions_scope"] = "assessed_records_only"
+    compound["interactions_note"] = (
+        "Only assessed interaction records are listed. A pair that is not listed has not been "
+        "assessed. This does not mean the combination is safe."
+    )
+    return compound
 
 def _score_search_entry(
     entry: Dict[str, Any], query_lower: str, query_normalised: str
@@ -1902,7 +2019,7 @@ def interaction(a: str, b: str):
 class StackRequest(BaseModel):
     """Request payload for stack checks with input validation and alias support."""
 
-    compounds: conlist(str, min_items=2, max_items=20)
+    compounds: conlist(str, min_length=2, max_length=20)
 
     @root_validator(pre=True)
     def _alias_items(cls, values: Dict[str, Any]) -> Dict[str, Any]:
@@ -2032,7 +2149,7 @@ async def spa_fallback(full_path: str, request: Request):
     if full_path.startswith("api"):
         raise HTTPException(status_code=404, detail="API endpoint not found")
     
-    # Check if it's a static file request.
+    # Check if it's a static file request. Only files inside the frontend build directory are served.
     if (
         "\\" not in full_path
         and not re.match(r"^[A-Za-z]:", full_path)

@@ -32,7 +32,7 @@ function labelCountText(item: LabelStatement): string {
   return `appears in ${item.label_count} ${count === 1 ? 'label' : 'labels'}`
 }
 
-export default function LabelStatements(): JSX.Element {
+export default function LabelStatements() {
   const [summary, setSummary] = useState<LabelStatementsSummary | null>(null)
   const [disclaimer, setDisclaimer] = useState(DEFAULT_DISCLAIMER)
   const [supplement, setSupplement] = useState('')

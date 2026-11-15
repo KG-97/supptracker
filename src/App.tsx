@@ -44,6 +44,17 @@ type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
 export const DEFAULT_STACK_EXAMPLE = 'caffeine, aspirin'
 
+export function parseStackData(apiData: any, userCompounds: string[]) {
+  const compounds = apiData?.resolved_items ?? apiData?.items ?? userCompounds
+  const interactions = apiData?.interactions ?? apiData?.cells ?? null
+
+  if (!compounds || compounds.length < 2) {
+    throw new Error('List at least two compounds to evaluate the stack.')
+  }
+
+  return { compounds, interactions }
+}
+
 function parseStackInput(value: string): string[] {
   return value
     .split(/[\n,]+/)
@@ -199,13 +210,17 @@ function parseExternalLinksValue(value: unknown): NormalisedExternalLink[] {
       return parseExternalLinksValue(parsed)
     } catch {
       const entries = trimmed
-        .split(';')
+        .split(/[;\n]+/)
         .map((segment) => segment.trim())
         .filter(Boolean)
       const links: NormalisedExternalLink[] = []
       for (const entry of entries) {
         const separator = entry.includes('|') ? '|' : entry.includes(',') ? ',' : null
         if (!separator) {
+          const looksLikeUrl = /^[a-z][a-z0-9+.-]*:\/\//i.test(entry) || entry.startsWith('www.')
+          if (looksLikeUrl) {
+            links.push({ url: entry })
+          }
           continue
         }
         const [rawLabel, rawUrl] = entry.split(separator, 2)
@@ -389,7 +404,7 @@ function compoundExternalLinks(
   return links
 }
 
-export default function App(): JSX.Element {
+export default function App(): React.JSX.Element {
   const [query, setQuery] = useState('')
   const [searchStatus, setSearchStatus] = useState<AsyncStatus>('idle')
   const [searchResults, setSearchResults] = useState<Compound[]>([])
@@ -461,6 +476,19 @@ export default function App(): JSX.Element {
       return acc
     }, {})
   }, [allCompounds])
+
+  const stackCompoundLabels = useMemo(() => {
+    return stackCompounds.map((compound) => {
+      return (
+        datasetCompoundLookup[compound]?.name ??
+        compoundLookup[compound]?.name ??
+        compound
+      )
+    })
+  }, [stackCompounds, datasetCompoundLookup, compoundLookup])
+
+  const shouldShowStackResults =
+    stackStatus === 'success' && (stackInteractions !== null || stackCompoundLabels.length > 0)
 
   const topInteractions = useMemo(() => {
     const severityRanking: Record<string, number> = {
@@ -565,11 +593,11 @@ export default function App(): JSX.Element {
   async function handleStackSubmit(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault()
     const compounds = parseStackInput(stackText)
-    if (compounds.length === 0) {
+    if (compounds.length < 2) {
       setStackStatus('error')
       setStackInteractions(null)
       setStackCompounds([])
-      setStackError('List at least one compound to evaluate the stack.')
+      setStackError('List at least two compounds to evaluate the stack.')
       return
     }
 
@@ -577,8 +605,10 @@ export default function App(): JSX.Element {
     setStackError(null)
     try {
       const data = await checkStack(compounds)
-      setStackInteractions(data.interactions ?? data.cells ?? [])
-      setStackCompounds(data.items ?? compounds)
+      const parsed = parseStackData(data, compounds)
+
+      setStackInteractions(parsed.interactions)
+      setStackCompounds(parsed.compounds)
       setStackCoverage(data.coverage ?? null)
       setStackStatus('success')
       setStackError(null)
@@ -948,12 +978,14 @@ export default function App(): JSX.Element {
               {stackError}
             </p>
           )}
-          {stackStatus === 'success' && stackInteractions && (
+          {shouldShowStackResults && (
             <div className="stack-results" aria-live="polite">
               <h3>
                 {stackHasInteractions
-                  ? `Interactions found for ${stackCompounds.join(', ')}`
-                  : 'No assessed interactions were found in this stack'
+                  ? `Interactions found for ${stackCompoundLabels.join(', ')}`
+                  : stackCompoundLabels.length > 0
+                    ? `No assessed interactions were found in ${stackCompoundLabels.join(', ')}. This does not mean the combination is safe.`
+                    : 'No assessed interactions were found in this stack. This does not mean the combination is safe.'
                 }
               </h3>
               {stackCoverage && stackCoverage.not_assessed_pairs > 0 && (
