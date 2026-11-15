@@ -1696,10 +1696,22 @@ async def spa_fallback(full_path: str, request: Request):
     if full_path.startswith("api"):
         raise HTTPException(status_code=404, detail="API endpoint not found")
     
-    # Check if it's a static file request
-    static_file_path = FRONTEND_DIST / full_path
-    if static_file_path.is_file():
-        return FileResponse(static_file_path)
+    # Check if it's a static file request. Only files inside the frontend build directory are served.
+    if (
+        "\\" not in full_path
+        and not re.match(r"^[A-Za-z]:", full_path)
+        and not Path(full_path).is_absolute()
+        and all(segment != ".." for segment in full_path.split("/"))
+    ):
+        frontend_root = FRONTEND_DIST.resolve()
+        static_file_path = (frontend_root / full_path).resolve()
+        try:
+            static_file_path.relative_to(frontend_root)
+        except ValueError:
+            pass
+        else:
+            if static_file_path.is_file():
+                return FileResponse(static_file_path)
 
     # Serve index.html for all other routes (SPA)
     index_file = FRONTEND_DIST / "index.html"
