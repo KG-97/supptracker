@@ -78,7 +78,8 @@ body {
 .grid {
   display: grid;
   gap: 24px;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  /* min() lets a single column shrink below 320px instead of pushing the page wider. */
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
 }
 
 .full-width {
@@ -120,6 +121,11 @@ body {
 .input-row {
   display: flex;
   gap: 12px;
+}
+
+/* Without this the field keeps its default width and pushes the button out of a narrow card. */
+.input-row input {
+  min-width: 0;
 }
 
 input,
@@ -766,6 +772,7 @@ html.dark .badge {
 
 @media (max-width: 720px) {
   .label-statements-filters {
-    grid-template-columns: 1fr;
+    /* minmax(0, ...) stops the longest supplement name in the list setting the column width. */
+    grid-template-columns: minmax(0, 1fr);
   }
 }
