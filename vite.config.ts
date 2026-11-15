@@ -16,7 +16,9 @@ export default defineConfig(({ mode }) => {
       '/interaction': { target: apiTarget, changeOrigin: true },
       '/stack': { target: apiTarget, changeOrigin: true },
       // fallback for any other API paths
-      '/api': { target: apiTarget, changeOrigin: true },
+      // The trailing slash matters: a bare '/api' prefix also swallows the source module /api.ts,
+      // which left the page blank in development.
+      '/api/': { target: apiTarget, changeOrigin: true },
     },
   },
   test: {
