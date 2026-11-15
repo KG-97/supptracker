@@ -38,7 +38,21 @@ const API_BASE = (() => {
   return 'http://localhost:8000/api'
 })()
 
+// FastAPI reports request validation problems as a list of objects. Turn that into sentences
+// a person can act on; the raw JSON must never reach the page.
+function validationMessages(detail: unknown): string | null {
+  if (!Array.isArray(detail)) return null
+  const messages = detail
+    .map((item) =>
+      item && typeof item.msg === 'string' ? item.msg.replace(/^Value error,\s*/i, '').trim() : ''
+    )
+    .filter(Boolean)
+    .map((message) => (/[.!?]$/.test(message) ? message : `${message}.`))
+  return messages.length > 0 ? [...new Set(messages)].join(' ') : null
+}
+
 async function parseError(res: Response, fallback: string) {
+  const unexplained = res.status ? `${fallback} (HTTP ${res.status})` : fallback
   try {
     const text = (await res.text()).trim();
     if (!text) return fallback;
@@ -47,10 +61,13 @@ async function parseError(res: Response, fallback: string) {
       if (typeof data === 'string') return data;
       if (data && typeof data.message === 'string') return data.message;
       if (data && typeof data.detail === 'string') return data.detail;
+      const listed = data ? validationMessages(data.detail) : null
+      if (listed) return listed
       if (data && typeof data.error === 'string') return data.error;
-      return text;
+      return unexplained;
     } catch {
-      return text
+      // Plain text is shown as sent. An HTML error page or a very long body is not.
+      return text.length <= 300 && !text.startsWith('<') ? text : unexplained
     }
   } catch {
     return fallback

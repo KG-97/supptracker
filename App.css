@@ -305,6 +305,8 @@ button.ghost:hover {
   margin: 0;
   font-size: 0.95rem;
   color: var(--muted-2);
+  /* A long unbroken token must wrap inside the card, not widen the page. */
+  overflow-wrap: anywhere;
 }
 
 .status-error {
