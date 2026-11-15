@@ -24,6 +24,16 @@ Do not alter the generated files by hand.
 - Loading is all-or-nothing. A missing folder, unreadable file, missing required column, wrong fixed value, or duplicate statement ID disables the statement feature and serves zero statements. It does not affect the rest of the application.
 - `otc_class`, `generic_class`, and `mineral_class` are group terms, not individual supplements.
 
+## Lookup by name
+
+`GET /api/label-statements/lookup?names=<a>&names=<b>` finds statements that name any two of the given names together (1 to 20 names). The pair checker and the stack checker call it and show the result in a separate "FDA label statements" block under their own answer.
+
+- It is a pointer to label text. It does not change the pair or stack response, and every lookup response carries `assessment: "not_assessed"`, whether or not statements were found.
+- A supplement name matches by identifier, by name, or by the dictionary's wording (so `calcium` is tried as `calcium supplements`).
+- A drug name matches by whole words only: `warfarin` finds `warfarin sodium`; `war` finds nothing. A combination product matches on any of its ingredients, and its full name is shown.
+- Results are ordered by how many labels carry the text. That is not a risk ranking.
+- The supplement filter on the other statement endpoints ignores letter case.
+
 ## Measured limits
 
 - 23,804 labels were scanned.
@@ -31,6 +41,7 @@ Do not alter the generated files by hand.
 - 114 multi-ingredient products were skipped.
 - 1,440 sentences over 700 characters were skipped.
 - At most three sentences were kept per supplement/drug pair.
+- Within a pair, sentences that differ only in letter case, spacing, bullets or quote style are merged into one (998 merges before the three-per-pair cut); the most widely used wording is kept and its label count covers every variant. Digits, full stops, commas, arrows and comparison signs are never ignored, so 109 kept statements still differ from another in the same pair only by a comma, colon or hyphen.
 - 271 of 992 pairs use group terms.
 - A seeded sample of 60 statements was re-read from the live API; all 60 matched word for word.
 - No person or model has reviewed the meaning of any sentence.

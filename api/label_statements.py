@@ -5,10 +5,12 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
+import unicodedata
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter()
 
@@ -190,6 +192,7 @@ def load_label_statements(
         "statements": statements,
         "pairs": pairs,
         "manifest": manifest,
+        "directory": directory,
     }
 
 
@@ -345,6 +348,7 @@ def list_label_statements(
 
     records = LABEL_STATEMENTS["statements"]
     if supplement is not None:
+        supplement = supplement.strip().casefold()
         records = [
             row for row in records if row["supplement_id"] == supplement
         ]
@@ -386,6 +390,8 @@ def label_statements_pair(supplement: str, drug: str) -> Dict[str, Any]:
             "items": [],
         }
 
+    supplement = supplement.strip().casefold()
+    drug = drug.strip().casefold()
     records = [
         row
         for row in LABEL_STATEMENTS["statements"]
@@ -402,3 +408,226 @@ def label_statements_pair(supplement: str, drug: str) -> Dict[str, Any]:
     if not records:
         response["assessment"] = "not_assessed"
     return response
+
+
+# --- Free-text lookup -------------------------------------------------------------------------
+# Lets the pair and stack checkers point at label text for the names a person typed. It resolves
+# names only to decide which verbatim sentences to show. It never scores, ranks by risk or
+# changes an assessment: every response carries assessment "not_assessed".
+
+LOOKUP_MAX_NAMES = 20
+LOOKUP_MAX_NAME_CHARS = 120
+LOOKUP_MAX_PAIRS = 40
+LOOKUP_MAX_DRUGS_PER_NAME = 10
+LOOKUP_FOUND_MESSAGE = (
+    "FDA label statements name these together. This is quoted label text, not an "
+    "assessment by SuppTracker, and it does not cover every combination."
+)
+LOOKUP_NONE_MESSAGE = (
+    "No FDA label statement in this collection names these together. This does not "
+    "mean the combination is safe."
+)
+
+_LOOKUP_INDEX: Dict[str, Any] = {"owner": None}
+
+
+def _normalise_name(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value)
+    plain = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return re.sub(r"[^a-z0-9]+", " ", plain.casefold()).strip()
+
+
+def _load_term_patterns(directory: Path) -> Dict[str, Dict[str, Any]]:
+    """Read the optional dictionary beside the corpus. Any problem means names match by id and name only."""
+
+    try:
+        source = json.loads((directory / "supplement_terms.json").read_text(encoding="utf-8"))
+        patterns: Dict[str, Dict[str, Any]] = {}
+        for entry in source["entries"]:
+            patterns[str(entry["id"])] = {
+                "search": {_normalise_name(str(term)) for term in entry.get("search", [])},
+                "match": re.compile(str(entry["match"]), re.IGNORECASE),
+                "exclude": [re.compile(str(item), re.IGNORECASE) for item in entry.get("exclude", [])],
+            }
+        return patterns
+    except Exception:  # noqa: BLE001 - the dictionary is optional for lookups
+        return {}
+
+
+def _lookup_index() -> Dict[str, Any]:
+    statements = LABEL_STATEMENTS["statements"]
+    if _LOOKUP_INDEX["owner"] is statements:
+        return _LOOKUP_INDEX
+
+    patterns = _load_term_patterns(_dataset_directory(LABEL_STATEMENTS.get("directory")))
+    supplements: Dict[str, Dict[str, Any]] = {}
+    drugs: Dict[str, Dict[str, Any]] = {}
+    by_pair: Dict[tuple[str, str], List[Dict[str, str]]] = {}
+    for row in statements:
+        supplement = supplements.setdefault(
+            row["supplement_id"],
+            {
+                "supplement_id": row["supplement_id"],
+                "supplement_name": row["supplement_name"],
+                "is_group_term": row["supplement_kind"] in GROUP_KINDS,
+                "statements": 0,
+                "keys": {
+                    _normalise_name(row["supplement_id"]),
+                    _normalise_name(row["supplement_name"]),
+                },
+            },
+        )
+        supplement["statements"] += 1
+        drug = drugs.setdefault(
+            row["drug_id"],
+            {"drug_id": row["drug_id"], "raw_names": set(), "statements": 0, "keys": set()},
+        )
+        drug["statements"] += 1
+        for raw_name in row["drug_names_raw"].split(";"):
+            if raw_name.strip():
+                drug["raw_names"].add(raw_name.strip())
+                drug["keys"].add(_normalise_name(raw_name))
+        for component in row["drug_id"].split("+"):
+            drug["keys"].add(_normalise_name(component))
+        by_pair.setdefault((row["supplement_id"], row["drug_id"]), []).append(row)
+
+    for supplement_id, supplement in supplements.items():
+        supplement["keys"] |= patterns.get(supplement_id, {}).get("search", set())
+        supplement["keys"].discard("")
+    for drug in drugs.values():
+        drug["keys"].discard("")
+
+    _LOOKUP_INDEX.update(
+        owner=statements, patterns=patterns, supplements=supplements, drugs=drugs, by_pair=by_pair
+    )
+    return _LOOKUP_INDEX
+
+
+def _resolve_supplements(name: str, normalised: str, index: Dict[str, Any]) -> List[str]:
+    matched = []
+    for supplement_id, supplement in sorted(index["supplements"].items()):
+        if normalised in supplement["keys"]:
+            matched.append(supplement_id)
+            continue
+        pattern = index["patterns"].get(supplement_id)
+        if pattern is None or any(item.search(name) for item in pattern["exclude"]):
+            continue
+        # The dictionary describes how labels word a supplement ("calcium supplements"), so a
+        # bare name is also tried in that wording.
+        if pattern["match"].fullmatch(name.strip()) or pattern["match"].fullmatch(
+            f"{name.strip()} supplements"
+        ):
+            matched.append(supplement_id)
+    return matched
+
+
+def _resolve_drugs(normalised: str, index: Dict[str, Any]) -> List[str]:
+    matched = []
+    for drug_id, drug in sorted(index["drugs"].items()):
+        for key in drug["keys"]:
+            # Whole-word matching only: "warfarin" finds "warfarin sodium", "war" finds nothing.
+            if key == normalised or key.startswith(normalised + " ") or normalised.startswith(key + " "):
+                matched.append(drug_id)
+                break
+    return matched
+
+
+@router.get("/api/label-statements/lookup")
+def label_statements_lookup(names: List[str] = Query(...)) -> Dict[str, Any]:
+    """Find verbatim label statements that name any two of the given free-text names together."""
+
+    cleaned = []
+    for name in names:
+        name = " ".join(str(name).split())
+        if name and name.casefold() not in {item.casefold() for item in cleaned}:
+            cleaned.append(name)
+    if not cleaned or len(cleaned) > LOOKUP_MAX_NAMES:
+        raise HTTPException(status_code=422, detail=f"Give between 1 and {LOOKUP_MAX_NAMES} names.")
+    if any(len(name) > LOOKUP_MAX_NAME_CHARS for name in cleaned):
+        raise HTTPException(status_code=422, detail="A name is too long.")
+
+    if LABEL_STATEMENTS["status"] != "available":
+        return {
+            **_unavailable_response(),
+            "message": "FDA label statements are unavailable. Nothing has been assessed.",
+            "names": [],
+            "total_pairs": 0,
+            "truncated": False,
+            "pairs": [],
+        }
+
+    index = _lookup_index()
+    resolved = []
+    for name in cleaned:
+        normalised = _normalise_name(name)
+        usable = len(normalised) >= 3
+        supplement_ids = _resolve_supplements(name, normalised, index) if usable else []
+        drug_ids = _resolve_drugs(normalised, index) if usable else []
+        resolved.append((name, supplement_ids, drug_ids))
+
+    groups: Dict[tuple[str, str], Dict[str, Any]] = {}
+    for position, (supplement_input, supplement_ids, _) in enumerate(resolved):
+        for other, (drug_input, _, drug_ids) in enumerate(resolved):
+            if position == other:
+                continue
+            for supplement_id in supplement_ids:
+                for drug_id in drug_ids:
+                    rows = index["by_pair"].get((supplement_id, drug_id))
+                    if not rows or (supplement_id, drug_id) in groups:
+                        continue
+                    supplement = index["supplements"][supplement_id]
+                    groups[(supplement_id, drug_id)] = {
+                        "supplement_input": supplement_input,
+                        "drug_input": drug_input,
+                        "supplement_id": supplement_id,
+                        "supplement_name": supplement["supplement_name"],
+                        "is_group_term": supplement["is_group_term"],
+                        "drug_id": drug_id,
+                        "drug_names_raw": "; ".join(
+                            sorted(index["drugs"][drug_id]["raw_names"], key=str.casefold)
+                        ),
+                        "labels": sum(int(row["label_count"]) for row in rows),
+                        "total": len(rows),
+                        "items": [_statement_item(row) for row in rows],
+                    }
+
+    # Ordered by how many labels carry the text, then by name. This is not a risk ranking.
+    ordered = sorted(
+        groups.values(),
+        key=lambda group: (-group["labels"], group["supplement_id"], group["drug_id"]),
+    )
+    return {
+        "status": "available",
+        **_envelope(),
+        "assessment": "not_assessed",
+        "message": LOOKUP_FOUND_MESSAGE if ordered else LOOKUP_NONE_MESSAGE,
+        "names": [
+            {
+                "input": name,
+                "supplements": [
+                    {
+                        key: index["supplements"][supplement_id][key]
+                        for key in ("supplement_id", "supplement_name", "is_group_term", "statements")
+                    }
+                    for supplement_id in supplement_ids
+                ],
+                "drug_total": len(drug_ids),
+                "drugs": [
+                    {
+                        "drug_id": drug_id,
+                        "drug_names_raw": "; ".join(
+                            sorted(index["drugs"][drug_id]["raw_names"], key=str.casefold)
+                        ),
+                        "statements": index["drugs"][drug_id]["statements"],
+                    }
+                    for drug_id in sorted(
+                        drug_ids, key=lambda item: (-index["drugs"][item]["statements"], item)
+                    )[:LOOKUP_MAX_DRUGS_PER_NAME]
+                ],
+            }
+            for name, supplement_ids, drug_ids in resolved
+        ],
+        "total_pairs": len(ordered),
+        "truncated": len(ordered) > LOOKUP_MAX_PAIRS,
+        "pairs": ordered[:LOOKUP_MAX_PAIRS],
+    }

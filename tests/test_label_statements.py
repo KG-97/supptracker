@@ -324,3 +324,101 @@ async def test_loader_fails_closed_and_existing_endpoints_continue(
 
         assert risk_api.health()["status"] in {"healthy", "degraded"}
         assert isinstance(risk_api.list_compounds()["compounds"], list)
+
+
+@pytest.mark.anyio("asyncio")
+async def test_lookup_points_free_text_names_at_verbatim_statements(client):
+    response = await client.get(
+        "/api/label-statements/lookup",
+        params=[("names", "Caffeine"), ("names", "ciprofloxacin")],
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "available"
+    # Label text is never an assessment, even when statements are found.
+    assert payload["assessment"] == "not_assessed"
+    assert payload["message"] == label_statements.LOOKUP_FOUND_MESSAGE
+    assert payload["disclaimer"] == label_statements.DISCLAIMER
+    assert payload["total_pairs"] >= 1
+    corpus = {row["sentence"] for row in label_statements.LABEL_STATEMENTS["statements"]}
+    for group in payload["pairs"]:
+        assert group["supplement_id"] == "caffeine"
+        assert "ciprofloxacin" in group["drug_id"]
+        assert group["total"] == len(group["items"]) >= 1
+        assert all(item["sentence"] in corpus for item in group["items"])
+    _assert_no_forbidden_generated_content(payload)
+
+
+@pytest.mark.anyio("asyncio")
+async def test_lookup_resolves_plain_names_by_whole_words_only(client):
+    response = await client.get(
+        "/api/label-statements/lookup",
+        params=[("names", "calcium"), ("names", "warfarin"), ("names", "war"), ("names", "wa")],
+    )
+    assert response.status_code == 200
+    names = {entry["input"]: entry for entry in response.json()["names"]}
+    assert "calcium" in {item["supplement_id"] for item in names["calcium"]["supplements"]}
+    assert names["warfarin"]["drug_total"] >= 1
+    assert all(item["drug_id"].startswith("warfarin") for item in names["warfarin"]["drugs"])
+    # A fragment of a name must not resolve to anything.
+    assert names["war"]["drug_total"] == 0 and names["war"]["supplements"] == []
+    assert names["wa"]["drug_total"] == 0 and names["wa"]["supplements"] == []
+
+
+@pytest.mark.anyio("asyncio")
+async def test_lookup_without_a_match_is_not_assessed_and_never_reassuring(client):
+    response = await client.get(
+        "/api/label-statements/lookup",
+        params=[("names", "not-a-supplement"), ("names", "not-a-drug")],
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["assessment"] == "not_assessed"
+    assert payload["total_pairs"] == 0 and payload["pairs"] == []
+    assert payload["message"] == label_statements.LOOKUP_NONE_MESSAGE
+    assert "does not mean the combination is safe" in payload["message"]
+    _assert_no_forbidden_generated_content(payload)
+
+
+@pytest.mark.anyio("asyncio")
+async def test_lookup_rejects_bad_input_and_fails_closed_when_unavailable(client, tmp_path):
+    too_many = await client.get(
+        "/api/label-statements/lookup",
+        params=[("names", f"name {number}") for number in range(21)],
+    )
+    assert too_many.status_code == 422
+    blank = await client.get("/api/label-statements/lookup", params=[("names", "   ")])
+    assert blank.status_code == 422
+    too_long = await client.get("/api/label-statements/lookup", params=[("names", "x" * 121)])
+    assert too_long.status_code == 422
+
+    label_statements.reload_label_statements(tmp_path / "missing")
+    unavailable = await client.get(
+        "/api/label-statements/lookup",
+        params=[("names", "caffeine"), ("names", "ciprofloxacin")],
+    )
+    assert unavailable.status_code == 200
+    assert unavailable.json()["status"] == "unavailable"
+    assert unavailable.json()["assessment"] == "not_assessed"
+    assert unavailable.json()["pairs"] == []
+
+
+@pytest.mark.anyio("asyncio")
+async def test_supplement_filter_ignores_letter_case(client):
+    lower = await client.get("/api/label-statements", params={"supplement": "melatonin"})
+    mixed = await client.get("/api/label-statements", params={"supplement": " Melatonin "})
+    assert lower.json()["total"] == mixed.json()["total"] > 0
+    pair = await client.get(
+        "/api/label-statements/pair",
+        params={"supplement": "Antacids", "drug": "Acalabrutinib"},
+    )
+    assert pair.json()["total"] == 3
+
+
+def test_lookup_works_without_the_optional_dictionary(tmp_path):
+    dataset = _copy_dataset(tmp_path)
+    (dataset / "supplement_terms.json").unlink()
+    label_statements.reload_label_statements(dataset)
+    payload = label_statements.label_statements_lookup(names=["caffeine", "ciprofloxacin"])
+    assert payload["total_pairs"] >= 1
+    assert payload["assessment"] == "not_assessed"

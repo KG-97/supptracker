@@ -67,6 +67,23 @@ def normalized_substance(value: str) -> str:
     return " ".join(words)
 
 
+_QUOTE_VARIANTS = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-", "‑": "-"})
+_BULLETS_RE = re.compile(r"[•·◦▪■●*]")
+
+
+def near_duplicate_key(sentence: str) -> str:
+    """Key that is equal for sentences differing only in case, spacing, bullets or quote style.
+
+    Deliberately narrow: digits, full stops, commas, arrows and comparison signs stay significant,
+    so "2.5 mg" never merges with "25 mg" and an up arrow never merges with a down arrow.
+    """
+
+    value = _BULLETS_RE.sub(" ", sentence.translate(_QUOTE_VARIANTS)).casefold()
+    value = re.sub(r"\s+", " ", value).strip()
+    # A space next to a symbol carries no meaning ("↓ atazanavir" and "↓atazanavir").
+    return re.sub(r"(?<=[^\w\s]) | (?=[^\w\s])", "", value)
+
+
 def label_source_url(set_id: str) -> str:
     query = urlencode({"search": f'set_id:"{set_id}"', "limit": 1})
     return f"{API_URL}?{query}"
@@ -281,6 +298,7 @@ def build(args: argparse.Namespace) -> dict[str, int]:
         "distinct_drugs": 0,
         "sentences_too_long": 0,
         "self_skips": 0,
+        "near_duplicate_sentences_merged": 0,
     }
 
     for finder_entry in entries:
@@ -437,8 +455,23 @@ def build(args: argparse.Namespace) -> dict[str, int]:
         if CACHE_TIMES else utc_now()
     )
     for pair_key in sorted(per_pair):
-        items = sorted(
+        # Labels repeat the same sentence with different spacing, bullets or quote marks. Keep one
+        # verbatim copy (the most widely used) and count every label that carries any variant.
+        merged: dict[str, dict[str, Any]] = {}
+        for item in sorted(
             per_pair[pair_key],
+            key=lambda item: (-len(item["set_ids"]), len(item["sentence"]), item["sentence"]),
+        ):
+            variant_key = near_duplicate_key(item["sentence"])
+            kept = merged.get(variant_key)
+            if kept is None:
+                merged[variant_key] = item
+            else:
+                kept["set_ids"].update(item["set_ids"])
+                kept["raw_names"].update(item["raw_names"])
+                counts["near_duplicate_sentences_merged"] += 1
+        items = sorted(
+            merged.values(),
             key=lambda item: (-len(item["set_ids"]), len(item["sentence"]), item["sentence"]),
         )[:args.per_pair]
         selected.extend(items)

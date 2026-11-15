@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, test, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, test, vi } from 'vitest'
 import App, { parseStackData } from './App'
 import type { Compound, StackResponse } from './types'
 
@@ -76,8 +76,27 @@ const apiMocks = vi.hoisted(() => {
       sources: [],
     })),
     checkStack: vi.fn(async () => ({ interactions: [] })),
+    fetchLabelStatementLookup: vi.fn(async (): Promise<any> => ({
+      status: 'unavailable',
+      assessment: 'not_assessed',
+      disclaimer: '',
+      message: '',
+      names: [],
+      total_pairs: 0,
+      truncated: false,
+      pairs: [],
+    })),
   }
 })
+
+// The label statement components import the module in src directly. Mock their calls there so
+// these tests never reach a real server.
+vi.mock('./src/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./src/api')>()),
+  fetchLabelStatementsSummary: apiMocks.fetchLabelStatementsSummary,
+  fetchLabelStatements: apiMocks.fetchLabelStatements,
+  fetchLabelStatementLookup: apiMocks.fetchLabelStatementLookup,
+}))
 
 vi.mock('./api', () => ({
   fetchHealth: apiMocks.fetchHealth,
@@ -91,6 +110,9 @@ vi.mock('./api', () => ({
 }))
 
 describe('App external links', () => {
+  // Without this, every test's page stays in the document and later queries find duplicates.
+  afterEach(cleanup)
+
   beforeEach(() => {
     apiMocks.fetchHealth.mockReset()
     apiMocks.fetchHealth.mockResolvedValue(defaultHealthResponse)
@@ -138,6 +160,18 @@ describe('App external links', () => {
 
     apiMocks.checkStack.mockReset()
     apiMocks.checkStack.mockResolvedValue({ interactions: [] })
+
+    apiMocks.fetchLabelStatementLookup.mockReset()
+    apiMocks.fetchLabelStatementLookup.mockResolvedValue({
+      status: 'unavailable',
+      assessment: 'not_assessed',
+      disclaimer: '',
+      message: '',
+      names: [],
+      total_pairs: 0,
+      truncated: false,
+      pairs: [],
+    })
   })
 
   it('renders external reference links for compounds', async () => {
@@ -396,6 +430,88 @@ describe('App external links', () => {
     expect(apiMocks.checkStack).toHaveBeenCalledWith(['Caffeine', 'Ashwagandha'])
     expect(await screen.findByText(/interactions found for caffeine, ashwagandha/i)).toBeInTheDocument()
     expect(screen.getByRole('table')).toBeInTheDocument()
+  })
+
+  const caffeineLookup = {
+    status: 'available',
+    assessment: 'not_assessed',
+    disclaimer: 'FDA-approved label text, quoted verbatim.',
+    message: 'FDA label statements name these together. This is quoted label text, not an assessment by SuppTracker.',
+    names: [
+      { input: 'caffeine', supplements: [{ supplement_id: 'caffeine', supplement_name: 'Caffeine', is_group_term: false, statements: 3 }], drug_total: 0, drugs: [] },
+      { input: 'adenosine', supplements: [], drug_total: 1, drugs: [{ drug_id: 'adenosine', drug_names_raw: 'ADENOSINE', statements: 2 }] },
+    ],
+    total_pairs: 1,
+    truncated: false,
+    pairs: [
+      {
+        supplement_input: 'caffeine',
+        drug_input: 'adenosine',
+        supplement_id: 'caffeine',
+        supplement_name: 'Caffeine',
+        is_group_term: false,
+        drug_id: 'adenosine',
+        drug_names_raw: 'ADENOSINE',
+        labels: 4,
+        total: 1,
+        items: [
+          {
+            statement_id: 'abc',
+            sentence: 'A verbatim label sentence naming caffeine.',
+            label_count: '4',
+            label_url: 'https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=x',
+          },
+        ],
+      },
+    ],
+  }
+
+  it('shows label statements and an honest message when a pair is outside the assessed list', async () => {
+    apiMocks.fetchInteraction.mockRejectedValueOnce(new Error('One or both compounds not found'))
+    apiMocks.fetchLabelStatementLookup.mockResolvedValueOnce(caffeineLookup)
+
+    render(<App />)
+
+    fireEvent.change(await screen.findByLabelText('Compound A'), { target: { value: 'caffeine' } })
+    fireEvent.change(screen.getByLabelText('Compound B'), { target: { value: 'adenosine' } })
+    fireEvent.click(screen.getByRole('button', { name: /check pair/i }))
+
+    expect(await screen.findByText(/nothing was assessed\. This does not mean the combination is safe\./i)).toBeInTheDocument()
+    expect(apiMocks.fetchLabelStatementLookup).toHaveBeenCalledWith(['caffeine', 'adenosine'])
+    expect(await screen.findByText('A verbatim label sentence naming caffeine.')).toBeInTheDocument()
+    expect(screen.getByText(/not an assessment by SuppTracker/i)).toBeInTheDocument()
+    expect(screen.queryByText(/no interaction/i)).not.toBeInTheDocument()
+  })
+
+  it('accepts semicolons in a stack and says plainly when no label statement matches', async () => {
+    apiMocks.checkStack.mockResolvedValueOnce({ interactions: [], resolved_items: ['caffeine', 'aspirin'] })
+    apiMocks.fetchLabelStatementLookup.mockResolvedValueOnce({
+      ...caffeineLookup,
+      message: 'No FDA label statement in this collection names these together. This does not mean the combination is safe.',
+      names: [
+        { input: 'caffeine', supplements: caffeineLookup.names[0].supplements, drug_total: 0, drugs: [] },
+        { input: 'unobtainium', supplements: [], drug_total: 0, drugs: [] },
+      ],
+      total_pairs: 0,
+      pairs: [],
+    })
+
+    render(<App />)
+
+    const textarea = await screen.findByLabelText(/supplement stack list/i)
+    const form = textarea.closest('form') as HTMLFormElement
+    fireEvent.change(textarea, { target: { value: 'caffeine; unobtainium' } })
+    fireEvent.click(within(form).getByRole('button', { name: /check stack/i }))
+
+    expect(apiMocks.checkStack).toHaveBeenCalledWith(['caffeine', 'unobtainium'])
+    expect(await screen.findByText(/No FDA label statement in this collection names these together\. This does not mean the combination is safe\./)).toBeInTheDocument()
+    expect(screen.getByText(/Not named in the label statement collection: unobtainium\./)).toBeInTheDocument()
+  })
+
+  it('tells the reader when no interaction records are loaded', async () => {
+    render(<App />)
+
+    expect(await screen.findByText(/None loaded: pair and stack checks can only report "not assessed"/)).toBeInTheDocument()
   })
 })
 

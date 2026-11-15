@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 import {
   fetchLabelStatements,
   fetchLabelStatementsSummary,
@@ -32,7 +32,19 @@ function labelCountText(item: LabelStatement): string {
   return `appears in ${item.label_count} ${count === 1 ? 'label' : 'labels'}`
 }
 
-export default function LabelStatements() {
+export interface LabelStatementsRequest {
+  supplement?: string
+  drug?: string
+  // Changes on every request, so asking for the same filter twice still runs.
+  token: number
+}
+
+interface LabelStatementsProps {
+  request?: LabelStatementsRequest | null
+}
+
+export default function LabelStatements({ request = null }: LabelStatementsProps = {}) {
+  const sectionRef = useRef<HTMLElement | null>(null)
   const [summary, setSummary] = useState<LabelStatementsSummary | null>(null)
   const [disclaimer, setDisclaimer] = useState(DEFAULT_DISCLAIMER)
   const [supplement, setSupplement] = useState('')
@@ -43,14 +55,18 @@ export default function LabelStatements() {
   const [availability, setAvailability] = useState<'loading' | 'available' | 'unavailable'>('loading')
   const [isLoadingResults, setIsLoadingResults] = useState(false)
 
-  async function loadResults(offset = 0, append = false) {
+  async function loadResults(
+    offset = 0,
+    append = false,
+    filters: { supplement: string; drug: string; query: string } = { supplement, drug, query }
+  ) {
     setIsLoadingResults(true)
 
     try {
       const response = await fetchLabelStatements({
-        supplement: supplement || undefined,
-        drug: drug || undefined,
-        q: query || undefined,
+        supplement: filters.supplement || undefined,
+        drug: filters.drug || undefined,
+        q: filters.query || undefined,
         limit: 25,
         offset,
       })
@@ -119,13 +135,33 @@ export default function LabelStatements() {
     }
   }, [])
 
+  // Another part of the page (the compound search) can ask this section to show one
+  // supplement or drug.
+  useEffect(() => {
+    if (!request) {
+      return
+    }
+
+    const filters = { supplement: request.supplement ?? '', drug: request.drug ?? '', query: '' }
+    setSupplement(filters.supplement)
+    setDrug(filters.drug)
+    setQuery('')
+    void loadResults(0, false, filters)
+    sectionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request?.token])
+
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     void loadResults()
   }
 
   return (
-    <section className="card full-width label-statements" aria-labelledby="label-statements-heading">
+    <section
+      ref={sectionRef}
+      className="card full-width label-statements"
+      aria-labelledby="label-statements-heading"
+    >
       <div className="card-header">
         <h2 id="label-statements-heading">FDA label statements</h2>
         <p>Verbatim sentences from FDA-approved drug labels.</p>
@@ -210,6 +246,7 @@ export default function LabelStatements() {
                     value={drug}
                     onChange={(event) => setDrug(event.target.value)}
                     autoComplete="off"
+                    spellCheck={false}
                   />
                 </div>
 

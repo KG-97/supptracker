@@ -700,6 +700,35 @@ html.dark .badge {
   margin-left: 4px;
 }
 
+.label-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.label-matches h3,
+.label-match-heading {
+  margin: 0;
+}
+
+.label-match-heading {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.label-match-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label-matches .pill button {
+  align-self: flex-start;
+}
+
 @media (max-width: 720px) {
   .label-statements-filters {
     grid-template-columns: 1fr;

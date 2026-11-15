@@ -192,6 +192,58 @@ export interface LabelStatementsFilters {
   offset?: number
 }
 
+export interface LabelStatementsLookupPair {
+  supplement_input: string
+  drug_input: string
+  supplement_id: string
+  supplement_name: string
+  is_group_term: boolean
+  drug_id: string
+  drug_names_raw: string
+  labels: number
+  total: number
+  items: LabelStatement[]
+}
+
+export interface LabelStatementsLookupName {
+  input: string
+  supplements: {
+    supplement_id: string
+    supplement_name: string
+    is_group_term: boolean
+    statements: number
+  }[]
+  drug_total: number
+  drugs: {
+    drug_id: string
+    drug_names_raw: string
+    statements: number
+  }[]
+}
+
+export interface LabelStatementsLookup {
+  status: LabelStatementsStatus
+  record_kind: string
+  review_status: string
+  disclaimer: string
+  assessment: 'not_assessed'
+  message: string
+  names: LabelStatementsLookupName[]
+  total_pairs: number
+  truncated: boolean
+  pairs: LabelStatementsLookupPair[]
+}
+
+// Finds verbatim FDA label statements that name any two of the given names together.
+// The result is quoted label text only; it is never an assessment.
+export async function fetchLabelStatementLookup(names: string[]): Promise<LabelStatementsLookup> {
+  const params = new URLSearchParams()
+  for (const name of names) {
+    params.append('names', name)
+  }
+  return request<LabelStatementsLookup>(`/label-statements/lookup?${params.toString()}`)
+}
+
 export async function fetchLabelStatementsSummary(): Promise<LabelStatementsSummary> {
   return request<LabelStatementsSummary>('/label-statements/summary')
 }

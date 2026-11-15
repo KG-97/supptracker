@@ -168,6 +168,21 @@ def main() -> int:
 
         calculated_pairs[(row["supplement_id"], row["drug_id"])].append(row)
 
+    # Added by Claude Code 2026-11-16: one sentence must not be counted twice in a pair because
+    # labels differ in case, spacing, bullets or quote style. Written separately from the builder.
+    for pair_key, pair_rows in calculated_pairs.items():
+        variant_keys: set[str] = set()
+        for row in pair_rows:
+            text = row["sentence"]
+            for old, new in (("‘", "'"), ("’", "'"), ("“", '"'), ("”", '"'), ("–", "-"), ("—", "-"), ("‑", "-")):
+                text = text.replace(old, new)
+            text = re.sub(r"[•·◦▪■●*]", " ", text).casefold()
+            text = " ".join(text.split())
+            text = re.sub(r"(?<=[^\w\s]) | (?=[^\w\s])", "", text)
+            if text in variant_keys:
+                fail(failures, "near_duplicate_statement", f"{pair_key[0]} / {pair_key[1]}")
+            variant_keys.add(text)
+
     if isinstance(manifest, dict):
         if manifest.get("failed_requests"):
             fail(failures, "manifest_failed_requests")
