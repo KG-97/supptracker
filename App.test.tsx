@@ -48,6 +48,16 @@ const apiMocks = vi.hoisted(() => {
     fetchHealth: vi.fn(async () => defaultHealthResponse),
     fetchAllCompounds: vi.fn(async () => defaultCompoundList),
     fetchInteractionsList: vi.fn(async () => defaultInteractionsList),
+    fetchLabelStatementsSummary: vi.fn(async () => ({
+      status: 'unavailable',
+      disclaimer: 'FDA-approved label text, quoted verbatim, not reviewed or assessed by SuppTracker, not medical advice, absence of a statement does not mean a combination is safe.',
+    })),
+    fetchLabelStatements: vi.fn(async () => ({
+      status: 'unavailable',
+      disclaimer: 'FDA-approved label text, quoted verbatim, not reviewed or assessed by SuppTracker, not medical advice, absence of a statement does not mean a combination is safe.',
+      total: 0,
+      items: [],
+    })),
     searchCompounds: vi.fn(async () => []),
     fetchInteraction: vi.fn(async () => ({
       interaction: {
@@ -73,6 +83,8 @@ vi.mock('./api', () => ({
   fetchHealth: apiMocks.fetchHealth,
   fetchAllCompounds: apiMocks.fetchAllCompounds,
   fetchInteractionsList: apiMocks.fetchInteractionsList,
+  fetchLabelStatementsSummary: apiMocks.fetchLabelStatementsSummary,
+  fetchLabelStatements: apiMocks.fetchLabelStatements,
   searchCompounds: apiMocks.searchCompounds,
   fetchInteraction: apiMocks.fetchInteraction,
   checkStack: apiMocks.checkStack,
@@ -88,6 +100,20 @@ describe('App external links', () => {
 
     apiMocks.fetchInteractionsList.mockReset()
     apiMocks.fetchInteractionsList.mockResolvedValue(defaultInteractionsList)
+
+    apiMocks.fetchLabelStatementsSummary.mockReset()
+    apiMocks.fetchLabelStatementsSummary.mockResolvedValue({
+      status: 'unavailable',
+      disclaimer: 'FDA-approved label text, quoted verbatim, not reviewed or assessed by SuppTracker, not medical advice, absence of a statement does not mean a combination is safe.',
+    })
+
+    apiMocks.fetchLabelStatements.mockReset()
+    apiMocks.fetchLabelStatements.mockResolvedValue({
+      status: 'unavailable',
+      disclaimer: 'FDA-approved label text, quoted verbatim, not reviewed or assessed by SuppTracker, not medical advice, absence of a statement does not mean a combination is safe.',
+      total: 0,
+      items: [],
+    })
 
     apiMocks.searchCompounds.mockReset()
     apiMocks.searchCompounds.mockResolvedValue([])

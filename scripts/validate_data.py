@@ -240,9 +240,9 @@ class DataValidator:
                         )
 
             if id_field:
-                print(f"  ✓ Validated {len(seen_ids)} unique records")
+                print(f"  Validated {len(seen_ids)} unique records")
             else:
-                print(f"  ✓ Validated {valid_rows} records")
+                print(f"  Validated {valid_rows} records")
 
         except Exception as e:
             self.errors.append(f"{filename}: Error reading file - {str(e)}")
@@ -287,9 +287,9 @@ class DataValidator:
                         seen_ids.add(item_id)
 
             if has_id_field:
-                print(f"  ✓ Validated {len(seen_ids)} unique records")
+                print(f"  Validated {len(seen_ids)} unique records")
             else:
-                print(f"  ✓ Validated {len(data)} records (no id field)")
+                print(f"  Validated {len(data)} records (no id field)")
 
         except json.JSONDecodeError as e:
             self.warnings.append(f"{filename}: Invalid JSON - {str(e)}")
@@ -300,6 +300,8 @@ class DataValidator:
         """Check cross-file references are valid"""
         print("\nChecking referential integrity...")
 
+        seen_pairs: Dict[tuple[str, str], int] = {}
+
         # Check interactions reference valid compounds
         for row_key, interaction in self.interactions.items():
             row_label = row_key if isinstance(row_key, int) else f"id={row_key}"
@@ -307,26 +309,43 @@ class DataValidator:
             compound_b = (interaction.get('compound_b') or '').strip()
 
             if compound_a and compound_a not in self.compounds:
-                self.warnings.append(
+                self.errors.append(
                     f"interactions.csv:row {row_label}: References unknown compound_a '{compound_a}'"
                 )
 
             if compound_b and compound_b not in self.compounds:
-                self.warnings.append(
+                self.errors.append(
                     f"interactions.csv:row {row_label}: References unknown compound_b '{compound_b}'"
                 )
 
+            if compound_a and compound_b:
+                if compound_a == compound_b:
+                    self.errors.append(
+                        f"interactions.csv:row {row_label}: Self-interactions are not allowed"
+                    )
+                pair = tuple(sorted((compound_a, compound_b)))
+                previous_row = seen_pairs.get(pair)
+                if previous_row is not None:
+                    self.errors.append(
+                        f"interactions.csv:row {row_label}: Duplicate unordered pair {pair}; first seen at row {previous_row}"
+                    )
+                else:
+                    seen_pairs[pair] = int(row_key)
+
             # Check source references
             source_ids = interaction.get('source_ids', '')
-            if source_ids:
-                for source_id in source_ids.split(';'):
-                    source_id = source_id.strip()
-                    if source_id and source_id not in self.sources:
-                        self.warnings.append(
-                            f"interactions.csv:row {row_label}: References unknown source_id '{source_id}'"
-                        )
+            resolved_source_ids = [source_id.strip() for source_id in source_ids.replace('|', ';').split(';') if source_id.strip()]
+            if not resolved_source_ids:
+                self.errors.append(
+                    f"interactions.csv:row {row_label}: At least one source_id is required"
+                )
+            for source_id in resolved_source_ids:
+                if source_id not in self.sources:
+                    self.errors.append(
+                        f"interactions.csv:row {row_label}: References unknown source_id '{source_id}'"
+                    )
 
-        print("  ✓ Referential integrity checked")
+        print("  Referential integrity checked")
 
     def print_results(self) -> None:
         """Print validation results"""
@@ -335,19 +354,19 @@ class DataValidator:
         print("="*60 + "\n")
 
         if self.warnings:
-            print(f"⚠️  {len(self.warnings)} Warning(s):\n")
+            print(f"WARNING: {len(self.warnings)} Warning(s):\n")
             for warning in self.warnings:
-                print(f"  • {warning}")
+                print(f"  - {warning}")
             print()
 
         if self.errors:
-            print(f"❌ {len(self.errors)} Error(s):\n")
+            print(f"ERROR: {len(self.errors)} Error(s):\n")
             for error in self.errors:
-                print(f"  • {error}")
+                print(f"  - {error}")
             print()
             print("VALIDATION FAILED\n")
         else:
-            print("✅ All validations passed!\n")
+            print("All validations passed.\n")
 
 
 def main():

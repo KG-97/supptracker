@@ -16,26 +16,16 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || true
-          pip install pandas pyyaml pytest
-      - name: Compile compounds
+          pip install -r requirements.txt
+      - name: Validate candidate corpus boundary and integrity
         run: |
-          python tools/compile_compounds.py
-      - name: Compile interactions
+          python scripts/validate_openfda_candidates.py
+      - name: Validate supplement-statement corpus boundary and integrity
         run: |
-          python tools/compile_interactions.py || true
-      - name: Validate compounds YAML
-        run: |
-          python tools/validate_compounds.py
-      - name: Validate interactions ↔ compounds
-        run: |
-          test -f data/interactions.csv || true
-          python tools/validate_interactions.py || true
+          python scripts/validate_openfda_supplement_statements.py --dir data/openfda_supplement_statements --terms data/openfda_supplement_statements/supplement_terms.json
       - name: Run tests
         run: |
           pytest -q
-      - name: Ensure compiled CSVs committed
+      - name: Ensure validated corpus is committed
         run: |
-          git diff --exit-code data/compounds.csv || (echo "::error::compounds.csv out of date. Run compiler and commit." && exit 1)
-          test -f data/interactions.csv && git diff --exit-code data/interactions.csv || true
-          test -f data/sources.csv && git diff --exit-code data/sources.csv || true
+          git diff --exit-code -- data/openfda_candidates data/openfda_supplement_statements || (echo "::error::Validated corpus is not committed." && exit 1)

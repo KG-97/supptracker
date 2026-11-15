@@ -51,8 +51,11 @@ export interface InteractionWithRisk extends InteractionRecord {
 }
 
 export interface InteractionResponse {
-  interaction: InteractionRecord & Partial<InteractionWithRisk>
-  risk_score: number
+  assessment?: 'assessed' | 'not_assessed'
+  pair?: { a: string; b: string }
+  message?: string
+  interaction: (InteractionRecord & Partial<InteractionWithRisk>) | null
+  risk_score: number | null
   sources: Source[]
 }
 
@@ -69,6 +72,12 @@ export interface StackInteraction {
 }
 
 export interface StackResponse {
+  assessment?: 'assessed' | 'partial'
+  coverage?: {
+    total_pairs: number
+    assessed_pairs: number
+    not_assessed_pairs: number
+  }
   items?: string[]
   resolved_items?: string[]
   matrix?: (number | null)[][]
@@ -78,7 +87,10 @@ export interface StackResponse {
 
 export interface HealthIssue {
   source: string
-  error: string
+  // The API now reports a stable reason code and a count instead of raw error text (no server paths).
+  code?: string
+  count?: number
+  error?: string
 }
 
 export interface HealthResponse {

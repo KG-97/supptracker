@@ -1,5 +1,6 @@
 import React, { FormEvent, useEffect, useMemo, useState } from 'react'
 import './App.css'
+import LabelStatements from './LabelStatements'
 import {
   checkStack,
   fetchAllCompounds,
@@ -41,7 +42,7 @@ function resolveSources(response: InteractionResponse | null): Source[] {
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
-export const DEFAULT_STACK_EXAMPLE = 'creatine, caffeine, magnesium'
+export const DEFAULT_STACK_EXAMPLE = 'caffeine, aspirin'
 
 function parseStackInput(value: string): string[] {
   return value
@@ -411,6 +412,7 @@ export default function App(): JSX.Element {
   const [stackError, setStackError] = useState<string | null>(null)
   const [stackInteractions, setStackInteractions] = useState<StackInteraction[] | null>(null)
   const [stackCompounds, setStackCompounds] = useState<string[]>([])
+  const [stackCoverage, setStackCoverage] = useState<{ total_pairs: number; assessed_pairs: number; not_assessed_pairs: number } | null>(null)
 
   const [overviewStatus, setOverviewStatus] = useState<AsyncStatus>('loading')
   const [overviewError, setOverviewError] = useState<string | null>(null)
@@ -577,11 +579,13 @@ export default function App(): JSX.Element {
       const data = await checkStack(compounds)
       setStackInteractions(data.interactions ?? data.cells ?? [])
       setStackCompounds(data.items ?? compounds)
+      setStackCoverage(data.coverage ?? null)
       setStackStatus('success')
       setStackError(null)
     } catch (error) {
       setStackInteractions(null)
       setStackCompounds([])
+      setStackCoverage(null)
       setStackStatus('error')
       setStackError(error instanceof Error ? error.message : 'Stack check failed')
     }
@@ -638,9 +642,14 @@ export default function App(): JSX.Element {
                   <strong className="health-alert-title">Dataset loaded with warnings</strong>
                   <ul>
                     {health.issues.map((issue) => (
-                      <li key={`${issue.source}:${issue.error}`.slice(0, 120)}>
+                      <li key={`${issue.source}:${issue.code ?? issue.error}`.slice(0, 120)}>
                         <span className="health-issue-source">{issue.source}:</span>{' '}
-                        <span className="health-issue-message">{issue.error}</span>
+                        <span className="health-issue-message">
+                          {issue.error ??
+                            `${(issue.code ?? 'unknown_problem').replace(/_/g, ' ')}${
+                              issue.count != null ? ` (${issue.count})` : ''
+                            }`}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -831,6 +840,8 @@ export default function App(): JSX.Element {
           )}
         </section>
 
+        <LabelStatements />
+
         <section className="card">
           <div className="card-header">
             <h2>Pair checker</h2>
@@ -864,6 +875,11 @@ export default function App(): JSX.Element {
           </form>
           {pairStatus === 'loading' && <p className="status">Checking interaction…</p>}
           {pairError && <p className="status status-error">{pairError}</p>}
+          {pairData?.assessment === 'not_assessed' && (
+            <p className="status status-info" role="status">
+              {pairData.message ?? 'No assessed interaction record is available for this pair. This does not mean the combination is safe.'}
+            </p>
+          )}
           {pair && pairStatus === 'success' && (
             <div className="pair-result" aria-live="polite">
               <h3>{pairHeading}</h3>
@@ -937,9 +953,14 @@ export default function App(): JSX.Element {
               <h3>
                 {stackHasInteractions
                   ? `Interactions found for ${stackCompounds.join(', ')}`
-                  : 'No interactions detected in this stack'
+                  : 'No assessed interactions were found in this stack'
                 }
               </h3>
+              {stackCoverage && stackCoverage.not_assessed_pairs > 0 && (
+                <p className="status status-info">
+                  {stackCoverage.assessed_pairs} of {stackCoverage.total_pairs} pairs have assessed records. {stackCoverage.not_assessed_pairs} pair{stackCoverage.not_assessed_pairs === 1 ? '' : 's'} remain unassessed; absence of a record does not mean safe.
+                </p>
+              )}
               {stackHasInteractions && (
                 <table>
                   <thead>

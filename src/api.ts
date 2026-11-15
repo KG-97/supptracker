@@ -118,3 +118,101 @@ export async function checkStack(compounds: string[]): Promise<StackResponse> {
     body: JSON.stringify({ compounds }),
   })
 }
+
+export type LabelStatementsStatus = 'available' | 'unavailable'
+
+export interface LabelStatement {
+  statement_id: string
+  record_kind: string
+  review_status: string
+  supplement_id: string
+  supplement_name: string
+  supplement_kind: string
+  drug_id: string
+  drug_names_raw: string
+  sentence: string
+  matched_text: string
+  section: string
+  set_id: string
+  label_id: string
+  effective_time: string
+  label_count: string
+  source_url: string
+  retrieved_at: string
+  rights_status: string
+  is_group_term: boolean
+  label_url: string
+}
+
+export interface LabelStatementsSupplement {
+  supplement_id: string
+  supplement_name: string
+  supplement_kind: string
+  is_group_term: boolean
+  pair_count: number
+}
+
+export interface LabelStatementsSummary {
+  status: LabelStatementsStatus
+  record_kind: string
+  review_status: string
+  disclaimer: string
+  counts: {
+    statements: number
+    pairs: number
+    supplements: number
+    drugs: number
+  }
+  retrieved_at: {
+    earliest: string | null
+    latest: string | null
+  }
+  source: string
+  license: string
+  license_url: string
+  supplements: LabelStatementsSupplement[]
+  assessment?: 'not_assessed'
+}
+
+export interface LabelStatementsListResponse {
+  status: LabelStatementsStatus
+  record_kind: string
+  review_status: string
+  disclaimer: string
+  total: number
+  items: LabelStatement[]
+  assessment?: 'not_assessed'
+}
+
+export interface LabelStatementsFilters {
+  supplement?: string
+  drug?: string
+  q?: string
+  limit?: number
+  offset?: number
+}
+
+export async function fetchLabelStatementsSummary(): Promise<LabelStatementsSummary> {
+  return request<LabelStatementsSummary>('/label-statements/summary')
+}
+
+export async function fetchLabelStatements(
+  filters: LabelStatementsFilters = {}
+): Promise<LabelStatementsListResponse> {
+  const params = new URLSearchParams()
+
+  if (filters.supplement) {
+    params.set('supplement', filters.supplement)
+  }
+  if (filters.drug) {
+    params.set('drug', filters.drug)
+  }
+  if (filters.q) {
+    params.set('q', filters.q)
+  }
+
+  params.set('limit', String(filters.limit ?? 25))
+  params.set('offset', String(filters.offset ?? 0))
+
+  return request<LabelStatementsListResponse>(`/label-statements?${params.toString()}`)
+}

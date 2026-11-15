@@ -59,6 +59,7 @@ def test_check_stack_with_interaction():
     }
     app_module.INTERACTIONS = [
         {
+            "record_kind": "assessed_interaction",
             "id": "caf-asp",
             "a": "caffeine",
             "b": "aspirin",

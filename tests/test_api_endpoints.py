@@ -47,6 +47,7 @@ async def client():
     }
     app_module.INTERACTIONS = [
         {
+            "record_kind": "assessed_interaction",
             "id": "caf-asp",
             "a": "caffeine",
             "b": "aspirin",
