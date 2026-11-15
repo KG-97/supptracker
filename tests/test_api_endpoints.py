@@ -79,6 +79,7 @@ async def client():
     )
     app_module.set_doc_search_service(doc_service)
     app_module.build_compound_indexes()
+    app_module.build_interaction_lookup()
     transport = httpx.ASGITransport(app=app_module.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as async_client:
         yield async_client
@@ -199,6 +200,28 @@ async def test_compounds_endpoint_includes_external_links(client):
     caffeine = compounds_by_id["caffeine"]
     assert caffeine["externalIds"] == {"pubchem": "2519"}
     assert caffeine["referenceUrls"]["pubchem"] == "https://pubchem.ncbi.nlm.nih.gov/compound/2519"
+
+
+async def test_compound_detail_resolves_synonyms_and_lists_interactions(client):
+    resp = await client.get("/api/compounds/coffee")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["id"] == "caffeine"
+    assert payload["resolved_id"] == "caffeine"
+    assert payload["requested_identifier"] == "coffee"
+    assert payload["counts"]["interactions"] == len(payload["interactions"])
+    assert payload["counts"]["interactions"] == 1
+
+    interaction = payload["interactions"][0]
+    assert interaction["with"]["id"] == "aspirin"
+    assert interaction["risk_score"] == pytest.approx(3.4)
+    assert interaction["source_ids"] == ["s1"]
+    assert interaction["sources"][0]["citation"] == "Example source"
+
+
+async def test_compound_detail_handles_missing_records(client):
+    resp = await client.get("/api/compounds/unknown")
+    assert resp.status_code == 404
 
 
 async def test_api_with_missing_rules_config(client, tmp_path):
