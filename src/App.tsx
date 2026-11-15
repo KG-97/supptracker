@@ -403,7 +403,7 @@ function compoundExternalLinks(
   return links
 }
 
-export default function App(): JSX.Element {
+export default function App(): React.JSX.Element {
   const [query, setQuery] = useState('')
   const [searchStatus, setSearchStatus] = useState<AsyncStatus>('idle')
   const [searchResults, setSearchResults] = useState<Compound[]>([])

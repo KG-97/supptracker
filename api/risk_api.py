@@ -1607,7 +1607,7 @@ def interaction(a: str, b: str):
 class StackRequest(BaseModel):
     """Request payload for stack checks with input validation and alias support."""
 
-    compounds: conlist(str, min_items=2)
+    compounds: conlist(str, min_length=2)
 
     @root_validator(pre=True)
     def _alias_items(cls, values: Dict[str, Any]) -> Dict[str, Any]:
