@@ -731,6 +731,39 @@ html.dark .badge {
   align-self: flex-start;
 }
 
+.label-matches > button {
+  align-self: flex-start;
+}
+
+.label-matches .label-statement summary {
+  cursor: pointer;
+}
+
+.label-matches .label-statement summary .label-match-heading {
+  display: inline;
+}
+
+.label-match-count {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: var(--muted-2);
+}
+
+.label-matches .label-statement details[open] > summary {
+  margin-bottom: 12px;
+}
+
+.label-match-item + .label-match-item {
+  margin-top: 12px;
+}
+
+/* A card showing label statements can be far taller than its neighbour. Let the neighbour
+   keep its own height instead of stretching into a tall empty box. */
+.grid:has(.label-matches) > .card {
+  align-self: start;
+}
+
 @media (max-width: 720px) {
   .label-statements-filters {
     grid-template-columns: 1fr;

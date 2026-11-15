@@ -117,4 +117,61 @@ describe('label statement lookups', () => {
       )
     )
   })
+
+  function pairsLookup(count: number) {
+    return {
+      ...envelope,
+      message: 'FDA label statements name these together.',
+      names: [],
+      total_pairs: count,
+      truncated: false,
+      pairs: Array.from({ length: count }, (_, index) => ({
+        supplement_input: 'calcium',
+        drug_input: `drug ${index}`,
+        supplement_id: 'calcium',
+        supplement_name: 'Calcium supplements',
+        is_group_term: false,
+        drug_id: `drug-${index}`,
+        drug_names_raw: `DRUG ${index}`,
+        labels: 10 - index,
+        total: 1,
+        items: [
+          {
+            statement_id: `s${index}`,
+            sentence: `Sentence ${index}.`,
+            label_count: '1',
+            label_url: 'https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=x',
+          },
+        ],
+      })),
+    }
+  }
+
+  it('folds pairs after the first three and can open or fold them all', async () => {
+    apiMocks.fetchLabelStatementLookup.mockResolvedValueOnce(pairsLookup(5))
+
+    const { container } = render(<LabelStatementMatches names={['calcium', 'x']} requestId={1} />)
+
+    await screen.findByText('Sentence 0.')
+    const opened = () => Array.from(container.querySelectorAll('details')).map((item) => item.open)
+    expect(opened()).toEqual([true, true, true, false, false])
+    // Folding removes nothing from the page: every sentence is still there to open.
+    expect(screen.getByText('Sentence 4.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all 5 pairs' }))
+    expect(opened()).toEqual([true, true, true, true, true])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }))
+    expect(opened()).toEqual([false, false, false, false, false])
+  })
+
+  it('keeps a short result open and offers no expand control', async () => {
+    apiMocks.fetchLabelStatementLookup.mockResolvedValueOnce(pairsLookup(2))
+
+    const { container } = render(<LabelStatementMatches names={['calcium', 'x']} requestId={1} />)
+
+    await screen.findByText('Sentence 0.')
+    expect(Array.from(container.querySelectorAll('details')).map((item) => item.open)).toEqual([true, true])
+    expect(screen.queryByRole('button', { name: /expand all/i })).not.toBeInTheDocument()
+  })
 })

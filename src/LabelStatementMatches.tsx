@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchLabelStatementLookup } from './api'
-import type { LabelStatementsLookup } from './api'
+import type { LabelStatementsLookup, LabelStatementsLookupPair } from './api'
 
 // Shown under the pair and stack checkers. It quotes FDA label text for the names that were
 // typed. It never scores anything and never turns "not assessed" into an answer.
@@ -63,6 +63,79 @@ function labelCountText(count: string): string {
   return `appears in ${count} ${Number(count) === 1 ? 'label' : 'labels'}`
 }
 
+// A long stack can match dozens of pairs. Past the first few, each pair starts folded to its
+// heading so the list can be scanned. Nothing is removed: every sentence is one click away.
+const OPEN_PAIRS = 3
+
+function pairKey(pair: LabelStatementsLookupPair): string {
+  return `${pair.supplement_id}|${pair.drug_id}`
+}
+
+function MatchedPairs({ pairs }: { pairs: LabelStatementsLookupPair[] }) {
+  const [open, setOpen] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(pairs.map((pair, index) => [pairKey(pair), index < OPEN_PAIRS]))
+  )
+  const allOpen = pairs.every((pair) => open[pairKey(pair)])
+
+  return (
+    <>
+      {pairs.length > OPEN_PAIRS && (
+        <button
+          type="button"
+          className="ghost"
+          onClick={() =>
+            setOpen(Object.fromEntries(pairs.map((pair) => [pairKey(pair), !allOpen])))
+          }
+        >
+          {allOpen ? 'Collapse all' : `Expand all ${pairs.length} pairs`}
+        </button>
+      )}
+      <ul className="label-statement-list">
+        {pairs.map((pair) => {
+          const key = pairKey(pair)
+          return (
+            <li key={key} className="label-statement">
+              <details
+                open={Boolean(open[key])}
+                onToggle={(event) => {
+                  const isOpen = event.currentTarget.open
+                  setOpen((previous) =>
+                    Boolean(previous[key]) === isOpen ? previous : { ...previous, [key]: isOpen }
+                  )
+                }}
+              >
+                <summary>
+                  <h4 className="label-match-heading">
+                    {pair.supplement_name}
+                    {pair.is_group_term && <span className="badge label-group-term">group term</span>}
+                    {' with '}
+                    {pair.drug_names_raw}
+                  </h4>
+                  <span className="label-match-count">
+                    {pair.items.length} {pair.items.length === 1 ? 'statement' : 'statements'}
+                  </span>
+                </summary>
+                {pair.items.map((item) => (
+                  <div key={item.statement_id} className="label-match-item">
+                    <q>{item.sentence}</q>
+                    <p className="label-statements-source">
+                      {labelCountText(item.label_count)}
+                      {' · '}
+                      <a href={item.label_url} target="_blank" rel="noopener noreferrer">
+                        View label on DailyMed
+                      </a>
+                    </p>
+                  </div>
+                ))}
+              </details>
+            </li>
+          )
+        })}
+      </ul>
+    </>
+  )
+}
+
 interface MatchesProps {
   names: string[]
   requestId: number
@@ -104,30 +177,7 @@ export default function LabelStatementMatches({ names, requestId }: MatchesProps
       )}
       {lookup.pairs.length > 0 && (
         <>
-          <ul className="label-statement-list">
-            {lookup.pairs.map((pair) => (
-              <li key={`${pair.supplement_id}|${pair.drug_id}`} className="label-statement">
-                <h4 className="label-match-heading">
-                  {pair.supplement_name}
-                  {pair.is_group_term && <span className="badge label-group-term">group term</span>}
-                  {' with '}
-                  {pair.drug_names_raw}
-                </h4>
-                {pair.items.map((item) => (
-                  <div key={item.statement_id} className="label-match-item">
-                    <q>{item.sentence}</q>
-                    <p className="label-statements-source">
-                      {labelCountText(item.label_count)}
-                      {' · '}
-                      <a href={item.label_url} target="_blank" rel="noopener noreferrer">
-                        View label on DailyMed
-                      </a>
-                    </p>
-                  </div>
-                ))}
-              </li>
-            ))}
-          </ul>
+          <MatchedPairs key={requestId} pairs={lookup.pairs} />
           {lookup.truncated && (
             <p className="label-statements-source">
               Showing {lookup.pairs.length} of {lookup.total_pairs} matching pairs. Use the FDA label
