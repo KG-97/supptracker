@@ -353,16 +353,68 @@ async def test_lookup_points_free_text_names_at_verbatim_statements(client):
 async def test_lookup_resolves_plain_names_by_whole_words_only(client):
     response = await client.get(
         "/api/label-statements/lookup",
-        params=[("names", "calcium"), ("names", "warfarin"), ("names", "war"), ("names", "wa")],
+        params=[
+            ("names", "calcium"),
+            ("names", "warfarin"),
+            ("names", "ciprofloxacin"),
+            ("names", "war"),
+            ("names", "wa"),
+        ],
     )
     assert response.status_code == 200
-    names = {entry["input"]: entry for entry in response.json()["names"]}
+    payload = response.json()
+    assert payload["assessment"] == "not_assessed"
+    names = {entry["input"]: entry for entry in payload["names"]}
     assert "calcium" in {item["supplement_id"] for item in names["calcium"]["supplements"]}
+    assert names["calcium"]["drug_total"] == 0
     assert names["warfarin"]["drug_total"] >= 1
     assert all(item["drug_id"].startswith("warfarin") for item in names["warfarin"]["drugs"])
+    assert any(item["drug_id"] == "ciprofloxacin" for item in names["ciprofloxacin"]["drugs"])
     # A fragment of a name must not resolve to anything.
     assert names["war"]["drug_total"] == 0 and names["war"]["supplements"] == []
     assert names["wa"]["drug_total"] == 0 and names["wa"]["supplements"] == []
+
+
+@pytest.mark.anyio("asyncio")
+async def test_lookup_does_not_resolve_generic_components_as_drugs(client):
+    response = await client.get(
+        "/api/label-statements/lookup",
+        params=[
+            ("names", "water"),
+            ("names", "water pills"),
+            ("names", "sodium"),
+            ("names", "potassium"),
+            ("names", "niacin"),
+        ],
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["assessment"] == "not_assessed"
+    names = {entry["input"]: entry for entry in payload["names"]}
+    for name in ("water", "water pills", "sodium", "potassium"):
+        assert names[name]["drug_total"] == 0
+        assert names[name]["drugs"] == []
+
+
+@pytest.mark.anyio("asyncio")
+async def test_lookup_marks_combination_product_matches(client):
+    response = await client.get(
+        "/api/label-statements/lookup",
+        params=[("names", "potassium"), ("names", "spironolactone")],
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["assessment"] == "not_assessed"
+
+    drugs = {item["drug_id"]: item for item in payload["names"][1]["drugs"]}
+    assert drugs["hydrochlorothiazide+spironolactone"]["combination_product"] is True
+
+    pair = next(
+        item
+        for item in payload["pairs"]
+        if item["drug_id"] == "hydrochlorothiazide+spironolactone"
+    )
+    assert pair["combination_product"] is True
 
 
 @pytest.mark.anyio("asyncio")
@@ -387,10 +439,13 @@ async def test_lookup_rejects_bad_input_and_fails_closed_when_unavailable(client
         params=[("names", f"name {number}") for number in range(21)],
     )
     assert too_many.status_code == 422
+    assert too_many.json()["assessment"] == "not_assessed"
     blank = await client.get("/api/label-statements/lookup", params=[("names", "   ")])
     assert blank.status_code == 422
+    assert blank.json()["assessment"] == "not_assessed"
     too_long = await client.get("/api/label-statements/lookup", params=[("names", "x" * 121)])
     assert too_long.status_code == 422
+    assert too_long.json()["assessment"] == "not_assessed"
 
     label_statements.reload_label_statements(tmp_path / "missing")
     unavailable = await client.get(

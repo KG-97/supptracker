@@ -19,7 +19,8 @@ function useLookup(names: string[], requestId: number, minimumNames: number) {
     requestId: number
     state: LookupState
     lookup: LabelStatementsLookup | null
-  }>({ requestId: 0, state: 'idle', lookup: null })
+    reason: string
+  }>({ requestId: 0, state: 'idle', lookup: null, reason: '' })
   const inactive = requestId === 0 || names.length < minimumNames
 
   useEffect(() => {
@@ -32,12 +33,15 @@ function useLookup(names: string[], requestId: number, minimumNames: number) {
     fetchLabelStatementLookup(names)
       .then((response) => {
         if (active) {
-          setReply({ requestId, state: 'done', lookup: response })
+          setReply({ requestId, state: 'done', lookup: response, reason: '' })
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (active) {
-          setReply({ requestId, state: 'error', lookup: null })
+          const message = error instanceof Error ? error.message : ''
+          // Only the API's own input rules are worth repeating; anything else stays generic.
+          const reason = /^(Give between|A name is too long)/.test(message) ? message : ''
+          setReply({ requestId, state: 'error', lookup: null, reason })
         }
       })
 
@@ -51,12 +55,12 @@ function useLookup(names: string[], requestId: number, minimumNames: number) {
   // Decided while rendering, not in an effect, so cleared names hide the block in the same
   // paint and a new check never flashes the previous answer.
   if (inactive) {
-    return { state: 'idle' as LookupState, lookup: null }
+    return { state: 'idle' as LookupState, lookup: null, reason: '' }
   }
   if (reply.requestId !== requestId) {
-    return { state: 'loading' as LookupState, lookup: null }
+    return { state: 'loading' as LookupState, lookup: null, reason: '' }
   }
-  return { state: reply.state, lookup: reply.lookup }
+  return { state: reply.state, lookup: reply.lookup, reason: reply.reason }
 }
 
 function labelCountText(count: string): string {
@@ -105,13 +109,21 @@ function MatchedPairs({ pairs }: { pairs: LabelStatementsLookupPair[] }) {
                 }}
               >
                 <summary>
-                  <h4 className="label-match-heading">
+                  {/* Not a heading element: assistive technology reads a summary as one button. */}
+                  <span className="label-match-heading">
                     {pair.supplement_name}
                     {pair.is_group_term && <span className="badge label-group-term">group term</span>}
                     {' with '}
                     {pair.drug_names_raw}
-                  </h4>
+                    {pair.combination_product && (
+                      <span className="badge label-group-term">combination product</span>
+                    )}
+                  </span>
+                  {/* The label's own names can differ from what was typed ("K2" is filed under
+                      Vitamin K; "warfarin" under WARFARIN SODIUM), so show both. */}
                   <span className="label-match-count">
+                    Matched from the names you entered: “{pair.supplement_input}” and “{pair.drug_input}”
+                    {' · '}
                     {pair.items.length} {pair.items.length === 1 ? 'statement' : 'statements'}
                   </span>
                 </summary>
@@ -142,20 +154,24 @@ interface MatchesProps {
 }
 
 export default function LabelStatementMatches({ names, requestId }: MatchesProps) {
-  const { state, lookup } = useLookup(names, requestId, 2)
+  const { state, lookup, reason } = useLookup(names, requestId, 2)
 
   if (state === 'idle') {
     return null
   }
 
   if (state === 'loading') {
-    return <p className="status">Checking FDA label statements…</p>
+    return (
+      <p className="status" role="status">
+        Checking FDA label statements…
+      </p>
+    )
   }
 
   if (state === 'error' || !lookup || lookup.status !== 'available') {
     return (
       <p className="status status-info" role="status">
-        {UNCHECKED_MESSAGE}
+        {reason ? `${UNCHECKED_MESSAGE} ${reason}` : UNCHECKED_MESSAGE}
       </p>
     )
   }
@@ -201,7 +217,8 @@ interface NameHitsProps {
   requestId: number
   onShow: (filter: LabelStatementsFilterRequest) => void
   // How many compounds the same search found. "either" is only true when it found none.
-  compoundMatches?: number
+  // null while the compound search for this name has not answered yet.
+  compoundMatches?: number | null
 }
 
 // Shown under the compound search: tells the person whether the name they searched is named
@@ -218,7 +235,7 @@ export function LabelStatementNameHits({ name, requestId, onShow, compoundMatche
     return (
       <p className="label-statements-source" role="status">
         “{name}” is not named in the FDA label statement collection
-        {compoundMatches > 0 ? '.' : ' either.'}
+        {compoundMatches === 0 ? ' either.' : '.'}
       </p>
     )
   }
@@ -249,7 +266,8 @@ export function LabelStatementNameHits({ name, requestId, onShow, compoundMatche
           <li key={`d-${drug.drug_id}`} className="pill">
             <span className="pill-name">{drug.drug_names_raw}</span>
             <span className="pill-meta">
-              Drug label · {drug.statements} {drug.statements === 1 ? 'statement' : 'statements'}
+              {drug.combination_product ? 'Combination product label' : 'Drug label'} · {drug.statements}{' '}
+              {drug.statements === 1 ? 'statement' : 'statements'}
             </span>
             <button type="button" className="ghost" onClick={() => onShow({ drug: drug.drug_id })}>
               Show statements for {drug.drug_names_raw}

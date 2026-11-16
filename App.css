@@ -724,6 +724,7 @@ html.dark .badge {
 
 .label-match-heading {
   font-size: 1rem;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 

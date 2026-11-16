@@ -31,7 +31,11 @@ Do not alter the generated files by hand.
 - It is a pointer to label text. It does not change the pair or stack response, and every lookup response carries `assessment: "not_assessed"`, whether or not statements were found.
 - A supplement name matches by identifier, by name, or by the dictionary's wording (so `calcium` is tried as `calcium supplements`).
 - A short list of everyday spellings is also accepted (`LOOKUP_ALIASES` in `api/label_statements.py`): `grapefruit juice`, `CoQ10`, `K2`, `D3`, `B6`, `B12`, `5 HTP`, `L-tryptophan`, `vitamin B3`, `Saint John's wort`, `retinol`, `cholecalciferol`. Each is an exact whole-name match for one supplement, so a fragment such as `q10` or `k` still finds nothing. The list is used by the lookup only; it does not change the mining dictionary or its recorded hash.
-- A drug name matches by whole words only: `warfarin` finds `warfarin sodium`; `war` finds nothing. A combination product matches on any of its ingredients, and its full name is shown.
+- The compound search also calls it, with the one searched name, to say whether that name appears in the collection and to open its statements.
+- A drug name matches by whole words only: `warfarin` finds `warfarin sodium`; `war` finds nothing. A combination product matches on any of its ingredients; its full name is shown and it is marked `combination_product: true`.
+- Bare ions and excipients (`water`, `sodium`, `potassium`, `calcium`, `magnesium`, `zinc`, `iron`, `chloride`, `phosphate`, `sulfate`, `acetate`) never match a drug label on their own, so `water pills` does not find an insulin product and `calcium` does not find calcium chloride injection. `potassium chloride` still finds its own label.
+- The page shows the names that were typed beside the label's own names, because they can differ (`K2` is filed under Vitamin K).
+- Invalid input (no names, more than 20, or a name over 120 characters) returns HTTP 422 with `status: "invalid"`, `assessment: "not_assessed"` and a `detail` sentence.
 - Results are ordered by how many labels carry the text. That is not a risk ranking.
 - The supplement filter on the other statement endpoints ignores letter case.
 

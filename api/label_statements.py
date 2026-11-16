@@ -10,7 +10,8 @@ import unicodedata
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -457,6 +458,22 @@ LOOKUP_ALIASES: Dict[str, str] = {
     "retinol": "vitamin-a",
 }
 
+# These terms are supplements, ions, or excipients rather than sufficiently specific drug
+# names. They must not expand to a drug product through a prefix or combination component.
+GENERIC_DRUG_COMPONENTS = {
+    "water",
+    "sodium",
+    "potassium",
+    "calcium",
+    "magnesium",
+    "zinc",
+    "iron",
+    "chloride",
+    "phosphate",
+    "sulfate",
+    "acetate",
+}
+
 _LOOKUP_INDEX: Dict[str, Any] = {"owner": None}
 
 
@@ -509,7 +526,18 @@ def _lookup_index() -> Dict[str, Any]:
         supplement["statements"] += 1
         drug = drugs.setdefault(
             row["drug_id"],
-            {"drug_id": row["drug_id"], "raw_names": set(), "statements": 0, "keys": set()},
+            {
+                "drug_id": row["drug_id"],
+                "raw_names": set(),
+                "statements": 0,
+                "keys": set(),
+                "combination_product": "+" in row["drug_id"],
+                "single_ingredient_key": (
+                    _normalise_name(row["drug_id"])
+                    if "+" not in row["drug_id"]
+                    else ""
+                ),
+            },
         )
         drug["statements"] += 1
         for raw_name in row["drug_names_raw"].split(";"):
@@ -517,7 +545,9 @@ def _lookup_index() -> Dict[str, Any]:
                 drug["raw_names"].add(raw_name.strip())
                 drug["keys"].add(_normalise_name(raw_name))
         for component in row["drug_id"].split("+"):
-            drug["keys"].add(_normalise_name(component))
+            component_key = _normalise_name(component)
+            if component_key not in GENERIC_DRUG_COMPONENTS:
+                drug["keys"].add(component_key)
         by_pair.setdefault((row["supplement_id"], row["drug_id"]), []).append(row)
 
     for supplement_id, supplement in supplements.items():
@@ -554,18 +584,36 @@ def _resolve_supplements(name: str, normalised: str, index: Dict[str, Any]) -> L
 
 
 def _resolve_drugs(normalised: str, index: Dict[str, Any]) -> List[str]:
+    if normalised in GENERIC_DRUG_COMPONENTS:
+        return []
+
     matched = []
     for drug_id, drug in sorted(index["drugs"].items()):
         for key in drug["keys"]:
+            if key in GENERIC_DRUG_COMPONENTS:
+                continue
             # Whole-word matching only: "warfarin" finds "warfarin sodium", "war" finds nothing.
-            if key == normalised or key.startswith(normalised + " ") or normalised.startswith(key + " "):
+            if key == normalised or key.startswith(normalised + " "):
+                matched.append(drug_id)
+                break
+            if normalised.startswith(key + " ") and (
+                len(key.split()) >= 2
+                or (
+                    not drug["combination_product"]
+                    and key == drug["single_ingredient_key"]
+                )
+            ):
                 matched.append(drug_id)
                 break
     return matched
 
 
-@router.get("/api/label-statements/lookup")
-def label_statements_lookup(names: List[str] = Query(...)) -> Dict[str, Any]:
+# response_model=None: the function can return a JSONResponse, which FastAPI cannot turn into
+# a response model (found by Antigravity's audit of this change).
+@router.get("/api/label-statements/lookup", response_model=None)
+def label_statements_lookup(
+    names: List[str] = Query(default=[]),
+) -> Dict[str, Any] | JSONResponse:
     """Find verbatim label statements that name any two of the given free-text names together."""
 
     cleaned = []
@@ -574,9 +622,25 @@ def label_statements_lookup(names: List[str] = Query(...)) -> Dict[str, Any]:
         if name and name.casefold() not in {item.casefold() for item in cleaned}:
             cleaned.append(name)
     if not cleaned or len(cleaned) > LOOKUP_MAX_NAMES:
-        raise HTTPException(status_code=422, detail=f"Give between 1 and {LOOKUP_MAX_NAMES} names.")
+        return JSONResponse(
+            status_code=422,
+            content={
+                "status": "invalid",
+                "assessment": "not_assessed",
+                **_envelope(),
+                "detail": f"Give between 1 and {LOOKUP_MAX_NAMES} names.",
+            },
+        )
     if any(len(name) > LOOKUP_MAX_NAME_CHARS for name in cleaned):
-        raise HTTPException(status_code=422, detail="A name is too long.")
+        return JSONResponse(
+            status_code=422,
+            content={
+                "status": "invalid",
+                "assessment": "not_assessed",
+                **_envelope(),
+                "detail": "A name is too long.",
+            },
+        )
 
     if LABEL_STATEMENTS["status"] != "available":
         return {
@@ -630,6 +694,9 @@ def label_statements_lookup(names: List[str] = Query(...)) -> Dict[str, Any]:
                         "labels": sum(int(row["label_count"]) for row in rows),
                         "total": len(rows),
                         "items": [_statement_item(row) for row in rows],
+                        "combination_product": index["drugs"][drug_id][
+                            "combination_product"
+                        ],
                     }
 
     # Ordered by how many labels carry the text, then by name. This is not a risk ranking.
@@ -660,6 +727,9 @@ def label_statements_lookup(names: List[str] = Query(...)) -> Dict[str, Any]:
                             sorted(index["drugs"][drug_id]["raw_names"], key=str.casefold)
                         ),
                         "statements": index["drugs"][drug_id]["statements"],
+                        "combination_product": index["drugs"][drug_id][
+                            "combination_product"
+                        ],
                     }
                     for drug_id in sorted(
                         drug_ids, key=lambda item: (-index["drugs"][item]["statements"], item)

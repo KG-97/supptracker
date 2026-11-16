@@ -220,6 +220,8 @@ export interface LabelStatementsLookupPair {
   labels: number
   total: number
   items: LabelStatement[]
+  // True when the label belongs to a product with more than one active ingredient.
+  combination_product?: boolean
 }
 
 export interface LabelStatementsLookupName {
@@ -235,6 +237,7 @@ export interface LabelStatementsLookupName {
     drug_id: string
     drug_names_raw: string
     statements: number
+    combination_product?: boolean
   }[]
 }
 

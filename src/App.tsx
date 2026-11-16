@@ -446,6 +446,7 @@ export default function App(): React.JSX.Element {
   const [labelRequest, setLabelRequest] = useState<LabelStatementsRequest | null>(null)
   // Each check gets a number. A reply is ignored once a newer check has started or the
   // names it was made for have been edited.
+  const searchRequest = useRef(0)
   const pairRequest = useRef(0)
   const stackRequest = useRef(0)
 
@@ -557,6 +558,7 @@ export default function App(): React.JSX.Element {
     event?.preventDefault()
     const trimmed = query.trim()
     if (!trimmed) {
+      searchRequest.current += 1
       setSearchResults([])
       setSearchStatus('idle')
       setSearchError('Enter a compound name to search.')
@@ -564,17 +566,21 @@ export default function App(): React.JSX.Element {
       return
     }
 
+    // Only the newest search may write its results; an older, slower reply is dropped.
+    const request = ++searchRequest.current
     setSearchStatus('loading')
     setSearchError(null)
     setSearchLookup((previous) => ({ name: trimmed, id: previous.id + 1 }))
     try {
       const results = await searchCompounds(trimmed)
+      if (request !== searchRequest.current) return
       setSearchResults(results)
       setSearchStatus('success')
       if (results.length === 0) {
         setSearchError('No compounds matched your search.')
       }
     } catch (error) {
+      if (request !== searchRequest.current) return
       setSearchStatus('error')
       setSearchResults([])
       setSearchError(error instanceof Error ? error.message : 'Search failed')
@@ -839,7 +845,14 @@ export default function App(): React.JSX.Element {
               <input
                 id="search-input"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  // The label-statement note below describes the name that was searched, not
+                  // the one now being typed.
+                  setSearchLookup((previous) =>
+                    previous.name === '' ? previous : { name: '', id: previous.id + 1 }
+                  )
+                }}
                 placeholder="e.g. melatonin or warfarin"
                 autoComplete="off"
                 spellCheck={false}
@@ -883,7 +896,7 @@ export default function App(): React.JSX.Element {
           <LabelStatementNameHits
             name={searchLookup.name}
             requestId={searchLookup.id}
-            compoundMatches={searchResults.length}
+            compoundMatches={searchStatus === 'success' ? searchResults.length : null}
             onShow={(filter) =>
               setLabelRequest((previous) => ({ ...filter, token: (previous?.token ?? 0) + 1 }))
             }

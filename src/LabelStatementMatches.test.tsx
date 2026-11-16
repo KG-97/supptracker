@@ -118,6 +118,113 @@ describe('label statement lookups', () => {
     )
   })
 
+  const summaryReply = {
+    ...envelope,
+    counts: { statements: 30, pairs: 2, supplements: 1, drugs: 2 },
+    retrieved_at: { earliest: null, latest: null },
+    source: '',
+    license: 'CC0',
+    license_url: '',
+    supplements: [
+      { supplement_id: 'melatonin', supplement_name: 'Melatonin', supplement_kind: 'other', is_group_term: false, pair_count: 2 },
+    ],
+  }
+
+  function statements(prefix: string, count: number) {
+    return Array.from({ length: count }, (_, index) => ({
+      statement_id: `${prefix}${index}`,
+      sentence: `${prefix} sentence ${index}.`,
+      supplement_name: 'Melatonin',
+      is_group_term: false,
+      drug_names_raw: 'DRUG',
+      label_count: '1',
+      effective_time: '20260101',
+      label_url: 'https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=x',
+    }))
+  }
+
+  it('does not let the unfiltered first page replace a filter requested during loading', async () => {
+    apiMocks.fetchLabelStatementsSummary.mockResolvedValue(summaryReply)
+    apiMocks.fetchLabelStatements.mockResolvedValue({ ...envelope, total: 1, items: statements('filtered', 1) })
+
+    render(<LabelStatements request={{ supplement: 'melatonin', token: 1 }} />)
+
+    expect(await screen.findByText('filtered sentence 0.')).toBeInTheDocument()
+    await waitFor(() => expect(apiMocks.fetchLabelStatementsSummary).toHaveBeenCalled())
+    // Every list request carried the requested supplement; none was the unfiltered first page.
+    for (const call of apiMocks.fetchLabelStatements.mock.calls) {
+      expect(call[0]).toEqual(expect.objectContaining({ supplement: 'melatonin' }))
+    }
+  })
+
+  it('ignores an older list reply that arrives after a newer one', async () => {
+    apiMocks.fetchLabelStatementsSummary.mockResolvedValue(summaryReply)
+    let slowReply: (value: unknown) => void = () => {}
+    apiMocks.fetchLabelStatements.mockReturnValueOnce(
+      new Promise((resolve) => {
+        slowReply = resolve
+      })
+    )
+    apiMocks.fetchLabelStatements.mockResolvedValue({ ...envelope, total: 1, items: statements('newer', 1) })
+
+    const { rerender } = render(<LabelStatements />)
+    await waitFor(() => expect(apiMocks.fetchLabelStatements).toHaveBeenCalledTimes(1))
+
+    rerender(<LabelStatements request={{ supplement: 'melatonin', token: 1 }} />)
+    expect(await screen.findByText('newer sentence 0.')).toBeInTheDocument()
+
+    slowReply({ ...envelope, total: 1, items: statements('older', 1) })
+    await waitFor(() => expect(screen.getByText('newer sentence 0.')).toBeInTheDocument())
+    expect(screen.queryByText('older sentence 0.')).not.toBeInTheDocument()
+  })
+
+  it('pages with the filters that produced the list, not with edited boxes', async () => {
+    apiMocks.fetchLabelStatementsSummary.mockResolvedValue(summaryReply)
+    apiMocks.fetchLabelStatements.mockResolvedValue({ ...envelope, total: 30, items: statements('page', 25) })
+
+    render(<LabelStatements request={{ supplement: 'melatonin', token: 1 }} />)
+    await screen.findByText('page sentence 0.')
+
+    fireEvent.change(screen.getByLabelText('Drug'), { target: { value: 'warfarin' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
+
+    await waitFor(() =>
+      expect(apiMocks.fetchLabelStatements).toHaveBeenLastCalledWith(
+        expect.objectContaining({ supplement: 'melatonin', drug: undefined, offset: 25 })
+      )
+    )
+  })
+
+  it('shows the names that were typed beside the label names, and marks combination products', async () => {
+    const lookup = pairsLookup(1)
+    lookup.pairs[0] = { ...lookup.pairs[0], supplement_input: 'K2', drug_input: 'warfarin', combination_product: true } as typeof lookup.pairs[0]
+    apiMocks.fetchLabelStatementLookup.mockResolvedValueOnce(lookup)
+
+    render(<LabelStatementMatches names={['K2', 'warfarin']} requestId={1} />)
+
+    expect(
+      await screen.findByText(/Matched from the names you entered: “K2” and “warfarin”/)
+    ).toBeInTheDocument()
+    expect(screen.getByText('combination product')).toBeInTheDocument()
+  })
+
+  it('repeats the input rule when the lookup rejects the names, and nothing else', async () => {
+    apiMocks.fetchLabelStatementLookup.mockRejectedValueOnce(new Error('Give between 1 and 20 names.'))
+    const { unmount } = render(<LabelStatementMatches names={['a', 'b']} requestId={1} />)
+    expect(
+      await screen.findByText(
+        'FDA label statements could not be checked. Nothing has been assessed. Give between 1 and 20 names.'
+      )
+    ).toBeInTheDocument()
+    unmount()
+
+    apiMocks.fetchLabelStatementLookup.mockRejectedValueOnce(new Error('<html>502 Bad Gateway</html>'))
+    render(<LabelStatementMatches names={['a', 'b']} requestId={1} />)
+    expect(
+      await screen.findByText('FDA label statements could not be checked. Nothing has been assessed.')
+    ).toBeInTheDocument()
+  })
+
   function pairsLookup(count: number) {
     return {
       ...envelope,

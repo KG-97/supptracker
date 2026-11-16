@@ -54,12 +54,15 @@ export default function LabelStatements({ request = null }: LabelStatementsProps
   const [total, setTotal] = useState(0)
   const [availability, setAvailability] = useState<'loading' | 'available' | 'unavailable'>('loading')
   const [isLoadingResults, setIsLoadingResults] = useState(false)
+  const loadRequestRef = useRef(0)
+  const lastAppliedFiltersRef = useRef({ supplement: '', drug: '', query: '' })
 
   async function loadResults(
     offset = 0,
     append = false,
     filters: { supplement: string; drug: string; query: string } = { supplement, drug, query }
   ) {
+    const requestId = ++loadRequestRef.current
     setIsLoadingResults(true)
 
     try {
@@ -71,6 +74,10 @@ export default function LabelStatements({ request = null }: LabelStatementsProps
         offset,
       })
 
+      if (requestId !== loadRequestRef.current) {
+        return
+      }
+
       setDisclaimer(response.disclaimer || DEFAULT_DISCLAIMER)
 
       if (response.status !== 'available') {
@@ -80,15 +87,22 @@ export default function LabelStatements({ request = null }: LabelStatementsProps
         return
       }
 
+      lastAppliedFiltersRef.current = { ...filters }
       setItems((currentItems) => (append ? [...currentItems, ...response.items] : response.items))
       setTotal(response.total)
       setAvailability('available')
     } catch {
+      if (requestId !== loadRequestRef.current) {
+        return
+      }
+
       setItems([])
       setTotal(0)
       setAvailability('unavailable')
     } finally {
-      setIsLoadingResults(false)
+      if (requestId === loadRequestRef.current) {
+        setIsLoadingResults(false)
+      }
     }
   }
 
@@ -115,7 +129,11 @@ export default function LabelStatements({ request = null }: LabelStatementsProps
 
         setSummary(response)
         setAvailability('available')
-        await loadResults()
+        // If another part of the page already asked for a filtered list while the summary
+        // was loading, the unfiltered first page must not replace it.
+        if (loadRequestRef.current === 0) {
+          await loadResults()
+        }
       } catch {
         if (!active) {
           return
@@ -324,7 +342,7 @@ export default function LabelStatements({ request = null }: LabelStatementsProps
                 <button
                   type="button"
                   className="ghost"
-                  onClick={() => void loadResults(items.length, true)}
+                  onClick={() => void loadResults(items.length, true, lastAppliedFiltersRef.current)}
                   disabled={isLoadingResults}
                 >
                   Show more
