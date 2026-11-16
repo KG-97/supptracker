@@ -75,3 +75,11 @@ Do not promote a label candidate to an assessed interaction automatically.
 Any future assessed dataset must be separately licensed, independently
 reviewed, source-cited, and imported through an assessed-data workflow.  This
 prototype is informational only and is not medical advice.
+
+## Deployment
+
+The repository root `Dockerfile` builds one container that serves the API and the built page together. It listens on the port given in `PORT` (8000 when unset) and needs no database, API key or paid add-on.
+
+`render.yaml` describes it as one free Render web service that redeploys on every push to `main`, with `/api/health` as the health check. The free plan sleeps after about 15 minutes without visitors, so the first load after a quiet spell takes up to a minute.
+
+The public page shows verbatim FDA label text and unreviewed candidates only. No assessed interaction records are loaded, and the legacy list in `data/interactions.csv` is not served.

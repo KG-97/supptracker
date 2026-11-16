@@ -1739,8 +1739,15 @@ load_data()
 def health():
     """Health check endpoint."""
     snapshot = get_health_state()
+    try:
+        docs_indexed = int(get_doc_search_service().documents_indexed)
+    except Exception:  # noqa: BLE001 - the notes search is optional and must not break health
+        docs_indexed = 0
     return {
         "status": snapshot.get("status", "healthy"),
+        # Passages available to the project-notes search. Zero in the container image, which
+        # carries no developer notes; the page hides that search when this is zero.
+        "docs_indexed": docs_indexed,
         "compounds_loaded": len(COMPOUNDS),
         "interactions_loaded": len(INTERACTIONS),
         "label_candidates_loaded": len(LABEL_CANDIDATES),

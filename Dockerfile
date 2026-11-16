@@ -23,5 +23,6 @@ COPY data ./data
 COPY --from=frontend-build /app/dist ./frontend_dist
 # Expose port 8000 for FastAPI
 EXPOSE 8000
-# Run FastAPI with uvicorn
-CMD ["uvicorn", "api.risk_api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run FastAPI with uvicorn. Hosts such as Railway and Render tell the container which port to
+# listen on through PORT; 8000 is used when it is not set.
+CMD ["sh", "-c", "uvicorn api.risk_api:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -98,6 +98,8 @@ export interface HealthResponse {
   compounds_loaded: number
   interactions_loaded: number
   sources_loaded: number
+  // Passages available to the project-notes search; absent or zero hides that search.
+  docs_indexed?: number
   issues?: HealthIssue[]
 }
 

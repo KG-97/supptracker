@@ -615,6 +615,25 @@ describe('App external links', () => {
     expect(screen.queryByText(/“creatine” is not named/)).not.toBeInTheDocument()
   })
 
+  it('always shows the not-medical-advice notice', async () => {
+    render(<App />)
+
+    const notice = await screen.findByRole('note')
+    expect(notice).toHaveTextContent('It is not medical advice')
+    expect(notice).toHaveTextContent('A missing result does not mean a combination is safe.')
+  })
+
+  it('shows the project notes search only where notes are available', async () => {
+    const { unmount } = render(<App />)
+    await screen.findByText(/None loaded: pair and stack checks/)
+    expect(screen.queryByRole('heading', { name: 'Project notes search' })).not.toBeInTheDocument()
+    unmount()
+
+    apiMocks.fetchHealth.mockResolvedValue({ ...defaultHealthResponse, docs_indexed: 20 })
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Project notes search' })).toBeInTheDocument()
+  })
+
   it('tells the reader when no interaction records are loaded', async () => {
     render(<App />)
 

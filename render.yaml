@@ -1,0 +1,13 @@
+# Render Blueprint: one free web service built from the Dockerfile at the repository root.
+# The container serves the API and the built page together and listens on the port Render
+# passes in PORT. The free plan sleeps after about 15 minutes without visitors.
+# No paid add-on, database or API key is used.
+services:
+  - type: web
+    name: supptracker
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    branch: main
+    autoDeployTrigger: commit

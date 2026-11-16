@@ -698,6 +698,11 @@ export default function App(): React.JSX.Element {
         <p className="app-tagline">
           Search compounds, read FDA label statements, and check pairs and stacks against assessed records.
         </p>
+        <p className="app-notice" role="note">
+          This site quotes FDA drug-label text. It is not medical advice, and nothing here has been
+          assessed by SuppTracker. A missing result does not mean a combination is safe. Ask a
+          pharmacist or doctor before combining medicines and supplements.
+        </p>
       </header>
 
       <main className="grid">
@@ -903,6 +908,9 @@ export default function App(): React.JSX.Element {
           />
         </section>
 
+        {/* Developer notes are not shipped in the public image, so the search only appears
+            where there is something to search. */}
+        {(health?.docs_indexed ?? 0) > 0 && (
         <section className="card">
           <div className="card-header">
             <h2>Project notes search</h2>
@@ -954,6 +962,7 @@ export default function App(): React.JSX.Element {
             </ul>
           )}
         </section>
+        )}
 
         <LabelStatements request={labelRequest} />
 

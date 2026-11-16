@@ -708,6 +708,18 @@ html.dark .badge {
   margin-left: 4px;
 }
 
+.app-notice {
+  max-width: 760px;
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--link);
+  border-radius: 8px;
+  background: var(--pill);
+  color: var(--muted-2);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 .label-matches {
   display: flex;
   flex-direction: column;
