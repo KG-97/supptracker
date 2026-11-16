@@ -92,7 +92,7 @@ describe('LabelStatements', () => {
     expect(await screen.findByText(disclaimer)).toBeInTheDocument()
     expect(screen.getByText('Statements')).toBeInTheDocument()
     expect(screen.getByText('12')).toBeInTheDocument()
-    expect(screen.getByText('Pairs')).toBeInTheDocument()
+    expect(screen.getByText('Pairs named together')).toBeInTheDocument()
     expect(screen.getByText('6')).toBeInTheDocument()
     expect(screen.getByText('Supplements')).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()

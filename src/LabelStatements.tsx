@@ -207,7 +207,7 @@ export default function LabelStatements({ request = null }: LabelStatementsProps
                   <strong className="stat-value">{summary.counts.statements}</strong>
                 </li>
                 <li className="stat">
-                  <span className="stat-label">Pairs</span>
+                  <span className="stat-label">Pairs named together</span>
                   <strong className="stat-value">{summary.counts.pairs}</strong>
                 </li>
                 <li className="stat">

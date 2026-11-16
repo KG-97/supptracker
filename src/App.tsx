@@ -722,7 +722,7 @@ export default function App(): React.JSX.Element {
                   <span className="stat-footnote">Ready for search & stack analysis</span>
                 </li>
                 <li className="stat">
-                  <span className="stat-label">Interaction records</span>
+                  <span className="stat-label">Assessed interaction records</span>
                   <strong className="stat-value">{health.interactions_loaded}</strong>
                   <span className="stat-footnote">
                     {health.interactions_loaded > 0
