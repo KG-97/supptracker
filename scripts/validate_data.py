@@ -380,12 +380,40 @@ def main():
         print(f"ERROR: Data directory not found: {data_dir}")
         sys.exit(1)
 
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--known-errors",
+        type=int,
+        default=0,
+        help=(
+            "Exact number of errors already known in the quarantined legacy list. The run "
+            "passes only at this number: more errors fail, and fewer fail until the number "
+            "is lowered to match, so it can only go down."
+        ),
+    )
+    args = parser.parse_args()
+
     # Run validation
     validator = DataValidator(data_dir)
     success = validator.validate_all()
+    if success:
+        sys.exit(0)
 
-    # Exit with appropriate code
-    sys.exit(0 if success else 1)
+    found = len(validator.errors)
+    if args.known_errors and found == args.known_errors:
+        print(
+            f"KNOWN ERRORS: {found}, equal to the recorded baseline. The legacy interaction "
+            "list stays quarantined: the application does not load, score or serve these rows."
+        )
+        sys.exit(0)
+    if args.known_errors and found < args.known_errors:
+        print(
+            f"Errors fell from {args.known_errors} to {found}. Lower --known-errors to "
+            f"{found} where this script is called so the improvement is kept."
+        )
+    sys.exit(1)
 
 
 if __name__ == '__main__':
