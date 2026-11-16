@@ -46,7 +46,9 @@ Do not alter the generated files by hand.
 - 114 multi-ingredient products were skipped.
 - 1,440 sentences over 700 characters were skipped.
 - At most three sentences were kept per supplement/drug pair.
-- Within a pair, sentences that differ only in letter case, spacing, bullets or quote style are merged into one (998 merges before the three-per-pair cut); the most widely used wording is kept and its label count covers every variant. Digits, full stops, commas, arrows and comparison signs are never ignored, so 109 kept statements still differ from another in the same pair only by a comma, colon or hyphen.
-- 271 of 992 pairs use group terms.
+- Within a pair, sentences that differ only in letter case, spacing, bullets or quote style are merged into one (991 merges before the three-per-pair cut); the most widely used wording is kept and its label count covers every variant. Digits, full stops, commas, arrows and comparison signs are never ignored, so 109 kept statements still differ from another in the same pair only by a comma, colon or hyphen.
+- 252 of 974 pairs use group terms.
 - A seeded sample of 60 statements was re-read from the live API; all 60 matched word for word.
-- No person or model has reviewed the meaning of any sentence.
+- A model (Codex, 2026-11-16) read every sentence once and flagged 305 of 1,977; Claude Code then read the 53 flagged as not about a supplement or as unreadable. 34 of those were confirmed and are now excluded by dictionary rules (laboratory values such as serum electrolytes, drug classes such as folic acid antagonists, a drug's own magnesium content, cut-off table fragments), with 2 pointer sentences that carried no content. 19 were kept. This was a precision check, not a clinical review.
+- Not acted on: 107 sentences that say no interaction or no relevant effect was observed, and 145 that name a supplement without saying anything about taking it with the drug. They are still shown, word for word, like every other statement.
+- No person has reviewed the meaning of any sentence, and no sentence has been clinically reviewed.

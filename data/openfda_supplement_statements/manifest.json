@@ -12,21 +12,21 @@
     "terms": "supplement_terms.json"
   },
   "counts": {
-    "distinct_drugs": 489,
-    "distinct_pairs": 992,
-    "distinct_supplements": 36,
+    "distinct_drugs": 480,
+    "distinct_pairs": 974,
+    "distinct_supplements": 35,
     "labels_multi_ingredient_skipped": 114,
     "labels_scanned": 23804,
     "labels_without_drug_identity": 14209,
-    "near_duplicate_sentences_merged": 998,
+    "near_duplicate_sentences_merged": 991,
     "self_skips": 451,
     "sentences_too_long": 1440,
-    "statements": 1977
+    "statements": 1945
   },
   "dataset_name": "SuppTracker openFDA supplement statements",
-  "dictionary_sha256": "55b6c09275526466ce5eb2ce7bfa09a31ad8f6e39d018993bfac6366c5134038",
+  "dictionary_sha256": "48a9b215b758b1ee9b3a63a353d177bcf45c66f36081beec4eca4cbe614aee32",
   "failed_requests": [],
-  "finished_at": "2026-11-15T17:22:49+00:00",
+  "finished_at": "2026-11-16T06:09:13+00:00",
   "pages_from_cache": 588,
   "per_entry": {
     "antacids": {
@@ -35,7 +35,7 @@
       "labels_scanned_first_by_this_entry": 2022,
       "pairs": 146,
       "requests": 0,
-      "statements": 334
+      "statements": 333
     },
     "berberine": {
       "cached_pages": 1,
@@ -121,9 +121,9 @@
       "cached_pages": 1,
       "hits_reported_by_api": 2,
       "labels_scanned_first_by_this_entry": 2,
-      "pairs": 1,
+      "pairs": 0,
       "requests": 0,
-      "statements": 1
+      "statements": 0
     },
     "dong-quai": {
       "cached_pages": 1,
@@ -161,9 +161,9 @@
       "cached_pages": 11,
       "hits_reported_by_api": 997,
       "labels_scanned_first_by_this_entry": 495,
-      "pairs": 19,
+      "pairs": 13,
       "requests": 0,
-      "statements": 41
+      "statements": 31
     },
     "garlic": {
       "cached_pages": 3,
@@ -217,9 +217,9 @@
       "cached_pages": 47,
       "hits_reported_by_api": 4677,
       "labels_scanned_first_by_this_entry": 1494,
-      "pairs": 125,
+      "pairs": 124,
       "requests": 0,
-      "statements": 228
+      "statements": 226
     },
     "green-tea": {
       "cached_pages": 1,
@@ -233,9 +233,9 @@
       "cached_pages": 13,
       "hits_reported_by_api": 1161,
       "labels_scanned_first_by_this_entry": 107,
-      "pairs": 86,
+      "pairs": 85,
       "requests": 0,
-      "statements": 165
+      "statements": 162
     },
     "iron": {
       "cached_pages": 35,
@@ -265,9 +265,9 @@
       "cached_pages": 68,
       "hits_reported_by_api": 6735,
       "labels_scanned_first_by_this_entry": 3356,
-      "pairs": 86,
+      "pairs": 81,
       "requests": 0,
-      "statements": 184
+      "statements": 174
     },
     "melatonin": {
       "cached_pages": 1,
@@ -313,9 +313,9 @@
       "cached_pages": 11,
       "hits_reported_by_api": 908,
       "labels_scanned_first_by_this_entry": 0,
-      "pairs": 22,
+      "pairs": 21,
       "requests": 0,
-      "statements": 50
+      "statements": 49
     },
     "potassium": {
       "cached_pages": 37,
@@ -369,9 +369,9 @@
       "cached_pages": 65,
       "hits_reported_by_api": 6428,
       "labels_scanned_first_by_this_entry": 3206,
-      "pairs": 161,
+      "pairs": 160,
       "requests": 0,
-      "statements": 276
+      "statements": 274
     },
     "tryptophan-5htp": {
       "cached_pages": 24,
@@ -409,9 +409,9 @@
       "cached_pages": 2,
       "hits_reported_by_api": 22,
       "labels_scanned_first_by_this_entry": 3,
-      "pairs": 8,
+      "pairs": 6,
       "requests": 0,
-      "statements": 9
+      "statements": 7
     },
     "vitamin-b6": {
       "cached_pages": 3,
@@ -472,6 +472,6 @@
       "2026-11-13"
     ]
   },
-  "started_at": "2026-11-15T17:19:30+00:00",
+  "started_at": "2026-11-16T06:05:50+00:00",
   "truncations": []
 }
