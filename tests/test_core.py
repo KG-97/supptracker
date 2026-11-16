@@ -156,7 +156,7 @@ def test_resolve_compound_matches_aliases_and_external_ids(monkeypatch):
 
 
 def test_compute_risk_returns_float():
-    inter = {"severity": "Mild", "evidence": "C", "mechanism": []}
+    inter = {"record_kind": "assessed_interaction", "severity": "Mild", "evidence": "C", "mechanism": []}
     score = app_module.compute_risk(inter)
     assert isinstance(score, float)
 

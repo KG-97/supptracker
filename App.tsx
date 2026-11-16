@@ -3,7 +3,7 @@ import AppComponent, {
   parseStackData,
 } from './src/App'
 
-export const DEFAULT_STACK_EXAMPLE = 'creatine, caffeine, magnesium'
+export const DEFAULT_STACK_EXAMPLE = 'caffeine, aspirin'
 
 export { parseStackData }
 

@@ -1,5 +1,8 @@
-import React, { FormEvent, useEffect, useMemo, useState } from 'react'
+import React, { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
+import LabelStatements from './LabelStatements'
+import type { LabelStatementsRequest } from './LabelStatements'
+import LabelStatementMatches, { LabelStatementNameHits } from './LabelStatementMatches'
 import {
   checkStack,
   fetchAllCompounds,
@@ -41,7 +44,7 @@ function resolveSources(response: InteractionResponse | null): Source[] {
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
-export const DEFAULT_STACK_EXAMPLE = 'creatine, caffeine, magnesium'
+export const DEFAULT_STACK_EXAMPLE = 'caffeine, aspirin'
 
 export function parseStackData(apiData: any, userCompounds: string[]) {
   const compounds = apiData?.resolved_items ?? apiData?.items ?? userCompounds
@@ -54,9 +57,18 @@ export function parseStackData(apiData: any, userCompounds: string[]) {
   return { compounds, interactions }
 }
 
+// The API answers 404 for a name outside the assessed compound list. Say what that means
+// instead of leaving a bare "not found".
+function explainLookupError(message: string): string {
+  if (/not found/i.test(message)) {
+    return `${message.replace(/\.$/, '')}. Names outside the assessed compound list cannot be checked, so nothing was assessed. This does not mean the combination is safe.`
+  }
+  return message
+}
+
 function parseStackInput(value: string): string[] {
   return value
-    .split(/[\n,]+/)
+    .split(/[\n,;]+/)
     .map((token) => token.trim())
     .filter(Boolean)
 }
@@ -426,6 +438,17 @@ export default function App(): React.JSX.Element {
   const [stackError, setStackError] = useState<string | null>(null)
   const [stackInteractions, setStackInteractions] = useState<StackInteraction[] | null>(null)
   const [stackCompounds, setStackCompounds] = useState<string[]>([])
+  const [stackCoverage, setStackCoverage] = useState<{ total_pairs: number; assessed_pairs: number; not_assessed_pairs: number } | null>(null)
+
+  const [pairLookup, setPairLookup] = useState<{ names: string[]; id: number }>({ names: [], id: 0 })
+  const [stackLookup, setStackLookup] = useState<{ names: string[]; id: number }>({ names: [], id: 0 })
+  const [searchLookup, setSearchLookup] = useState<{ name: string; id: number }>({ name: '', id: 0 })
+  const [labelRequest, setLabelRequest] = useState<LabelStatementsRequest | null>(null)
+  // Each check gets a number. A reply is ignored once a newer check has started or the
+  // names it was made for have been edited.
+  const searchRequest = useRef(0)
+  const pairRequest = useRef(0)
+  const stackRequest = useRef(0)
 
   const [overviewStatus, setOverviewStatus] = useState<AsyncStatus>('loading')
   const [overviewError, setOverviewError] = useState<string | null>(null)
@@ -507,26 +530,57 @@ export default function App(): React.JSX.Element {
       .slice(0, 4)
   }, [allInteractions])
 
+  // Results describe the names that were submitted. Once those names are edited or fail
+  // validation, drop the results so the page never shows an answer for other inputs.
+  function clearPairResults() {
+    pairRequest.current += 1
+    setPairStatus('idle')
+    setPairError(null)
+    setPairData(null)
+    setPairLookup((previous) =>
+      previous.names.length === 0 ? previous : { names: [], id: previous.id + 1 }
+    )
+  }
+
+  function clearStackResults() {
+    stackRequest.current += 1
+    setStackStatus('idle')
+    setStackError(null)
+    setStackInteractions(null)
+    setStackCompounds((previous) => (previous.length === 0 ? previous : []))
+    setStackCoverage(null)
+    setStackLookup((previous) =>
+      previous.names.length === 0 ? previous : { names: [], id: previous.id + 1 }
+    )
+  }
+
   async function handleSearch(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault()
     const trimmed = query.trim()
     if (!trimmed) {
+      searchRequest.current += 1
       setSearchResults([])
       setSearchStatus('idle')
       setSearchError('Enter a compound name to search.')
+      setSearchLookup((previous) => ({ name: '', id: previous.id + 1 }))
       return
     }
 
+    // Only the newest search may write its results; an older, slower reply is dropped.
+    const request = ++searchRequest.current
     setSearchStatus('loading')
     setSearchError(null)
+    setSearchLookup((previous) => ({ name: trimmed, id: previous.id + 1 }))
     try {
       const results = await searchCompounds(trimmed)
+      if (request !== searchRequest.current) return
       setSearchResults(results)
       setSearchStatus('success')
       if (results.length === 0) {
         setSearchError('No compounds matched your search.')
       }
     } catch (error) {
+      if (request !== searchRequest.current) return
       setSearchStatus('error')
       setSearchResults([])
       setSearchError(error instanceof Error ? error.message : 'Search failed')
@@ -569,22 +623,28 @@ export default function App(): React.JSX.Element {
     const b = pairB.trim()
 
     if (!a || !b) {
+      clearPairResults()
       setPairStatus('error')
-      setPairData(null)
       setPairError('Enter two compounds to run a pair check.')
       return
     }
 
+    const request = ++pairRequest.current
     setPairStatus('loading')
     setPairError(null)
+    // Label statements are looked up separately, so they still show when the names are not
+    // in the assessed compound list.
+    setPairLookup((previous) => ({ names: [a, b], id: previous.id + 1 }))
     try {
       const data = await fetchInteraction(a, b)
+      if (request !== pairRequest.current) return
       setPairData(data)
       setPairStatus('success')
     } catch (error) {
+      if (request !== pairRequest.current) return
       setPairData(null)
       setPairStatus('error')
-      setPairError(error instanceof Error ? error.message : 'Interaction lookup failed')
+      setPairError(explainLookupError(error instanceof Error ? error.message : 'Interaction lookup failed'))
     }
   }
 
@@ -592,28 +652,33 @@ export default function App(): React.JSX.Element {
     event?.preventDefault()
     const compounds = parseStackInput(stackText)
     if (compounds.length < 2) {
+      clearStackResults()
       setStackStatus('error')
-      setStackInteractions(null)
-      setStackCompounds([])
       setStackError('List at least two compounds to evaluate the stack.')
       return
     }
 
+    const request = ++stackRequest.current
     setStackStatus('loading')
     setStackError(null)
+    setStackLookup((previous) => ({ names: compounds, id: previous.id + 1 }))
     try {
       const data = await checkStack(compounds)
+      if (request !== stackRequest.current) return
       const parsed = parseStackData(data, compounds)
 
       setStackInteractions(parsed.interactions)
       setStackCompounds(parsed.compounds)
+      setStackCoverage(data.coverage ?? null)
       setStackStatus('success')
       setStackError(null)
     } catch (error) {
+      if (request !== stackRequest.current) return
       setStackInteractions(null)
       setStackCompounds([])
+      setStackCoverage(null)
       setStackStatus('error')
-      setStackError(error instanceof Error ? error.message : 'Stack check failed')
+      setStackError(explainLookupError(error instanceof Error ? error.message : 'Stack check failed'))
     }
   }
 
@@ -631,7 +696,7 @@ export default function App(): React.JSX.Element {
       <header className="app-header">
         <h1>Supplement Interaction Tracker</h1>
         <p className="app-tagline">
-          Search compounds, review pair interactions, and evaluate supplement stacks before launch night.
+          Search compounds, read FDA label statements, and check pairs and stacks against assessed records.
         </p>
       </header>
 
@@ -654,12 +719,20 @@ export default function App(): React.JSX.Element {
                 <li className="stat">
                   <span className="stat-label">Interaction records</span>
                   <strong className="stat-value">{health.interactions_loaded}</strong>
-                  <span className="stat-footnote">Each with evidence and risk scores</span>
+                  <span className="stat-footnote">
+                    {health.interactions_loaded > 0
+                      ? 'Each with evidence and risk scores'
+                      : 'None loaded: pair and stack checks can only report "not assessed"'}
+                  </span>
                 </li>
                 <li className="stat">
                   <span className="stat-label">Evidence sources</span>
                   <strong className="stat-value">{health.sources_loaded}</strong>
-                  <span className="stat-footnote">Citations powering recommendations</span>
+                  <span className="stat-footnote">
+                    {health.interactions_loaded > 0
+                      ? 'Citations powering recommendations'
+                      : 'Loaded, but not yet cited by any assessed record'}
+                  </span>
                 </li>
               </ul>
 
@@ -668,9 +741,14 @@ export default function App(): React.JSX.Element {
                   <strong className="health-alert-title">Dataset loaded with warnings</strong>
                   <ul>
                     {health.issues.map((issue) => (
-                      <li key={`${issue.source}:${issue.error}`.slice(0, 120)}>
+                      <li key={`${issue.source}:${issue.code ?? issue.error}`.slice(0, 120)}>
                         <span className="health-issue-source">{issue.source}:</span>{' '}
-                        <span className="health-issue-message">{issue.error}</span>
+                        <span className="health-issue-message">
+                          {issue.error ??
+                            `${(issue.code ?? 'unknown_problem').replace(/_/g, ' ')}${
+                              issue.count != null ? ` (${issue.count})` : ''
+                            }`}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -757,7 +835,7 @@ export default function App(): React.JSX.Element {
         <section className="card">
           <div className="card-header">
             <h2>Search compounds</h2>
-            <p>Use names or synonyms to locate supplements in the dataset.</p>
+            <p>Find a compound in the dataset, or a name used in the FDA label statements.</p>
           </div>
           <form onSubmit={handleSearch} className="stacked">
             <label className="sr-only" htmlFor="search-input">
@@ -767,9 +845,17 @@ export default function App(): React.JSX.Element {
               <input
                 id="search-input"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="e.g. creatine"
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  // The label-statement note below describes the name that was searched, not
+                  // the one now being typed.
+                  setSearchLookup((previous) =>
+                    previous.name === '' ? previous : { name: '', id: previous.id + 1 }
+                  )
+                }}
+                placeholder="e.g. melatonin or warfarin"
                 autoComplete="off"
+                spellCheck={false}
               />
               <button type="submit" className="primary">Search</button>
             </div>
@@ -807,12 +893,20 @@ export default function App(): React.JSX.Element {
               })}
             </ul>
           )}
+          <LabelStatementNameHits
+            name={searchLookup.name}
+            requestId={searchLookup.id}
+            compoundMatches={searchStatus === 'success' ? searchResults.length : null}
+            onShow={(filter) =>
+              setLabelRequest((previous) => ({ ...filter, token: (previous?.token ?? 0) + 1 }))
+            }
+          />
         </section>
 
         <section className="card">
           <div className="card-header">
-            <h2>Research library search</h2>
-            <p>Run semantic queries across curated supplement documentation.</p>
+            <h2>Project notes search</h2>
+            <p>Keyword search across this project's own documentation. These are developer notes, not clinical evidence.</p>
           </div>
           <form onSubmit={handleDocumentSearch} className="stacked">
             <label className="sr-only" htmlFor="doc-search-input">
@@ -823,7 +917,7 @@ export default function App(): React.JSX.Element {
                 id="doc-search-input"
                 value={docQuery}
                 onChange={(event) => setDocQuery(event.target.value)}
-                placeholder="e.g. creatine sleep disruption"
+                placeholder="e.g. label statements licence"
                 autoComplete="off"
               />
               <button type="submit" className="primary">
@@ -841,7 +935,7 @@ export default function App(): React.JSX.Element {
             <p className="status status-info doc-meta">
               {docMeta.uses_embeddings
                 ? `Gemini embeddings${docMeta.embedding_model ? ` (${docMeta.embedding_model})` : ''} active`
-                : 'Fallback keyword search (Gemini disabled)'}
+                : 'Keyword search'}
               {docMeta.documents_indexed > 0 && ` • ${docMeta.documents_indexed} passages indexed`}
             </p>
           )}
@@ -861,10 +955,12 @@ export default function App(): React.JSX.Element {
           )}
         </section>
 
+        <LabelStatements request={labelRequest} />
+
         <section className="card">
           <div className="card-header">
             <h2>Pair checker</h2>
-            <p>Validate two compounds before combining them.</p>
+            <p>Look up two names: any assessed record, plus FDA label statements that name them together.</p>
           </div>
           <form onSubmit={handlePairSubmit} className="stacked">
             <div className="pair-inputs">
@@ -872,20 +968,28 @@ export default function App(): React.JSX.Element {
               <input
                 id="pair-a"
                 value={pairA}
-                onChange={(event) => setPairA(event.target.value)}
+                onChange={(event) => {
+                  setPairA(event.target.value)
+                  clearPairResults()
+                }}
                 placeholder="First compound"
                 autoComplete="off"
+                spellCheck={false}
               />
               <span className="pair-separator" aria-hidden="true">
-                ×
+                and
               </span>
               <label className="sr-only" htmlFor="pair-b">Compound B</label>
               <input
                 id="pair-b"
                 value={pairB}
-                onChange={(event) => setPairB(event.target.value)}
+                onChange={(event) => {
+                  setPairB(event.target.value)
+                  clearPairResults()
+                }}
                 placeholder="Second compound"
                 autoComplete="off"
+                spellCheck={false}
               />
               <button type="submit" className="primary">
                 Check pair
@@ -894,6 +998,11 @@ export default function App(): React.JSX.Element {
           </form>
           {pairStatus === 'loading' && <p className="status">Checking interaction…</p>}
           {pairError && <p className="status status-error">{pairError}</p>}
+          {pairData?.assessment === 'not_assessed' && (
+            <p className="status status-info" role="status">
+              {pairData.message ?? 'No assessed interaction record is available for this pair. This does not mean the combination is safe.'}
+            </p>
+          )}
           {pair && pairStatus === 'success' && (
             <div className="pair-result" aria-live="polite">
               <h3>{pairHeading}</h3>
@@ -923,12 +1032,13 @@ export default function App(): React.JSX.Element {
               </details>
             </div>
           )}
+          <LabelStatementMatches names={pairLookup.names} requestId={pairLookup.id} />
         </section>
 
         <section className="card">
           <div className="card-header">
             <h2>Stack checker</h2>
-            <p>Paste a stack to identify riskier combinations.</p>
+            <p>Paste a list separated by commas, semicolons or new lines.</p>
           </div>
           <form onSubmit={handleStackSubmit} className="stacked">
             <label className="sr-only" htmlFor="stack-input">
@@ -938,8 +1048,12 @@ export default function App(): React.JSX.Element {
               id="stack-input"
               rows={4}
               value={stackText}
-              onChange={(event) => setStackText(event.target.value)}
+              onChange={(event) => {
+                setStackText(event.target.value)
+                clearStackResults()
+              }}
               placeholder={DEFAULT_STACK_EXAMPLE}
+              spellCheck={false}
             />
             <div className="actions">
               <button type="submit" className="primary">
@@ -949,6 +1063,7 @@ export default function App(): React.JSX.Element {
                 type="button"
                 onClick={() => {
                   setStackText(DEFAULT_STACK_EXAMPLE)
+                  clearStackResults()
                 }}
                 className="ghost"
               >
@@ -968,10 +1083,15 @@ export default function App(): React.JSX.Element {
                 {stackHasInteractions
                   ? `Interactions found for ${stackCompoundLabels.join(', ')}`
                   : stackCompoundLabels.length > 0
-                    ? `No interactions detected in ${stackCompoundLabels.join(', ')}`
-                    : 'No interactions detected in this stack'
+                    ? `No assessed interactions were found in ${stackCompoundLabels.join(', ')}. This does not mean the combination is safe.`
+                    : 'No assessed interactions were found in this stack. This does not mean the combination is safe.'
                 }
               </h3>
+              {stackCoverage && stackCoverage.not_assessed_pairs > 0 && (
+                <p className="status status-info">
+                  {stackCoverage.assessed_pairs} of {stackCoverage.total_pairs} pairs have assessed records. {stackCoverage.not_assessed_pairs} {stackCoverage.not_assessed_pairs === 1 ? 'pair remains' : 'pairs remain'} unassessed; absence of a record does not mean safe.
+                </p>
+              )}
               {stackHasInteractions && (
                 <table>
                   <thead>
@@ -1009,6 +1129,7 @@ export default function App(): React.JSX.Element {
               )}
             </div>
           )}
+          <LabelStatementMatches names={stackLookup.names} requestId={stackLookup.id} />
         </section>
       </main>
     </div>

@@ -1,0 +1,28 @@
+{
+  "counts": {
+    "candidates": 4638,
+    "compounds": 890,
+    "distinct_directed_candidate_pairs": 2635,
+    "same_substance_candidate_rows_skipped": 362,
+    "sources": 565
+  },
+  "dataset_name": "SuppTracker openFDA label-derived candidates",
+  "extraction": {
+    "candidate_rule": "A labelled generic/substance name is mentioned in another label's DRUG INTERACTIONS text.",
+    "clinical_claim": "None. Every candidate requires human/clinical review before risk scoring or display as an assessed interaction.",
+    "page_size": 1000,
+    "pages_requested": 2,
+    "script": "scripts/build_openfda_label_candidates.py",
+    "source_records_retrieved": 2000
+  },
+  "release_status": "candidate_only_not_clinically_validated",
+  "schema_version": 1,
+  "source": {
+    "api_url": "https://api.fda.gov/drug/label.json",
+    "license": "CC0-1.0 unless otherwise noted by openFDA",
+    "license_url": "https://open.fda.gov/license/",
+    "name": "openFDA drug product labeling API",
+    "query": "drug_interactions:* AND openfda.generic_name:*",
+    "retrieved_at": "2026-11-12T19:25:09+00:00"
+  }
+}

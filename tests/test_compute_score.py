@@ -7,6 +7,7 @@ import api.risk_api as risk_api
 
 def make_inter(severity="Moderate", evidence="B", mechanism=None):
     return {
+        "record_kind": "assessed_interaction",
         "severity": severity,
         "evidence": evidence,
         "mechanism": mechanism or [],
@@ -72,6 +73,7 @@ formula: "severity * weights.severity + mech_sum + max(0, evidence_component)"
         risk_api.apply_rules(str(config_path))
         score = risk_api.compute_risk(
             {
+                "record_kind": "assessed_interaction",
                 "severity": "Severe",
                 "evidence": "A",
                 "mechanism": ["custom"],
@@ -119,9 +121,8 @@ map:
     )
     _, _, _, evidence_map, _, _ = risk_api.load_rules(str(config_path))
     assert evidence_map["D"] == 10
-    assert "Z" not in evidence_map
     monkeypatch.setattr(risk_api, "EVIDENCE_MAP", evidence_map)
-    score = risk_api.compute_risk(make_inter(severity="None", evidence="Z"))
+    score = risk_api.compute_risk(make_inter(severity="None", evidence=None))
     evidence_weight = risk_api.WEIGHTS.get(
         "evidence", risk_api.DEFAULT_WEIGHTS["evidence"]
     )

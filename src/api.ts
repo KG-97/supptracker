@@ -38,7 +38,21 @@ const API_BASE = (() => {
   return 'http://localhost:8000/api'
 })()
 
+// FastAPI reports request validation problems as a list of objects. Turn that into sentences
+// a person can act on; the raw JSON must never reach the page.
+function validationMessages(detail: unknown): string | null {
+  if (!Array.isArray(detail)) return null
+  const messages = detail
+    .map((item) =>
+      item && typeof item.msg === 'string' ? item.msg.replace(/^Value error,\s*/i, '').trim() : ''
+    )
+    .filter(Boolean)
+    .map((message) => (/[.!?]$/.test(message) ? message : `${message}.`))
+  return messages.length > 0 ? [...new Set(messages)].join(' ') : null
+}
+
 async function parseError(res: Response, fallback: string) {
+  const unexplained = res.status ? `${fallback} (HTTP ${res.status})` : fallback
   try {
     const text = (await res.text()).trim();
     if (!text) return fallback;
@@ -47,10 +61,13 @@ async function parseError(res: Response, fallback: string) {
       if (typeof data === 'string') return data;
       if (data && typeof data.message === 'string') return data.message;
       if (data && typeof data.detail === 'string') return data.detail;
+      const listed = data ? validationMessages(data.detail) : null
+      if (listed) return listed
       if (data && typeof data.error === 'string') return data.error;
-      return text;
+      return unexplained;
     } catch {
-      return text
+      // Plain text is shown as sent. An HTML error page or a very long body is not.
+      return text.length <= 300 && !text.startsWith('<') ? text : unexplained
     }
   } catch {
     return fallback
@@ -117,4 +134,157 @@ export async function checkStack(compounds: string[]): Promise<StackResponse> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ compounds }),
   })
+}
+
+export type LabelStatementsStatus = 'available' | 'unavailable'
+
+export interface LabelStatement {
+  statement_id: string
+  record_kind: string
+  review_status: string
+  supplement_id: string
+  supplement_name: string
+  supplement_kind: string
+  drug_id: string
+  drug_names_raw: string
+  sentence: string
+  matched_text: string
+  section: string
+  set_id: string
+  label_id: string
+  effective_time: string
+  label_count: string
+  source_url: string
+  retrieved_at: string
+  rights_status: string
+  is_group_term: boolean
+  label_url: string
+}
+
+export interface LabelStatementsSupplement {
+  supplement_id: string
+  supplement_name: string
+  supplement_kind: string
+  is_group_term: boolean
+  pair_count: number
+}
+
+export interface LabelStatementsSummary {
+  status: LabelStatementsStatus
+  record_kind: string
+  review_status: string
+  disclaimer: string
+  counts: {
+    statements: number
+    pairs: number
+    supplements: number
+    drugs: number
+  }
+  retrieved_at: {
+    earliest: string | null
+    latest: string | null
+  }
+  source: string
+  license: string
+  license_url: string
+  supplements: LabelStatementsSupplement[]
+  assessment?: 'not_assessed'
+}
+
+export interface LabelStatementsListResponse {
+  status: LabelStatementsStatus
+  record_kind: string
+  review_status: string
+  disclaimer: string
+  total: number
+  items: LabelStatement[]
+  assessment?: 'not_assessed'
+}
+
+export interface LabelStatementsFilters {
+  supplement?: string
+  drug?: string
+  q?: string
+  limit?: number
+  offset?: number
+}
+
+export interface LabelStatementsLookupPair {
+  supplement_input: string
+  drug_input: string
+  supplement_id: string
+  supplement_name: string
+  is_group_term: boolean
+  drug_id: string
+  drug_names_raw: string
+  labels: number
+  total: number
+  items: LabelStatement[]
+  // True when the label belongs to a product with more than one active ingredient.
+  combination_product?: boolean
+}
+
+export interface LabelStatementsLookupName {
+  input: string
+  supplements: {
+    supplement_id: string
+    supplement_name: string
+    is_group_term: boolean
+    statements: number
+  }[]
+  drug_total: number
+  drugs: {
+    drug_id: string
+    drug_names_raw: string
+    statements: number
+    combination_product?: boolean
+  }[]
+}
+
+export interface LabelStatementsLookup {
+  status: LabelStatementsStatus
+  record_kind: string
+  review_status: string
+  disclaimer: string
+  assessment: 'not_assessed'
+  message: string
+  names: LabelStatementsLookupName[]
+  total_pairs: number
+  truncated: boolean
+  pairs: LabelStatementsLookupPair[]
+}
+
+// Finds verbatim FDA label statements that name any two of the given names together.
+// The result is quoted label text only; it is never an assessment.
+export async function fetchLabelStatementLookup(names: string[]): Promise<LabelStatementsLookup> {
+  const params = new URLSearchParams()
+  for (const name of names) {
+    params.append('names', name)
+  }
+  return request<LabelStatementsLookup>(`/label-statements/lookup?${params.toString()}`)
+}
+
+export async function fetchLabelStatementsSummary(): Promise<LabelStatementsSummary> {
+  return request<LabelStatementsSummary>('/label-statements/summary')
+}
+
+export async function fetchLabelStatements(
+  filters: LabelStatementsFilters = {}
+): Promise<LabelStatementsListResponse> {
+  const params = new URLSearchParams()
+
+  if (filters.supplement) {
+    params.set('supplement', filters.supplement)
+  }
+  if (filters.drug) {
+    params.set('drug', filters.drug)
+  }
+  if (filters.q) {
+    params.set('q', filters.q)
+  }
+
+  params.set('limit', String(filters.limit ?? 25))
+  params.set('offset', String(filters.offset ?? 0))
+
+  return request<LabelStatementsListResponse>(`/label-statements?${params.toString()}`)
 }

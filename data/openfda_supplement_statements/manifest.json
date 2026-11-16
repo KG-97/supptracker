@@ -1,0 +1,477 @@
+{
+  "arguments": {
+    "max_drug_components": 3,
+    "max_drug_id_chars": 80,
+    "max_pages": 0,
+    "max_sentence_chars": 700,
+    "only": null,
+    "output_dir": "openfda_supplement_statements",
+    "page_size": 100,
+    "per_pair": 3,
+    "sleep_seconds": 0.2,
+    "terms": "supplement_terms.json"
+  },
+  "counts": {
+    "distinct_drugs": 480,
+    "distinct_pairs": 974,
+    "distinct_supplements": 35,
+    "labels_multi_ingredient_skipped": 114,
+    "labels_scanned": 23804,
+    "labels_without_drug_identity": 14209,
+    "near_duplicate_sentences_merged": 991,
+    "self_skips": 451,
+    "sentences_too_long": 1440,
+    "statements": 1945
+  },
+  "dataset_name": "SuppTracker openFDA supplement statements",
+  "dictionary_sha256": "48a9b215b758b1ee9b3a63a353d177bcf45c66f36081beec4eca4cbe614aee32",
+  "failed_requests": [],
+  "finished_at": "2026-11-16T06:09:13+00:00",
+  "pages_from_cache": 588,
+  "per_entry": {
+    "antacids": {
+      "cached_pages": 76,
+      "hits_reported_by_api": 7553,
+      "labels_scanned_first_by_this_entry": 2022,
+      "pairs": 146,
+      "requests": 0,
+      "statements": 333
+    },
+    "berberine": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "biotin": {
+      "cached_pages": 2,
+      "hits_reported_by_api": 164,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 1,
+      "requests": 0,
+      "statements": 2
+    },
+    "black-cohosh": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "bromelain": {
+      "cached_pages": 2,
+      "hits_reported_by_api": 1,
+      "labels_scanned_first_by_this_entry": 1,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "caffeine": {
+      "cached_pages": 22,
+      "hits_reported_by_api": 2153,
+      "labels_scanned_first_by_this_entry": 1497,
+      "pairs": 27,
+      "requests": 0,
+      "statements": 47
+    },
+    "calcium": {
+      "cached_pages": 17,
+      "hits_reported_by_api": 1532,
+      "labels_scanned_first_by_this_entry": 156,
+      "pairs": 42,
+      "requests": 0,
+      "statements": 93
+    },
+    "cannabidiol": {
+      "cached_pages": 3,
+      "hits_reported_by_api": 229,
+      "labels_scanned_first_by_this_entry": 189,
+      "pairs": 5,
+      "requests": 0,
+      "statements": 14
+    },
+    "coenzyme-q10": {
+      "cached_pages": 6,
+      "hits_reported_by_api": 258,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 1,
+      "requests": 0,
+      "statements": 3
+    },
+    "cranberry": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "danshen": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 3,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 1,
+      "requests": 0,
+      "statements": 1
+    },
+    "dhea": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 2,
+      "labels_scanned_first_by_this_entry": 2,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "dong-quai": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "echinacea": {
+      "cached_pages": 3,
+      "hits_reported_by_api": 281,
+      "labels_scanned_first_by_this_entry": 9,
+      "pairs": 2,
+      "requests": 0,
+      "statements": 3
+    },
+    "ephedra": {
+      "cached_pages": 2,
+      "hits_reported_by_api": 2,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "feverfew": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "folic-acid": {
+      "cached_pages": 11,
+      "hits_reported_by_api": 997,
+      "labels_scanned_first_by_this_entry": 495,
+      "pairs": 13,
+      "requests": 0,
+      "statements": 31
+    },
+    "garlic": {
+      "cached_pages": 3,
+      "hits_reported_by_api": 274,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 1,
+      "requests": 0,
+      "statements": 1
+    },
+    "ginger": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "ginkgo": {
+      "cached_pages": 3,
+      "hits_reported_by_api": 272,
+      "labels_scanned_first_by_this_entry": 193,
+      "pairs": 3,
+      "requests": 0,
+      "statements": 5
+    },
+    "ginseng": {
+      "cached_pages": 4,
+      "hits_reported_by_api": 368,
+      "labels_scanned_first_by_this_entry": 87,
+      "pairs": 2,
+      "requests": 0,
+      "statements": 6
+    },
+    "glucosamine": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 1,
+      "labels_scanned_first_by_this_entry": 1,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "goldenseal": {
+      "cached_pages": 3,
+      "hits_reported_by_api": 271,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 2,
+      "requests": 0,
+      "statements": 3
+    },
+    "grapefruit": {
+      "cached_pages": 47,
+      "hits_reported_by_api": 4677,
+      "labels_scanned_first_by_this_entry": 1494,
+      "pairs": 124,
+      "requests": 0,
+      "statements": 226
+    },
+    "green-tea": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "herbal-dietary-supplements": {
+      "cached_pages": 13,
+      "hits_reported_by_api": 1161,
+      "labels_scanned_first_by_this_entry": 107,
+      "pairs": 85,
+      "requests": 0,
+      "statements": 162
+    },
+    "iron": {
+      "cached_pages": 35,
+      "hits_reported_by_api": 3183,
+      "labels_scanned_first_by_this_entry": 2116,
+      "pairs": 50,
+      "requests": 0,
+      "statements": 112
+    },
+    "kava": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "licorice": {
+      "cached_pages": 2,
+      "hits_reported_by_api": 21,
+      "labels_scanned_first_by_this_entry": 21,
+      "pairs": 1,
+      "requests": 0,
+      "statements": 1
+    },
+    "magnesium": {
+      "cached_pages": 68,
+      "hits_reported_by_api": 6735,
+      "labels_scanned_first_by_this_entry": 3356,
+      "pairs": 81,
+      "requests": 0,
+      "statements": 174
+    },
+    "melatonin": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 65,
+      "labels_scanned_first_by_this_entry": 65,
+      "pairs": 4,
+      "requests": 0,
+      "statements": 8
+    },
+    "milk-thistle": {
+      "cached_pages": 2,
+      "hits_reported_by_api": 23,
+      "labels_scanned_first_by_this_entry": 11,
+      "pairs": 1,
+      "requests": 0,
+      "statements": 3
+    },
+    "multivitamin": {
+      "cached_pages": 14,
+      "hits_reported_by_api": 1203,
+      "labels_scanned_first_by_this_entry": 529,
+      "pairs": 17,
+      "requests": 0,
+      "statements": 36
+    },
+    "niacin": {
+      "cached_pages": 47,
+      "hits_reported_by_api": 4667,
+      "labels_scanned_first_by_this_entry": 4042,
+      "pairs": 46,
+      "requests": 0,
+      "statements": 87
+    },
+    "omega-3-fish-oil": {
+      "cached_pages": 3,
+      "hits_reported_by_api": 105,
+      "labels_scanned_first_by_this_entry": 105,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "polyvalent-cations": {
+      "cached_pages": 11,
+      "hits_reported_by_api": 908,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 21,
+      "requests": 0,
+      "statements": 49
+    },
+    "potassium": {
+      "cached_pages": 37,
+      "hits_reported_by_api": 3414,
+      "labels_scanned_first_by_this_entry": 1515,
+      "pairs": 37,
+      "requests": 0,
+      "statements": 68
+    },
+    "probiotics": {
+      "cached_pages": 2,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "psyllium-fiber": {
+      "cached_pages": 2,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "red-yeast-rice": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "same": {
+      "cached_pages": 2,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "saw-palmetto": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "st-johns-wort": {
+      "cached_pages": 65,
+      "hits_reported_by_api": 6428,
+      "labels_scanned_first_by_this_entry": 3206,
+      "pairs": 160,
+      "requests": 0,
+      "statements": 274
+    },
+    "tryptophan-5htp": {
+      "cached_pages": 24,
+      "hits_reported_by_api": 2329,
+      "labels_scanned_first_by_this_entry": 1087,
+      "pairs": 20,
+      "requests": 0,
+      "statements": 48
+    },
+    "turmeric-curcumin": {
+      "cached_pages": 2,
+      "hits_reported_by_api": 7,
+      "labels_scanned_first_by_this_entry": 2,
+      "pairs": 2,
+      "requests": 0,
+      "statements": 3
+    },
+    "valerian": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 0,
+      "labels_scanned_first_by_this_entry": 0,
+      "pairs": 0,
+      "requests": 0,
+      "statements": 0
+    },
+    "vitamin-a": {
+      "cached_pages": 3,
+      "hits_reported_by_api": 252,
+      "labels_scanned_first_by_this_entry": 203,
+      "pairs": 9,
+      "requests": 0,
+      "statements": 24
+    },
+    "vitamin-b12": {
+      "cached_pages": 2,
+      "hits_reported_by_api": 22,
+      "labels_scanned_first_by_this_entry": 3,
+      "pairs": 6,
+      "requests": 0,
+      "statements": 7
+    },
+    "vitamin-b6": {
+      "cached_pages": 3,
+      "hits_reported_by_api": 151,
+      "labels_scanned_first_by_this_entry": 105,
+      "pairs": 3,
+      "requests": 0,
+      "statements": 7
+    },
+    "vitamin-c": {
+      "cached_pages": 8,
+      "hits_reported_by_api": 661,
+      "labels_scanned_first_by_this_entry": 282,
+      "pairs": 33,
+      "requests": 0,
+      "statements": 52
+    },
+    "vitamin-d": {
+      "cached_pages": 5,
+      "hits_reported_by_api": 467,
+      "labels_scanned_first_by_this_entry": 380,
+      "pairs": 9,
+      "requests": 0,
+      "statements": 21
+    },
+    "vitamin-e": {
+      "cached_pages": 1,
+      "hits_reported_by_api": 14,
+      "labels_scanned_first_by_this_entry": 2,
+      "pairs": 2,
+      "requests": 0,
+      "statements": 4
+    },
+    "vitamin-k": {
+      "cached_pages": 8,
+      "hits_reported_by_api": 786,
+      "labels_scanned_first_by_this_entry": 513,
+      "pairs": 5,
+      "requests": 0,
+      "statements": 11
+    },
+    "zinc": {
+      "cached_pages": 10,
+      "hits_reported_by_api": 901,
+      "labels_scanned_first_by_this_entry": 8,
+      "pairs": 12,
+      "requests": 0,
+      "statements": 26
+    }
+  },
+  "release_status": "fda_label_statements_not_clinically_reviewed",
+  "script_sha256": "810fafbd3d43b66b645287c4af3c05b6e701d7af5dca4e0c2a98ccd05ba791bc",
+  "source": {
+    "api_url": "https://api.fda.gov/drug/label.json",
+    "license": "CC0-1.0 unless otherwise noted by openFDA",
+    "license_url": "https://open.fda.gov/license/",
+    "meta_last_updated_seen": [
+      "2026-11-13"
+    ]
+  },
+  "started_at": "2026-11-16T06:05:50+00:00",
+  "truncations": []
+}

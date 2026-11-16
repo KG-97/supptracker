@@ -78,7 +78,8 @@ body {
 .grid {
   display: grid;
   gap: 24px;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  /* min() lets a single column shrink below 320px instead of pushing the page wider. */
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
 }
 
 .full-width {
@@ -120,6 +121,11 @@ body {
 .input-row {
   display: flex;
   gap: 12px;
+}
+
+/* Without this the field keeps its default width and pushes the button out of a narrow card. */
+.input-row input {
+  min-width: 0;
 }
 
 input,
@@ -305,6 +311,8 @@ button.ghost:hover {
   margin: 0;
   font-size: 0.95rem;
   color: var(--muted-2);
+  /* A long unbroken token must wrap inside the card, not widen the page. */
+  overflow-wrap: anywhere;
 }
 
 .status-error {
@@ -594,4 +602,178 @@ html.dark .badge {
   .pair-inputs { flex-direction: column; align-items: stretch; }
   .pair-separator { display: none; }
   button { width: 100%; }
+}
+
+.label-statements {
+  border-color: color-mix(in srgb, var(--link) 30%, var(--border));
+}
+
+.label-statements-disclaimer {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--pill);
+  color: var(--muted-2);
+}
+
+.label-statements-disclaimer p,
+.label-statements-source {
+  margin: 0;
+}
+
+.label-statements-source {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.label-statements-source a,
+.label-statement > a {
+  color: var(--link);
+}
+
+.label-statements-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.label-statements-filters > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label-statements-filters label {
+  color: var(--muted-2);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.label-statements-filters select {
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.label-statement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.label-statement {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.label-statement q {
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.label-statement dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.label-statement dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.label-statement dd {
+  margin: 3px 0 0;
+  color: var(--text);
+}
+
+.label-group-term {
+  margin-left: 4px;
+}
+
+.label-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.label-matches h3,
+.label-match-heading {
+  margin: 0;
+}
+
+.label-match-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.label-match-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label-matches .pill button {
+  align-self: flex-start;
+}
+
+.label-matches > button {
+  align-self: flex-start;
+}
+
+.label-matches .label-statement summary {
+  cursor: pointer;
+}
+
+.label-matches .label-statement summary .label-match-heading {
+  display: inline;
+}
+
+.label-match-count {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: var(--muted-2);
+}
+
+.label-matches .label-statement details[open] > summary {
+  margin-bottom: 12px;
+}
+
+.label-match-item + .label-match-item {
+  margin-top: 12px;
+}
+
+/* A card showing label statements can be far taller than its neighbour. Let the neighbour
+   keep its own height instead of stretching into a tall empty box. */
+.grid:has(.label-matches) > .card {
+  align-self: start;
+}
+
+@media (max-width: 720px) {
+  .label-statements-filters {
+    /* minmax(0, ...) stops the longest supplement name in the list setting the column width. */
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
