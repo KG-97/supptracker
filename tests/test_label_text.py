@@ -188,6 +188,51 @@ def test_and_inside_an_item_does_not_close_the_list():
     assert statement.endswith("phenytoin, nicotinic acid")
 
 
+# Cases from Codex's review (19 Nov 2026).
+CALCIUM = re.compile(r"\bcalcium\b", re.IGNORECASE)
+
+
+def test_comma_header_after_a_list_without_and_is_not_a_list_item():
+    for header in ("Antacids, Calcium", "Antacids, Calcium, Iron", "Antacids, Calcium or Iron"):
+        text = f"Clinical Impact: Serotonin syndrome. Examples: tramadol {header} Clinical Impact: Reduced absorption."
+        assert _statements(text, CALCIUM) == [], header
+
+
+def test_cell_without_a_sentence_end_starts_a_new_row():
+    text = "Clinical Impact: Serotonin syndrome Mineral Supplements Intervention: Separate doses. Examples: calcium"
+    assert _statements(text, CALCIUM) == ["Intervention: Separate doses. Examples: calcium"]
+
+
+def test_citation_bracket_ends_a_cell_and_keeps_the_row_whole():
+    text = (
+        "Clinical Impact: Antacids raise absorption [see Clinical Pharmacology (12.3)] "
+        "Intervention: Separate doses. Examples: calcium, magnesium Next Row Clinical Impact: Other."
+    )
+    [statement] = _statements(text, CALCIUM)
+    assert statement.startswith("Clinical Impact: Antacids raise absorption") and statement.endswith("Examples: calcium")
+    header_in_cell = "Clinical Impact: Lower exposure [see (12.3)] Calcium Supplements Intervention: Space doses."
+    assert _statements(header_in_cell, CALCIUM) == []
+
+
+def test_list_without_and_before_a_title_case_header_keeps_its_items():
+    # The repaired lurasidone row: no "and" in the list, the next header starts at "Moderate".
+    text = (
+        "Clinical Impact: Strong inducers lower exposure. Intervention: Do not use together. "
+        "Examples: Rifampin, avasimibe, St. John's wort, phenytoin, carbamazepine Moderate CYP3A4 Inducers "
+        "Clinical Impact: Moderate inducers lower exposure."
+    )
+    [statement] = _statements(text, SJW)
+    assert statement.endswith("Examples: Rifampin, avasimibe, St. John's wort")
+
+
+def test_examples_matched_text_is_the_first_match_in_the_quote():
+    # The builder records the first match in the final quote, which the validator re-derives.
+    text = "Clinical Impact: Calcium reduces exposure. Examples: calcium and iron"
+    quotes = _statements(text, CALCIUM)
+    assert "Clinical Impact: Calcium reduces exposure. Examples: calcium" in quotes
+    assert all(CALCIUM.search(quote).group(0) == "Calcium" for quote in quotes)
+
+
 def test_corpus_has_no_statement_spanning_two_table_rows():
     path = PROJECT_ROOT / "data" / "openfda_supplement_statements" / "statements.csv"
     with path.open(encoding="utf-8", newline="") as handle:

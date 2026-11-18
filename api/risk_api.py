@@ -2093,6 +2093,25 @@ def search_documents(
     }
     return {"results": results, "meta": meta}
 
+
+def _item_key(compound_id: Optional[str], label_key: Optional[tuple]) -> tuple:
+    """What makes two typed names the same item.
+
+    A recognised compound is identified by its id alone. A label key can be shared by different compounds
+    ("amlodipine and atorvastatin" and "amlodipine and benazepril" both name amlodipine products), so it
+    only identifies names that resolve to no compound. (Antigravity review, 2026-11-19.)
+    """
+    return ("compound", compound_id) if compound_id else ("label", label_key)
+
+
+def _same_item(a_id: Optional[str], a_label: Optional[tuple], b_id: Optional[str], b_label: Optional[tuple]) -> bool:
+    if a_id and b_id:
+        return a_id == b_id
+    if not a_id and not b_id:
+        return bool(a_label) and a_label == b_label
+    return False  # one is a compound and one is label-only: cannot be shown to be the same, so check the pair
+
+
 @app.get("/api/interaction")
 def interaction(
     a: str = Query(..., min_length=1, max_length=100),
@@ -2115,7 +2134,7 @@ def interaction(
                 "suggestions": {name: _suggest_names(name) for name in unknown},
             },
         )
-    if (a_id and b_id and a_id == b_id) or (a_label and a_label == b_label):
+    if _same_item(a_id, a_label, b_id, b_label):
         raise HTTPException(
             status_code=422,
             detail="An interaction requires two different compounds",
@@ -2230,15 +2249,11 @@ def check_stack(payload: StackRequest):
         if not cid and not label_key:
             unrecognised.append(ident)
             continue
-        keys = set()
-        if cid:
-            keys.add(("compound", cid))
-        if label_key:
-            keys.add(("label", label_key))
-        if keys & seen:
+        key = _item_key(cid, label_key)
+        if key in seen:
             duplicates_removed.append(ident)
             continue
-        seen.update(keys)
+        seen.add(key)
         evaluated_items.append(ident)
         resolved_ids.append(cid)
 

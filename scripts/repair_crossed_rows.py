@@ -63,9 +63,12 @@ def repair(row: dict[str, str], text: str, entry: dict) -> tuple[str, str] | Non
     if cut < 0:
         return None
     prefix = old[: cut + len(row["matched_text"])]
-    for unit in split_units(text):
-        if unit.kind != "examples" or prefix not in unit.text[unit.list_start :]:
-            continue
+    # The old passage's list must sit in exactly one table row; if two rows share it, which row is the
+    # statement's own cannot be told, so drop it (Codex review 2026-11-19).
+    owners = [unit for unit in split_units(text) if unit.kind == "examples" and prefix in unit.text[unit.list_start :]]
+    if len(owners) != 1:
+        return None
+    for unit in owners:
         for match in entry["match"].finditer(unit.text, unit.list_start):
             sentence = examples_statement(unit, match.start(), match.end())
             if sentence is None or sentence not in text or len(sentence) > MAX_CHARS:
@@ -74,7 +77,7 @@ def repair(row: dict[str, str], text: str, entry: dict) -> tuple[str, str] | Non
                 continue
             if CROSSED_ROWS_RE.search(sentence):
                 continue
-            return sentence, match.group(0)
+            return sentence, entry["match"].search(sentence).group(0)  # first match: the validator's rule
     return None
 
 
@@ -130,7 +133,11 @@ def main() -> int:
         key = (row["supplement_id"], row["drug_id"], row["sentence"])
         if key in merged:
             first = merged[key]
-            first["label_count"] = str(int(first["label_count"]) + int(row["label_count"]))
+            # Same label twice: count it once. Different labels: add them up.
+            if row["set_id"] == first["set_id"]:
+                first["label_count"] = str(max(int(first["label_count"]), int(row["label_count"])))
+            else:
+                first["label_count"] = str(int(first["label_count"]) + int(row["label_count"]))
             if (row["effective_time"], row["set_id"]) > (first["effective_time"], first["set_id"]):
                 for field in ("set_id", "label_id", "effective_time", "source_url", "matched_text"):
                     first[field] = row[field]

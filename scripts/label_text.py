@@ -13,6 +13,12 @@ Rules:
 - A name found in an Examples list becomes the row's own text: from its "Clinical Impact:" (when the row has
   one) through the list, cut just after the matched list item. A match that cannot be shown to be a list item
   (it may be the next row's header) gives no statement: fail closed.
+- (2026-11-19, after Codex's review) A cell with no sentence end starts a new row, since a header could be
+  hiding in it; a closing citation bracket "]" counts as a sentence end. In an Examples block followed by
+  another row, a match at the very end of the block, or at/after a "lower-case word + Title-case word" join
+  (where the next header most likely starts), gives no statement.
+- Known limit: a next-row header made of capitalised, comma-separated names after a capitalised last item
+  ("Examples: Tramadol Antacids, Calcium, Iron <next row>") is not detected; no current label shows it.
 Every statement returned is a verbatim substring of the input text.
 """
 
@@ -33,8 +39,14 @@ ROW_LABEL_RE = re.compile(
 # A sentence end, allowing closing brackets or quotes after it ("(see 5.1.)"); not "St.", "e.g.", "etc."
 # or a botanical "L." (header text such as "(Antacids, H2 Blockers, etc.)" or "(Hypericum perforatum L.)").
 _TERMINATOR_RE = re.compile(
-    r"(?<!\bSt)(?<!\bST)(?<!\be\.g)(?<!\bi\.e)(?<!\bvs)(?<!\bDr)(?<!\bNo)(?<!\betc)(?<!\bL)[.!?][)\]\"'’”]*(?=\s|$)"
+    r"(?:(?<!\bSt)(?<!\bST)(?<!\be\.g)(?<!\bi\.e)(?<!\bvs)(?<!\bDr)(?<!\bNo)(?<!\betc)(?<!\bL)[.!?][)\]\"'’”]*"
+    r"|\])(?=\s|$)"  # a cell may end on its citation with no full stop: "... [see Clinical Pharmacology (12.3)]"
 )
+# Where the next row's header most likely starts inside an Examples block: a lower-case word followed by a
+# Title-case word with no comma, semicolon, "and" or "or" between them ("tramadol Antacids, Calcium",
+# "carbamazepine Moderate CYP3A4 Inducers"). Acronyms ("other SSRIs") and single capitals ("vitamin K") do
+# not count. Added 2026-11-19 after Codex's review.
+_HEADER_START_RE = re.compile(r"(?<![\w'’-])([a-z][\w'’-]*)\s+(?=[A-Z][a-z])")
 _ROW_ORDER = {"clinical impact": 0, "intervention": 1, "example": 2}
 # A merged statement: an Examples or Intervention block followed by a later row's Clinical Impact.
 CROSSED_ROWS_RE = re.compile(r"(Examples?|Interventions?)\s*:[\s\S]*Clinical\s*Impact\s*:", re.IGNORECASE)
@@ -52,6 +64,7 @@ class Unit:
     kind: str
     text: str
     list_start: int = 0
+    followed_by_row: bool = False  # another table row follows, so the block ends with that row's header
 
 
 def _label_name(match: re.Match[str]) -> str:
@@ -77,6 +90,26 @@ def _trailing_fragment(block: str) -> str:
     return block[ends[-1].end():].strip() if ends else ""
 
 
+def _row_may_end_inside(block: str) -> bool:
+    """True when a cell cannot be shown to end its row's text cleanly.
+
+    Either words follow its last sentence end (a next row's header), or it has no sentence end at all, so a
+    header could be hiding in it ("Clinical Impact: Serotonin syndrome Mineral Supplements Intervention: ...").
+    """
+    return not _TERMINATOR_RE.search(block) or bool(_trailing_fragment(block))
+
+
+def _header_start(list_text: str) -> int:
+    """Offset in an Examples list where the next row's header most likely starts, or len(list_text)."""
+    for match in _HEADER_START_RE.finditer(list_text):
+        if match.group(1).casefold() in ("and", "or"):
+            continue
+        if list_text.count("(", 0, match.start()) > list_text.count(")", 0, match.start()):
+            continue  # inside brackets: "(e.g., rifampin, St. John's Wort)"
+        return match.end()
+    return len(list_text)
+
+
 def split_units(text: str) -> list[Unit]:
     # A label inside brackets is prose ("(see Clinical Impact: Section 7)"), not a table cell.
     labels = [
@@ -93,10 +126,11 @@ def split_units(text: str) -> list[Unit]:
     # a row may lack any of the three, but its labels never repeat or go backwards. It also starts one
     # when the previous cell ends a sentence and then carries on: those words are the next row's header
     # ("...digoxin concentrations. Bleeding Risk Agents Intervention: ...").
+    # A cell with no sentence end at all also starts a new row (fail closed): its row cannot be shown to go on.
     new_row = [False] + [
         position == 1
         or _ROW_ORDER[kinds[position]] <= _ROW_ORDER[kinds[position - 1]]
-        or (position > 1 and bool(_trailing_fragment(text[starts[position - 1]:ends[position - 1]].strip())))
+        or (position > 1 and _row_may_end_inside(text[starts[position - 1]:ends[position - 1]].strip()))
         for position in range(1, len(kinds))
     ]
     units: list[Unit] = []
@@ -108,7 +142,7 @@ def split_units(text: str) -> list[Unit]:
         next_starts_row = position + 1 < len(kinds) and new_row[position + 1]
         if kind == "example":
             context = text[row_start:end].strip()
-            units.append(Unit("examples", context, list_start=start - row_start))
+            units.append(Unit("examples", context, list_start=start - row_start, followed_by_row=next_starts_row))
             continue
         if next_starts_row:
             block = _drop_trailing_header(block)
@@ -157,6 +191,14 @@ def examples_statement(unit: Unit, match_start: int, match_end: int) -> str | No
     after = text[end:]
     if not _ITEM_BEFORE_RE.search(before):
         return None
+    if unit.followed_by_row:
+        # The block ends with the next row's header, which has no separator from the list. A match right at
+        # the end of the block, or at/after where the header most likely starts, may be that header
+        # ("Examples: tramadol Antacids, Calcium <next row> Clinical Impact: ..."): fail closed.
+        if not after.strip():
+            return None
+        if match_start - unit.list_start >= _header_start(text[unit.list_start:]):
+            return None
     # After "and X" the list is over; a later match sits in the next row's header.
     if any(end != len(before) for end in _list_closers(before)):
         return None

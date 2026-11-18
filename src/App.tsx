@@ -65,6 +65,17 @@ function suggestionsOf(error: unknown): Suggestions {
   return value && typeof value === 'object' ? (value as Suggestions) : {}
 }
 
+// " Did you mean: X?" for one unrecognised name; with several, say which suggestion is for which name and
+// drop repeats (Antigravity review, 19 Nov 2026). Empty when there is nothing to suggest.
+export function didYouMean(suggestions: Suggestions): string {
+  const entries = Object.entries(suggestions)
+    .map(([name, list]) => [name, Array.from(new Set(list))] as const)
+    .filter(([, list]) => list.length > 0)
+  if (entries.length === 0) return ''
+  if (entries.length === 1) return ` Did you mean: ${entries[0][1].join(', ')}?`
+  return ` Did you mean: ${entries.map(([name, list]) => `${list.join(' or ')} (for "${name}")`).join(', ')}?`
+}
+
 function explainLookupError(message: string): string {
   if (/not found|not recognised/i.test(message)) {
     return `${message.replace(/\.$/, '')}. Check the spelling: a name SuppTracker does not recognise cannot be checked, so nothing was assessed. This does not mean the combination is safe.`
@@ -905,8 +916,7 @@ export default function App(): React.JSX.Element {
           {searchError && (
             <p className={`status ${searchStatus === 'error' ? 'status-error' : 'status-info'}`}>
               {searchError}
-              {Object.values(searchSuggestions).flat().length > 0 &&
-                ` Did you mean: ${Object.values(searchSuggestions).flat().join(', ')}?`}
+              {didYouMean(searchSuggestions)}
             </p>
           )}
           {hasSearchResults && (
@@ -1049,8 +1059,7 @@ export default function App(): React.JSX.Element {
           {pairError && (
             <p className={`status ${/not recognised|not found/i.test(pairError) ? 'status-info' : 'status-error'}`}>
               {pairError}
-              {Object.values(pairSuggestions).flat().length > 0 &&
-                ` Did you mean: ${Object.values(pairSuggestions).flat().join(', ')}?`}
+              {didYouMean(pairSuggestions)}
             </p>
           )}
           {pairData?.assessment === 'not_assessed' && (
@@ -1130,8 +1139,7 @@ export default function App(): React.JSX.Element {
           {stackError && (
             <p className={`status ${stackStatus === 'error' ? 'status-error' : 'status-info'}`}>
               {stackError}
-              {Object.values(stackSuggestions).flat().length > 0 &&
-                ` Did you mean: ${Object.values(stackSuggestions).flat().join(', ')}?`}
+              {didYouMean(stackSuggestions)}
             </p>
           )}
           {shouldShowStackResults && (

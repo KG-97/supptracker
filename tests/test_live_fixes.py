@@ -53,6 +53,27 @@ def test_ambiguous_base_name_resolves_to_nothing(salt_compounds):
     assert risk_api.resolve_compound("metoprolol") is None
 
 
+def test_different_compounds_sharing_a_label_key_are_not_duplicates():
+    # Antigravity review 2026-11-19: two amlodipine combination products share one label key.
+    shared = ((), ("amlodipine",))
+    assert risk_api._item_key("amlodipine-and-atorvastatin", shared) != risk_api._item_key("amlodipine-and-benazepril", shared)
+    assert not risk_api._same_item("amlodipine-and-atorvastatin", shared, "amlodipine-and-benazepril", shared)
+    assert risk_api._same_item("warfarin-sodium", None, "warfarin-sodium", shared)
+    assert risk_api._same_item(None, (("st-johns-wort",), ()), None, (("st-johns-wort",), ()))
+    assert not risk_api._same_item("sertraline-hydrochloride", shared, None, shared)
+
+
+@pytest.mark.anyio("asyncio")
+async def test_stack_keeps_distinct_combination_products(client, monkeypatch, salt_compounds):
+    salt_compounds["amlodipine-and-atorvastatin"] = {"id": "amlodipine-and-atorvastatin", "name": "AMLODIPINE AND ATORVASTATIN"}
+    salt_compounds["amlodipine-and-benazepril"] = {"id": "amlodipine-and-benazepril", "name": "AMLODIPINE AND BENAZEPRIL"}
+    monkeypatch.setattr(label_statements, "recognised_name_key", lambda name: ((), ("amlodipine",)) if "amlodipine" in name.lower() else None)
+    response = await client.post("/api/stack/check", json={"compounds": ["amlodipine and atorvastatin", "amlodipine and benazepril"]})
+    body = response.json()
+    assert body["duplicates_removed"] == []
+    assert body["evaluated_items"] == ["amlodipine and atorvastatin", "amlodipine and benazepril"]
+
+
 @pytest.mark.anyio("asyncio")
 async def test_label_supplement_with_drug_is_not_assessed_not_404(client, salt_compounds):
     response = await client.get("/api/interaction", params={"a": "St John's wort", "b": "sertraline"})

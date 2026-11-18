@@ -1,7 +1,18 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import App from './App'
+import App, { didYouMean } from './App'
+
+describe('didYouMean (Antigravity review, 19 Nov 2026)', () => {
+  it('keeps the one-name wording, drops repeats and names the typo when there are several', () => {
+    expect(didYouMean({})).toBe('')
+    expect(didYouMean({ magnesum: [] })).toBe('')
+    expect(didYouMean({ magnesum: ['Magnesium', 'Magnesium'] })).toBe(' Did you mean: Magnesium?')
+    expect(didYouMean({ caferine: ['Caffeine'], caffiene: ['Caffeine'] })).toBe(
+      ' Did you mean: Caffeine (for "caferine"), Caffeine (for "caffiene")?',
+    )
+  })
+})
 
 const mocks = vi.hoisted(() => ({
   fetchHealth: vi.fn(),

@@ -424,7 +424,9 @@ def build(args: argparse.Namespace) -> dict[str, int]:
                                         continue
                                     if any(pattern.search(quoted) for pattern in entry["exclude_re"]):
                                         continue
-                                    match, sentence = hit, quoted
+                                    # matched_text is the first match in the final quote (the validator's
+                                    # rule), which may sit before the list hit ("Calcium ... Examples: calcium").
+                                    match, sentence = entry["match_re"].search(quoted), quoted
                                     break
                                 if sentence is None:
                                     if too_long and id(unit) not in long_units:
