@@ -80,8 +80,10 @@ def test_check_stack_with_interaction():
 def test_check_stack_unknown_compound():
     app_module.COMPOUNDS = {"caffeine": {"id": "caffeine", "name": "Caffeine", "synonyms": []}}
     payload = StackRequest(compounds=["caffeine", "unknown"])
-    with pytest.raises(HTTPException):
-        check_stack(payload)
+    result = check_stack(payload)
+    assert result["unrecognised"] == ["unknown"]
+    assert result["coverage"]["total_pairs"] == 0
+    assert result["assessment"] == "not_assessed"
 
 
 def test_default_stack_example_executes_successfully():

@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, conlist, root_validator, validator
 
@@ -44,6 +44,28 @@ app = FastAPI(
     description="Supplement interaction risk analysis API",
     version="1.0.0"
 )
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    if request.url.path == "/metrics" and os.getenv("SUPPTRACKER_METRICS") != "1":
+        response = JSONResponse(status_code=404, content={"detail": "Not Found"})
+    else:
+        response = await call_next(request)
+
+    if request.url.path not in {"/docs", "/redoc", "/openapi.json"}:
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; font-src 'self' data:; connect-src 'self'; "
+            "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+        )
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+    if request.url.scheme == "https" or forwarded_proto == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
 
 # The API does not use cookie authentication.  Keep the default CORS surface
 # limited to local development and let a deployment opt in to its own origin.
@@ -1543,6 +1565,34 @@ def resolve_compound(identifier: str) -> Optional[str]:
             if ext_id.lower() == identifier_lower:
                 return compound_id
 
+    suffixes = {
+        "hydrochloride", "hydrobromide", "sodium", "potassium", "calcium",
+        "magnesium", "sulfate", "sulphate", "mesylate", "besylate",
+        "maleate", "fumarate", "tartrate", "succinate", "citrate", "acetate",
+        "phosphate", "bromide", "chloride", "nitrate", "lactate", "oxalate",
+        "stearate", "benzoate", "carbonate", "gluconate", "hydroxide",
+        "pamoate", "tosylate", "edisylate", "ethanolate", "hydrate",
+        "hcl", "hbr", "dihydrochloride", "hyclate", "monohydrate", "dihydrate",
+        "trihydrate", "anhydrous", "disodium", "dipotassium",
+    }
+
+    def base_name(value: str) -> str:
+        words = _normalise_token(value).split()
+        while len(words) > 1 and words[-1] in suffixes:
+            words.pop()
+        return " ".join(words)
+
+    wanted = base_name(raw_identifier)
+    matches = set()
+    for compound_id, compound in COMPOUNDS.items():
+        names = [compound.get("name", "")]
+        names.extend(parse_synonyms([compound.get("synonyms"), compound.get("aliases")]))
+        if any(base_name(str(name)) == wanted for name in names if name):
+            matches.add(compound_id)
+    if len(matches) == 1:
+        return next(iter(matches))
+    if len(matches) > 1:
+        logger.warning("Ambiguous compound base name %r matches %s", raw_identifier, sorted(matches))
     return None
 
 def _lookup_score(mapping: Dict[str, float], label: Any, fallback: Dict[str, float]) -> float:
@@ -1923,8 +1973,8 @@ def _score_search_entry(
 
 @app.get("/api/search")
 def search(
-    q: Optional[str] = Query(None, min_length=1),
-    query: Optional[str] = Query(None, min_length=1),
+    q: Optional[str] = Query(None, min_length=1, max_length=100),
+    query: Optional[str] = Query(None, min_length=1, max_length=100),
     limit: int = Query(10, ge=1, le=50),
 ):
     """Search compounds by ID, name, synonym, or alias."""
@@ -1956,8 +2006,8 @@ def search(
 
 @app.get("/api/docs/search")
 def search_documents(
-    q: Optional[str] = Query(None, min_length=1),
-    query: Optional[str] = Query(None, min_length=1),
+    q: Optional[str] = Query(None, min_length=1, max_length=100),
+    query: Optional[str] = Query(None, min_length=1, max_length=100),
     limit: int = Query(5, ge=1, le=25),
 ):
     """Search supplemental documentation using Gemini embeddings when available."""
@@ -1982,13 +2032,32 @@ def interaction(a: str, b: str):
     """Get interaction details between two compounds by id or name."""
     a_id = resolve_compound(a)
     b_id = resolve_compound(b)
-    if not a_id or not b_id:
-        raise HTTPException(status_code=404, detail="One or both compounds not found")
-    if a_id == b_id:
+    unknown = [
+        name for name, cid in ((a, a_id), (b, b_id))
+        if not cid and not label_statements.is_recognised_name(name)
+    ]
+    if unknown:
+        raise HTTPException(status_code=404, detail=f"Not recognised: {', '.join(unknown)}")
+    if a_id and b_id and a_id == b_id:
         raise HTTPException(
             status_code=422,
             detail="An interaction requires two different compounds",
         )
+
+    if not a_id or not b_id:
+        return {
+            "assessment": "not_assessed",
+            "pair": {"a": a_id, "b": b_id},
+            "names": [
+                {"input": name, "compound_id": cid,
+                 "recognised_by": "compound" if cid else "label_statements"}
+                for name, cid in ((a, a_id), (b, b_id))
+            ],
+            "message": "No assessed interaction record is available for this pair. This does not mean the combination is safe.",
+            "interaction": None,
+            "risk_score": None,
+            "sources": [],
+        }
 
     _ensure_interaction_lookup()
     inter = _INTERACTION_LOOKUP.get((a_id, b_id)) or _INTERACTION_LOOKUP.get((b_id, a_id))
@@ -2071,15 +2140,23 @@ def check_stack(payload: StackRequest):
     """Check interactions within a stack of compounds."""
 
     input_items = payload.compounds
-    resolved_ids: List[str] = []
+    resolved_ids: List[Optional[str]] = []
+    evaluated_items: List[str] = []
+    unrecognised: List[str] = []
+    duplicates_removed: List[str] = []
+    seen = set()
     for ident in input_items:
         cid = resolve_compound(ident)
-        if not cid:
-            raise HTTPException(status_code=404, detail=f"Compound not found: {ident}")
+        if not cid and not label_statements.is_recognised_name(ident):
+            unrecognised.append(ident)
+            continue
+        key = ("compound", cid) if cid else ("label", ident.casefold())
+        if key in seen:
+            duplicates_removed.append(ident)
+            continue
+        seen.add(key)
+        evaluated_items.append(ident)
         resolved_ids.append(cid)
-
-    if len(set(resolved_ids)) != len(resolved_ids):
-        raise HTTPException(status_code=422, detail="A stack cannot include the same compound more than once")
 
     length = len(resolved_ids)
     matrix: List[List[Optional[float]]] = [[None for _ in range(length)] for _ in range(length)]
@@ -2091,6 +2168,11 @@ def check_stack(payload: StackRequest):
         for j in range(i + 1, length):
             a_id = resolved_ids[i]
             b_id = resolved_ids[j]
+            if not a_id or not b_id:
+                not_assessed_pairs_detail.append({
+                    "a": a_id or evaluated_items[i], "b": b_id or evaluated_items[j]
+                })
+                continue
             inter = _INTERACTION_LOOKUP.get((a_id, b_id)) or _INTERACTION_LOOKUP.get((b_id, a_id))
             if not inter:
                 not_assessed_pairs_detail.append({"a": a_id, "b": b_id})
@@ -2137,15 +2219,22 @@ def check_stack(payload: StackRequest):
         "not_assessed_pairs_detail": not_assessed_pairs_detail,
         "items": input_items,
         "resolved_items": resolved_ids,
+        "evaluated_items": evaluated_items,
+        "unrecognised": unrecognised,
+        "duplicates_removed": duplicates_removed,
         "matrix": matrix,
         "cells": interactions_out,
         "interactions": interactions_out,
     }
-    if not_assessed_pairs_detail:
+    if not_assessed_pairs_detail or length < 2:
         response["message"] = (
             "No assessed interaction record is available for one or more pairs. "
             "This does not mean the combination is safe."
         )
+    if unrecognised:
+        response["message"] = (
+            response.get("message", "") + " Not recognised: " + ", ".join(unrecognised)
+        ).strip()
     return response
 
 # SPA fallback route - must be last

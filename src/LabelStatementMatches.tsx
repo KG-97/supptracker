@@ -63,7 +63,7 @@ function useLookup(names: string[], requestId: number, minimumNames: number) {
   return { state: reply.state, lookup: reply.lookup, reason: reply.reason }
 }
 
-function labelCountText(count: string): string {
+function labelCountText(count: number): string {
   return `appears in ${count} ${Number(count) === 1 ? 'label' : 'labels'}`
 }
 

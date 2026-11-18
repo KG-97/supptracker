@@ -246,6 +246,7 @@ def _unavailable_response() -> Dict[str, Any]:
 
 def _statement_item(row: Dict[str, str]) -> Dict[str, Any]:
     item = {field: row[field] for field in STATEMENT_FIELDS}
+    item["label_count"] = int(row["label_count"])
     item["is_group_term"] = row["supplement_kind"] in GROUP_KINDS
     item["label_url"] = (
         "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid="
@@ -332,9 +333,9 @@ def label_statements_summary() -> Dict[str, Any]:
 
 @router.get("/api/label-statements")
 def list_label_statements(
-    supplement: Optional[str] = None,
-    drug: Optional[str] = None,
-    q: Optional[str] = None,
+    supplement: Optional[str] = Query(None, max_length=100),
+    drug: Optional[str] = Query(None, max_length=100),
+    q: Optional[str] = Query(None, max_length=100),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ) -> Dict[str, Any]:
@@ -381,7 +382,10 @@ def list_label_statements(
 
 
 @router.get("/api/label-statements/pair")
-def label_statements_pair(supplement: str, drug: str) -> Dict[str, Any]:
+def label_statements_pair(
+    supplement: str = Query(..., max_length=100),
+    drug: str = Query(..., max_length=100),
+) -> Dict[str, Any]:
     """Return verbatim statements for one exact supplement and drug identifier."""
 
     if LABEL_STATEMENTS["status"] != "available":
@@ -606,6 +610,26 @@ def _resolve_drugs(normalised: str, index: Dict[str, Any]) -> List[str]:
                 matched.append(drug_id)
                 break
     return matched
+
+
+def is_recognised_name(name: str) -> bool:
+    """Apply the lookup endpoint's name matching rules without changing its results."""
+    if LABEL_STATEMENTS["status"] != "available":
+        return False
+    name = " ".join(str(name).split())
+    normalised = _normalise_name(name)
+    if not normalised or len(name) > LOOKUP_MAX_NAME_CHARS:
+        return False
+    index = _lookup_index()
+    if len(normalised) >= 3:
+        return bool(
+            _resolve_supplements(name, normalised, index)
+            or _resolve_drugs(normalised, index)
+        )
+    return any(
+        normalised in supplement["keys"]
+        for supplement in index["supplements"].values()
+    )
 
 
 # response_model=None: the function can return a JSONResponse, which FastAPI cannot turn into

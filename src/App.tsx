@@ -47,10 +47,10 @@ type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 export const DEFAULT_STACK_EXAMPLE = 'caffeine, aspirin'
 
 export function parseStackData(apiData: any, userCompounds: string[]) {
-  const compounds = apiData?.resolved_items ?? apiData?.items ?? userCompounds
+  const compounds = apiData?.evaluated_items ?? apiData?.resolved_items ?? apiData?.items ?? userCompounds
   const interactions = apiData?.interactions ?? apiData?.cells ?? null
 
-  if (!compounds || compounds.length < 2) {
+  if (!compounds || (compounds.length < 2 && !Array.isArray(apiData?.evaluated_items))) {
     throw new Error('List at least two compounds to evaluate the stack.')
   }
 
@@ -60,8 +60,8 @@ export function parseStackData(apiData: any, userCompounds: string[]) {
 // The API answers 404 for a name outside the assessed compound list. Say what that means
 // instead of leaving a bare "not found".
 function explainLookupError(message: string): string {
-  if (/not found/i.test(message)) {
-    return `${message.replace(/\.$/, '')}. Names outside the assessed compound list cannot be checked, so nothing was assessed. This does not mean the combination is safe.`
+  if (/not found|not recognised/i.test(message)) {
+    return `${message.replace(/\.$/, '')}. Check the spelling: a name SuppTracker does not recognise cannot be checked, so nothing was assessed. This does not mean the combination is safe.`
   }
   return message
 }
@@ -671,7 +671,10 @@ export default function App(): React.JSX.Element {
       setStackCompounds(parsed.compounds)
       setStackCoverage(data.coverage ?? null)
       setStackStatus('success')
-      setStackError(null)
+      setStackError([
+        data.unrecognised?.length ? `Not recognised, so not checked: ${data.unrecognised.join(', ')}` : '',
+        data.duplicates_removed?.length ? `Duplicates removed: ${data.duplicates_removed.join(', ')}` : '',
+      ].filter(Boolean).join('. ') || null)
     } catch (error) {
       if (request !== stackRequest.current) return
       setStackInteractions(null)
@@ -1006,7 +1009,11 @@ export default function App(): React.JSX.Element {
             </div>
           </form>
           {pairStatus === 'loading' && <p className="status">Checking interaction…</p>}
-          {pairError && <p className="status status-error">{pairError}</p>}
+          {pairError && (
+            <p className={`status ${/not recognised|not found/i.test(pairError) ? 'status-info' : 'status-error'}`}>
+              {pairError}
+            </p>
+          )}
           {pairData?.assessment === 'not_assessed' && (
             <p className="status status-info" role="status">
               {pairData.message ?? 'No assessed interaction record is available for this pair. This does not mean the combination is safe.'}

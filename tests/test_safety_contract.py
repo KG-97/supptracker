@@ -64,11 +64,11 @@ def test_known_pair_without_record_is_explicitly_not_assessed(monkeypatch):
         risk_api.build_interaction_lookup()
 
 
-def test_stack_rejects_duplicate_resolved_compounds():
-    with pytest.raises(HTTPException) as captured:
-        risk_api.check_stack(risk_api.StackRequest(compounds=["caffeine", "Caffeine"]))
-    assert captured.value.status_code == 422
-    assert captured.value.detail == "A stack cannot include the same compound more than once"
+def test_stack_removes_duplicate_resolved_compounds():
+    result = risk_api.check_stack(risk_api.StackRequest(compounds=["caffeine", "Caffeine"]))
+    assert result["duplicates_removed"] == ["Caffeine"]
+    assert result["coverage"]["total_pairs"] == 0
+    assert result["assessment"] == "not_assessed"
 
 
 def test_label_candidate_cannot_be_scored():

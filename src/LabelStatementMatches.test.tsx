@@ -137,7 +137,7 @@ describe('label statement lookups', () => {
       supplement_name: 'Melatonin',
       is_group_term: false,
       drug_names_raw: 'DRUG',
-      label_count: '1',
+      label_count: 1,
       effective_time: '20260101',
       label_url: 'https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=x',
     }))
@@ -246,7 +246,7 @@ describe('label statement lookups', () => {
           {
             statement_id: `s${index}`,
             sentence: `Sentence ${index}.`,
-            label_count: '1',
+            label_count: 1,
             label_url: 'https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=x',
           },
         ],

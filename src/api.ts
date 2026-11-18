@@ -153,7 +153,7 @@ export interface LabelStatement {
   set_id: string
   label_id: string
   effective_time: string
-  label_count: string
+  label_count: number
   source_url: string
   retrieved_at: string
   rights_status: string

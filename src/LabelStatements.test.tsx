@@ -53,7 +53,7 @@ const statement = {
   set_id: 'label-set-id',
   label_id: 'label-id',
   effective_time: '20261115',
-  label_count: '2',
+  label_count: 2,
   source_url: 'https://api.fda.gov/drug/label.json',
   retrieved_at: '2026-11-15T00:00:00Z',
   rights_status: 'cc0_unless_otherwise_noted',

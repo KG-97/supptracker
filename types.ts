@@ -52,7 +52,7 @@ export interface InteractionWithRisk extends InteractionRecord {
 
 export interface InteractionResponse {
   assessment?: 'assessed' | 'not_assessed'
-  pair?: { a: string; b: string }
+  pair?: { a: string | null; b: string | null }
   message?: string
   interaction: (InteractionRecord & Partial<InteractionWithRisk>) | null
   risk_score: number | null
@@ -72,14 +72,17 @@ export interface StackInteraction {
 }
 
 export interface StackResponse {
-  assessment?: 'assessed' | 'partial'
+  assessment?: 'assessed' | 'partial' | 'not_assessed'
+  evaluated_items?: string[]
+  unrecognised?: string[]
+  duplicates_removed?: string[]
   coverage?: {
     total_pairs: number
     assessed_pairs: number
     not_assessed_pairs: number
   }
   items?: string[]
-  resolved_items?: string[]
+  resolved_items?: (string | null)[]
   matrix?: (number | null)[][]
   cells?: StackInteraction[]
   interactions: StackInteraction[]
