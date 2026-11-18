@@ -21,6 +21,9 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from label_text import examples_statement, split_units  # noqa: E402  (row-aware split, 2026-11-18)
+
 API_URL = "https://api.fda.gov/drug/label.json"
 LICENSE_URL = "https://open.fda.gov/license/"
 MAX_DRUG_COMPONENTS = 3
@@ -394,20 +397,30 @@ def build(args: argparse.Namespace) -> dict[str, int]:
                             counts["self_skips"] += 1
 
                     # Abbreviation guards added by Claude Code 2026-11-15: without them "St. John's Wort"
-                    # was cut after "St." and the sentence lost its subject.
-                    sentences = re.split(
-                        r"(?<!\bSt\.)(?<!\bST\.)(?<!\be\.g\.)(?<!\bi\.e\.)(?<!\bvs\.)(?<!\bDr\.)(?<!\bNo\.)"
-                        r"(?<=[.;])\s+(?=[A-Z0-9(])",
-                        text,
-                    )
-                    for sentence in sentences:
-                        if len(sentence) > args.max_sentence_chars:
+                    # was cut after "St." and the sentence lost its subject. Since 2026-11-18 the split is
+                    # row-aware (scripts/label_text.py): a statement never runs from one table row into the
+                    # next, and a name in a row's "Examples:" list yields that row's own text.
+                    for unit in split_units(text):
+                        limit = args.max_sentence_chars if unit.kind == "sentence" else args.max_row_chars
+                        if unit.kind == "sentence" and len(unit.text) > limit:
                             counts["sentences_too_long"] += 1
                             continue
                         for entry in entries:
                             if entry["id"] in skipped_entries:
                                 continue
-                            match = entry["match_re"].search(sentence)
+                            if unit.kind == "sentence":
+                                sentence = unit.text
+                                match = entry["match_re"].search(sentence)
+                            else:
+                                match = entry["match_re"].search(unit.text, unit.list_start)
+                                sentence = (
+                                    examples_statement(unit, match.start(), match.end()) if match else None
+                                )
+                                if sentence is None:
+                                    continue
+                                if len(sentence) > limit:
+                                    counts["sentences_too_long"] += 1
+                                    continue
                             if match is None or any(pattern.search(sentence) for pattern in entry["exclude_re"]):
                                 continue
                             key = (entry["id"], drug_id, sentence)
@@ -560,6 +573,7 @@ def build(args: argparse.Namespace) -> dict[str, int]:
             "only": args.only,
             "sleep_seconds": args.sleep_seconds,
             "max_sentence_chars": args.max_sentence_chars,
+            "max_row_chars": args.max_row_chars,
             "per_pair": args.per_pair,
         },
         "dictionary_sha256": file_sha256(args.terms),
@@ -585,6 +599,8 @@ def main() -> int:
     parser.add_argument("--cache-dir", type=Path, default=None)
     parser.add_argument("--sleep-seconds", type=float, default=0.35)
     parser.add_argument("--max-sentence-chars", type=int, default=700)
+    parser.add_argument("--max-row-chars", type=int, default=1300,
+                        help="limit for a whole table row quoted for a name in its Examples list")
     parser.add_argument("--per-pair", type=int, default=3)
     args = parser.parse_args()
     if not 1 <= args.page_size <= 1000:

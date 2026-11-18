@@ -21,7 +21,7 @@
     "near_duplicate_sentences_merged": 991,
     "self_skips": 451,
     "sentences_too_long": 1440,
-    "statements": 1945
+    "statements": 1944
   },
   "dataset_name": "SuppTracker openFDA supplement statements",
   "dictionary_sha256": "48a9b215b758b1ee9b3a63a353d177bcf45c66f36081beec4eca4cbe614aee32",
@@ -473,5 +473,25 @@
     ]
   },
   "started_at": "2026-11-16T06:05:50+00:00",
-  "truncations": []
+  "truncations": [],
+  "row_repairs": [
+    {
+      "date": "2026-11-18",
+      "script": "scripts/repair_crossed_rows.py",
+      "crossed_rows_found": 16,
+      "repaired": 15,
+      "dropped": 1,
+      "merged": 0,
+      "note": "Statements that ran from one table row into the next were cut back to their own row; label_count counts the labels that carried the original passage."
+    },
+    {
+      "date": "2026-11-18",
+      "script": "scripts/repair_crossed_rows.py",
+      "crossed_rows_found": 1,
+      "repaired": 1,
+      "dropped": 0,
+      "merged": 0,
+      "note": "Statements that ran from one table row into the next were cut back to their own row; label_count counts the labels that carried the original passage."
+    }
+  ]
 }

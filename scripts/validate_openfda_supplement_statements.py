@@ -150,6 +150,11 @@ def main() -> int:
         sentence = row["sentence"]
         if sentence != sentence.strip() or "  " in sentence or "\n" in sentence or "\r" in sentence:
             fail(failures, "sentence_whitespace", f"row {row_number}")
+        # Added by Claude Code 2026-11-18: a statement must not run from one label-table row into the
+        # next ("Examples: ..., St. John's Wort Drugs that Interfere with Hemostasis Clinical Impact: ...").
+        # Written separately from scripts/label_text.py on purpose.
+        if re.search(r"(Examples?|Interventions?)\s*:[\s\S]*Clinical\s*Impact\s*:", sentence, re.IGNORECASE):
+            fail(failures, "sentence_crosses_table_rows", f"row {row_number}")
         if not UUID_RE.fullmatch(row["set_id"]):
             fail(failures, "set_id_uuid", f"row {row_number}")
         if not re.fullmatch(r"\d{8}", row["effective_time"]):
