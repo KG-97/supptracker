@@ -22,17 +22,18 @@ import re
 from dataclasses import dataclass
 
 SENTENCE_SPLIT_RE = re.compile(
-    r"(?<!\bSt\.)(?<!\bST\.)(?<!\be\.g\.)(?<!\bi\.e\.)(?<!\bvs\.)(?<!\bDr\.)(?<!\bNo\.)"
-    r"(?<=[.;])\s+(?=[A-Z0-9(])"
+    r"(?:(?<!\bSt\.)(?<!\bST\.)(?<!\be\.g\.)(?<!\bi\.e\.)(?<!\bvs\.)(?<!\bDr\.)(?<!\bNo\.)(?<=[.;])"
+    r"|(?<=[.;][)\]]))\s+(?=[A-Z0-9(])"  # also after a closing bracket: "(see 5.1.) Next sentence"
 )
 # Row labels are capitalised table cells; prose such as "has a clinical impact:" is not one. Some labels
 # lose their spaces ("ClinicalImpact:", even "WortClinical Impact:"), so no word boundary is required.
 ROW_LABEL_RE = re.compile(
     r"(Clinical\s*Impact|CLINICAL\s*IMPACT|Interventions?|INTERVENTIONS?|Examples?|EXAMPLES?)\s*:"
 )
-# A sentence end, allowing closing brackets or quotes after it ("(see 5.1.)"); not "St." or "e.g.".
+# A sentence end, allowing closing brackets or quotes after it ("(see 5.1.)"); not "St.", "e.g.", "etc."
+# or a botanical "L." (header text such as "(Antacids, H2 Blockers, etc.)" or "(Hypericum perforatum L.)").
 _TERMINATOR_RE = re.compile(
-    r"(?<!\bSt)(?<!\bST)(?<!\be\.g)(?<!\bi\.e)(?<!\bvs)(?<!\bDr)(?<!\bNo)[.!?][)\]\"'’”]*(?=\s|$)"
+    r"(?<!\bSt)(?<!\bST)(?<!\be\.g)(?<!\bi\.e)(?<!\bvs)(?<!\bDr)(?<!\bNo)(?<!\betc)(?<!\bL)[.!?][)\]\"'’”]*(?=\s|$)"
 )
 _ROW_ORDER = {"clinical impact": 0, "intervention": 1, "example": 2}
 # A merged statement: an Examples or Intervention block followed by a later row's Clinical Impact.
@@ -70,8 +71,18 @@ def _drop_trailing_header(block: str) -> str:
     return block[: ends[-1].end()].strip()
 
 
+def _trailing_fragment(block: str) -> str:
+    """Words after the block's last sentence end, if it has one: the signature of a next row's header."""
+    ends = list(_TERMINATOR_RE.finditer(block))
+    return block[ends[-1].end():].strip() if ends else ""
+
+
 def split_units(text: str) -> list[Unit]:
-    labels = list(ROW_LABEL_RE.finditer(text))
+    # A label inside brackets is prose ("(see Clinical Impact: Section 7)"), not a table cell.
+    labels = [
+        item for item in ROW_LABEL_RE.finditer(text)
+        if text.count("(", 0, item.start()) <= text.count(")", 0, item.start())
+    ]
     if not labels:
         return [Unit("sentence", piece) for piece in SENTENCE_SPLIT_RE.split(text) if piece.strip()]
 
@@ -79,9 +90,13 @@ def split_units(text: str) -> list[Unit]:
     ends = [item.start() for item in labels] + [len(text)]
     kinds = [None] + [_label_name(item) for item in labels]
     # A label starts a new row when the order Clinical Impact < Intervention < Examples does not go up:
-    # a row may lack any of the three, but its labels never repeat or go backwards.
+    # a row may lack any of the three, but its labels never repeat or go backwards. It also starts one
+    # when the previous cell ends a sentence and then carries on: those words are the next row's header
+    # ("...digoxin concentrations. Bleeding Risk Agents Intervention: ...").
     new_row = [False] + [
-        position == 1 or _ROW_ORDER[kinds[position]] <= _ROW_ORDER[kinds[position - 1]]
+        position == 1
+        or _ROW_ORDER[kinds[position]] <= _ROW_ORDER[kinds[position - 1]]
+        or (position > 1 and bool(_trailing_fragment(text[starts[position - 1]:ends[position - 1]].strip())))
         for position in range(1, len(kinds))
     ]
     units: list[Unit] = []
@@ -106,9 +121,25 @@ def split_units(text: str) -> list[Unit]:
 _ITEM_BEFORE_RE = re.compile(r"(?:^|[,;(]\s*|\b(?:and|or)\s+|:\s*)$", re.IGNORECASE)
 _ITEM_AFTER_RE = re.compile(r"^(?:\s*[,;)]|\s+(?:and|or)\b)", re.IGNORECASE)
 _LAST_ITEM_RE = re.compile(r"\b(?:and|or)\s+$", re.IGNORECASE)
-_LIST_CONTINUES_RE = re.compile(r"^\s*(?:[,;]|(?:and|or)\b)", re.IGNORECASE)
-# ", and " / ", or " closes a list: anything after the item it introduces is the next row's header.
-_LIST_CLOSER_RE = re.compile(r",\s+(?:and|or)\s+", re.IGNORECASE)
+_LIST_CONTINUES_RE = re.compile(r"^\s*[,;]")
+_AND_OR_RE = re.compile(r"(?:,\s*|\s+)(?:and|or)\s+", re.IGNORECASE)
+
+
+def _list_closers(before: str) -> list[int]:
+    """End offsets of the top-level "and"/"or" words in ``before`` that close the list.
+
+    ", and"/", or" always closes a list. A plain "and"/"or" closes it too unless more comma-separated items
+    follow ("Thiazides and other diuretics, corticosteroids"). Anything after the item it introduces is the
+    next row's header.
+    """
+    closers = []
+    for item in _AND_OR_RE.finditer(before):
+        if before.count("(", 0, item.start()) > before.count(")", 0, item.start()):
+            continue  # inside brackets: "(tricyclic and serotonin uptake inhibitors)"
+        if not item.group(0).startswith(",") and re.search(r"[,;]", before[item.end():]):
+            continue  # a plain "and" with more items after it belongs to an item; ", and" always closes
+        closers.append(item.end())
+    return closers
 
 
 def examples_statement(unit: Unit, match_start: int, match_end: int) -> str | None:
@@ -126,14 +157,13 @@ def examples_statement(unit: Unit, match_start: int, match_end: int) -> str | No
     after = text[end:]
     if not _ITEM_BEFORE_RE.search(before):
         return None
-    # After ", and X" the list is over; a later match sits in the next row's header.
-    closers = list(_LIST_CLOSER_RE.finditer(before))
-    if closers and closers[-1].end() != len(before):
+    # After "and X" the list is over; a later match sits in the next row's header.
+    if any(end != len(before) for end in _list_closers(before)):
         return None
     depth = before.count("(") - before.count(")")
     if depth > 0:
-        # Inside brackets: accept only when the list visibly carries on after them, and quote the
-        # whole bracket so the statement stays balanced.
+        # Inside brackets: accept only when a comma or semicolon shows the list carries on after them
+        # ("...) and Substrates" may be a header), and quote the whole bracket so it stays balanced.
         close = end
         while close < len(text) and depth > 0:
             depth += {"(": 1, ")": -1}.get(text[close], 0)

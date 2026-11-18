@@ -137,6 +137,57 @@ def test_last_item_without_and_before_a_header_is_skipped():
     assert _statements(text, SJW) == []
 
 
+# Cases from Antigravity's second review (18 Nov 2026).
+def test_row_starting_at_intervention_after_a_clinical_impact_only_row():
+    text = (
+        "Digoxin Clinical Impact: Increases serum digoxin concentrations. Bleeding Risk Agents "
+        "Intervention: Monitor for bleeding. Examples: aspirin, and St. John's Wort"
+    )
+    [statement] = _statements(text, SJW)
+    assert statement == "Intervention: Monitor for bleeding. Examples: aspirin, and St. John's Wort"
+
+
+def test_header_abbreviations_are_not_sentence_ends():
+    etc = (
+        "Clinical Impact: Serotonin syndrome. Intervention: Avoid St. John's Wort (see Section 5.1.) "
+        "Gastric Acid Reducing Agents (Antacids, H2 Blockers, etc.) Clinical Impact: Decreased exposure."
+    )
+    assert _statements(etc, SJW) == ["Intervention: Avoid St. John's Wort (see Section 5.1.)"]
+    botanical = (
+        "Clinical Impact: Bleeding. Intervention: Monitor INR. "
+        "St. John's Wort (Hypericum perforatum L.) Clinical Impact: Reduced exposure."
+    )
+    assert _statements(botanical, SJW) == []
+
+
+def test_label_inside_brackets_is_prose():
+    text = "St. John's Wort reduces drug levels (see Clinical Impact: Section 7). Monitor levels."
+    assert _statements(text, SJW) == ["St. John's Wort reduces drug levels (see Clinical Impact: Section 7)."]
+
+
+def test_more_headers_that_must_not_pass_as_list_items():
+    second_and = ROW1 + "Strong Inducers, Moderate Inducers, and St. John's Wort Clinical Impact: Decreased exposure."
+    no_oxford = (
+        "Clinical Impact: Increases risk of serotonin syndrome. Intervention: Monitor patients. "
+        "Examples: selegiline and tranylcypromine Strong Inducers and St. John's Wort Clinical Impact: X."
+    )
+    bracket_and = (
+        "Clinical Impact: Lower exposure. Examples: rifampin, carbamazepine Inducers (e.g., St. John's Wort) "
+        "and Substrates Clinical Impact: X."
+    )
+    for text in (second_and, no_oxford, bracket_and):
+        assert _statements(text, SJW) == [], text
+
+
+def test_and_inside_an_item_does_not_close_the_list():
+    text = (
+        "Clinical Impact: Loss of glycemic control. Examples: Thiazides and other diuretics, phenytoin, "
+        "nicotinic acid, sympathomimetics and isoniazid"
+    )
+    [statement] = _statements(text, re.compile("nicotinic acid", re.IGNORECASE))
+    assert statement.endswith("phenytoin, nicotinic acid")
+
+
 def test_corpus_has_no_statement_spanning_two_table_rows():
     path = PROJECT_ROOT / "data" / "openfda_supplement_statements" / "statements.csv"
     with path.open(encoding="utf-8", newline="") as handle:

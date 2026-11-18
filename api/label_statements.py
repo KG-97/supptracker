@@ -570,30 +570,33 @@ def _lookup_index() -> Dict[str, Any]:
 
 
 def search_label_names(query: str) -> List[Dict[str, Any]]:
-    """Search indexed label names without changing label lookup resolution."""
-    if LABEL_STATEMENTS["status"] != "available":
+    """Label-statement names for the search box, resolved exactly as the lookup endpoint resolves them.
+
+    Claude Code 2026-11-18: a substring match here disagreed with the note under the search box (which
+    uses the lookup), so "magnesi" hid "No compounds matched" while the note showed nothing.
+    """
+    key = recognised_name_key(query)
+    if key is None:
         return []
-    term = _normalise_name(query)
-    if not term:
-        return []
+    supplement_ids, drug_ids = key
     index = _lookup_index()
-    matches: List[Dict[str, Any]] = []
-    for supplement_id, supplement in sorted(index["supplements"].items()):
-        if any(term in key for key in supplement["keys"]):
-            matches.append({
-                "id": supplement_id,
-                "name": supplement["supplement_name"],
-                "kind": "supplement",
-                "statements": supplement["statements"],
-            })
-    for drug_id, drug in sorted(index["drugs"].items()):
-        if any(term in key for key in drug["keys"]):
-            matches.append({
-                "id": drug_id,
-                "name": "; ".join(sorted(drug["raw_names"])) or drug_id,
-                "kind": "drug",
-                "statements": drug["statements"],
-            })
+    matches: List[Dict[str, Any]] = [
+        {
+            "id": supplement_id,
+            "name": index["supplements"][supplement_id]["supplement_name"],
+            "kind": "supplement",
+            "statements": index["supplements"][supplement_id]["statements"],
+        }
+        for supplement_id in supplement_ids
+    ]
+    for drug_id in sorted(drug_ids, key=lambda item: (-index["drugs"][item]["statements"], item)):
+        drug = index["drugs"][drug_id]
+        matches.append({
+            "id": drug_id,
+            "name": "; ".join(sorted(drug["raw_names"])) or drug_id,
+            "kind": "drug",
+            "statements": drug["statements"],
+        })
     return matches[:10]
 
 

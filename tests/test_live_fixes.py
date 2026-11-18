@@ -214,3 +214,13 @@ async def test_search_suggests_magnesium(client):
     body = response.json()
     assert body["results"] == [] and body["label_names"] == []
     assert "Magnesium" in body["suggestions"]["magnesum"]
+
+
+@pytest.mark.anyio("asyncio")
+async def test_search_label_names_agree_with_the_lookup(client):
+    # Antigravity review 2: a substring hit here hid "No compounds matched" while the note under the box,
+    # which uses the lookup, showed nothing.
+    partial = (await client.get("/api/search", params={"q": "magnesi"})).json()
+    assert partial["label_names"] == []
+    whole = (await client.get("/api/search", params={"q": "melatonin"})).json()
+    assert [item["id"] for item in whole["label_names"] if item["kind"] == "supplement"] == ["melatonin"]

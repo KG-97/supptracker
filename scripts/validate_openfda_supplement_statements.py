@@ -155,6 +155,13 @@ def main() -> int:
         # Written separately from scripts/label_text.py on purpose.
         if re.search(r"(Examples?|Interventions?)\s*:[\s\S]*Clinical\s*Impact\s*:", sentence, re.IGNORECASE):
             fail(failures, "sentence_crosses_table_rows", f"row {row_number}")
+        # Within one row the labels run Clinical Impact, Intervention, Examples, each at most once.
+        order = [
+            {"c": 0, "i": 1, "e": 2}[label[0].lower()]
+            for label in re.findall(r"(Clinical\s*Impact|CLINICAL\s*IMPACT|Interventions?|INTERVENTIONS?|Examples?|EXAMPLES?)\s*:", sentence)
+        ]
+        if any(later <= earlier for earlier, later in zip(order, order[1:])):
+            fail(failures, "sentence_row_labels_out_of_order", f"row {row_number}")
         if not UUID_RE.fullmatch(row["set_id"]):
             fail(failures, "set_id_uuid", f"row {row_number}")
         if not re.fullmatch(r"\d{8}", row["effective_time"]):
