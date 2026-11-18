@@ -75,6 +75,7 @@ export interface StackResponse {
   assessment?: 'assessed' | 'partial' | 'not_assessed'
   evaluated_items?: string[]
   unrecognised?: string[]
+  suggestions?: Record<string, string[]>
   duplicates_removed?: string[]
   coverage?: {
     total_pairs: number

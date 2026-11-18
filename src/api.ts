@@ -51,6 +51,17 @@ function validationMessages(detail: unknown): string | null {
   return messages.length > 0 ? [...new Set(messages)].join(' ') : null
 }
 
+export type Suggestions = Record<string, string[]>
+
+export class ApiError extends Error {
+  suggestions: Suggestions
+
+  constructor(message: string, suggestions: Suggestions = {}) {
+    super(message)
+    this.suggestions = suggestions
+  }
+}
+
 async function parseError(res: Response, fallback: string) {
   const unexplained = res.status ? `${fallback} (HTTP ${res.status})` : fallback
   try {
@@ -60,7 +71,9 @@ async function parseError(res: Response, fallback: string) {
       const data = JSON.parse(text);
       if (typeof data === 'string') return data;
       if (data && typeof data.message === 'string') return data.message;
-      if (data && typeof data.detail === 'string') return data.detail;
+      if (data && typeof data.detail === 'string') {
+        return new ApiError(data.detail, data.suggestions ?? {})
+      }
       const listed = data ? validationMessages(data.detail) : null
       if (listed) return listed
       if (data && typeof data.error === 'string') return data.error;
@@ -82,9 +95,29 @@ function resolveUrl(path: string): string {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(resolveUrl(path), init)
   if (!res.ok) {
-    throw new Error(await parseError(res, 'Request failed'))
+    const error = await parseError(res, 'Request failed')
+    throw error instanceof Error ? error : new Error(error)
   }
   return res.json() as Promise<T>
+}
+
+export interface LabelName {
+  id: string
+  name: string
+  kind: 'supplement' | 'drug'
+  statements: number
+}
+
+export interface CompoundSearchResponse {
+  results?: Compound[]
+  compounds?: Compound[]
+  label_names?: LabelName[]
+  suggestions?: Suggestions
+}
+
+export async function searchNames(query: string): Promise<CompoundSearchResponse> {
+  if (!query.trim()) return { results: [], label_names: [] }
+  return request<CompoundSearchResponse>(`/search?q=${encodeURIComponent(query)}`)
 }
 
 export async function searchCompounds(query: string): Promise<Compound[]> {

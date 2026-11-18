@@ -569,6 +569,46 @@ def _lookup_index() -> Dict[str, Any]:
     return _LOOKUP_INDEX
 
 
+def search_label_names(query: str) -> List[Dict[str, Any]]:
+    """Search indexed label names without changing label lookup resolution."""
+    if LABEL_STATEMENTS["status"] != "available":
+        return []
+    term = _normalise_name(query)
+    if not term:
+        return []
+    index = _lookup_index()
+    matches: List[Dict[str, Any]] = []
+    for supplement_id, supplement in sorted(index["supplements"].items()):
+        if any(term in key for key in supplement["keys"]):
+            matches.append({
+                "id": supplement_id,
+                "name": supplement["supplement_name"],
+                "kind": "supplement",
+                "statements": supplement["statements"],
+            })
+    for drug_id, drug in sorted(index["drugs"].items()):
+        if any(term in key for key in drug["keys"]):
+            matches.append({
+                "id": drug_id,
+                "name": "; ".join(sorted(drug["raw_names"])) or drug_id,
+                "kind": "drug",
+                "statements": drug["statements"],
+            })
+    return matches[:10]
+
+
+def supplement_suggestion_candidates() -> Dict[str, str]:
+    """Map recognised supplement names and aliases to their display names."""
+    if LABEL_STATEMENTS["status"] != "available":
+        return {}
+    index = _lookup_index()
+    candidates: Dict[str, str] = {}
+    for supplement in index["supplements"].values():
+        for key in sorted(supplement["keys"]):
+            candidates.setdefault(key, supplement["supplement_name"])
+    return candidates
+
+
 def _resolve_supplements(name: str, normalised: str, index: Dict[str, Any]) -> List[str]:
     matched = []
     for supplement_id, supplement in sorted(index["supplements"].items()):

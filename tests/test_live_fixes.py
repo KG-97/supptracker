@@ -182,3 +182,35 @@ async def test_long_pair_and_stack_values_are_not_reflected(client):
 async def test_metrics_trailing_slash_is_hidden(client, monkeypatch):
     monkeypatch.delenv("SUPPTRACKER_METRICS", raising=False)
     assert (await client.get("/metrics/")).status_code == 404
+
+
+@pytest.mark.anyio("asyncio")
+async def test_search_includes_label_supplement(client):
+    body = (await client.get("/api/search", params={"q": "melatonin"})).json()
+    assert any(item["name"] == "Melatonin" and item["kind"] == "supplement"
+               for item in body["label_names"])
+
+
+@pytest.mark.anyio("asyncio")
+async def test_pair_suggests_magnesium(client):
+    response = await client.get("/api/interaction", params={"a": "magnesum", "b": "caffeine"})
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Not recognised: magnesum"
+    assert "Magnesium" in response.json()["suggestions"]["magnesum"]
+
+
+@pytest.mark.anyio("asyncio")
+async def test_stack_suggests_magnesium(client):
+    response = await client.post("/api/stack/check", json={"compounds": ["magnesum", "caffeine"]})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["unrecognised"] == ["magnesum"]
+    assert "Magnesium" in body["suggestions"]["magnesum"]
+
+
+@pytest.mark.anyio("asyncio")
+async def test_search_suggests_magnesium(client):
+    response = await client.get("/api/search", params={"q": "magnesum"})
+    body = response.json()
+    assert body["results"] == [] and body["label_names"] == []
+    assert "Magnesium" in body["suggestions"]["magnesum"]

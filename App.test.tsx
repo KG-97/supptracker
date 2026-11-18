@@ -105,6 +105,8 @@ vi.mock('./api', () => ({
   fetchLabelStatementsSummary: apiMocks.fetchLabelStatementsSummary,
   fetchLabelStatements: apiMocks.fetchLabelStatements,
   searchCompounds: apiMocks.searchCompounds,
+  // Since 2026-11-18 the search box also lists label-statement names; these tests cover compounds.
+  searchNames: async (query: string) => ({ results: await apiMocks.searchCompounds(query), label_names: [] }),
   fetchInteraction: apiMocks.fetchInteraction,
   checkStack: apiMocks.checkStack,
 }))

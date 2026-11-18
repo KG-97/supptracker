@@ -1,4 +1,5 @@
 import csv
+import difflib
 import json
 import logging
 import os
@@ -1990,6 +1991,48 @@ def _score_search_entry(
     return best_rank
 
 
+_SUGGESTION_CACHE: Dict[str, Any] = {
+    "compound_source": None,
+    "compound_size": None,
+    "statements": None,
+    "status": None,
+    "candidates": {},
+}
+
+
+def _suggest_names(name: str) -> List[str]:
+    """Suggest display names; suggestions never resolve or assess an input."""
+    _ensure_compound_indexes()
+    statements = label_statements.LABEL_STATEMENTS["statements"]
+    status = label_statements.LABEL_STATEMENTS["status"]
+    if (
+        _SUGGESTION_CACHE["compound_source"] is not COMPOUNDS
+        or _SUGGESTION_CACHE["compound_size"] != len(COMPOUNDS)
+        or _SUGGESTION_CACHE["statements"] is not statements
+        or _SUGGESTION_CACHE["status"] != status
+    ):
+        candidates: Dict[str, str] = {}
+        for compound in COMPOUNDS.values():
+            display = str(compound.get("name", "") or "").strip()
+            key = label_statements._normalise_name(display)
+            if key:
+                candidates.setdefault(key, display)
+        # Prefer the supplement's display name when a compound shares its spelling.
+        candidates.update(label_statements.supplement_suggestion_candidates())
+        _SUGGESTION_CACHE.update(
+            compound_source=COMPOUNDS,
+            compound_size=len(COMPOUNDS),
+            statements=statements,
+            status=status,
+            candidates=candidates,
+        )
+    candidates = _SUGGESTION_CACHE["candidates"]
+    keys = difflib.get_close_matches(
+        label_statements._normalise_name(name), list(candidates), n=3, cutoff=0.8
+    )
+    return list(dict.fromkeys(candidates[key] for key in keys))
+
+
 @app.get("/api/search")
 def search(
     q: Optional[str] = Query(None, min_length=1, max_length=100),
@@ -2020,7 +2063,11 @@ def search(
     # NOTE: The frontend expects the payload to expose a ``compounds`` key,
     # while historic API clients rely on ``results``. To avoid breaking either
     # consumer we provide both keys pointing to the same list.
-    return {"results": results, "compounds": results}
+    label_names = label_statements.search_label_names(search_term)
+    response = {"results": results, "compounds": results, "label_names": label_names}
+    if not results and not label_names:
+        response["suggestions"] = {search_term: _suggest_names(search_term)}
+    return response
 
 
 @app.get("/api/docs/search")
@@ -2061,7 +2108,13 @@ def interaction(
         if not cid and not label
     ]
     if unknown:
-        raise HTTPException(status_code=404, detail=f"Not recognised: {', '.join(unknown)}")
+        return JSONResponse(
+            status_code=404,
+            content={
+                "detail": f"Not recognised: {', '.join(unknown)}",
+                "suggestions": {name: _suggest_names(name) for name in unknown},
+            },
+        )
     if (a_id and b_id and a_id == b_id) or (a_label and a_label == b_label):
         raise HTTPException(
             status_code=422,
@@ -2252,6 +2305,7 @@ def check_stack(payload: StackRequest):
         "resolved_items": resolved_ids,
         "evaluated_items": evaluated_items,
         "unrecognised": unrecognised,
+        "suggestions": {name: _suggest_names(name) for name in unrecognised},
         "duplicates_removed": duplicates_removed,
         "matrix": matrix,
         "cells": interactions_out,

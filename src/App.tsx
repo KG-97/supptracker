@@ -3,13 +3,14 @@ import './App.css'
 import LabelStatements from './LabelStatements'
 import type { LabelStatementsRequest } from './LabelStatements'
 import LabelStatementMatches, { LabelStatementNameHits } from './LabelStatementMatches'
+import type { LabelName, Suggestions } from './api'
 import {
   checkStack,
   fetchAllCompounds,
   fetchHealth,
   fetchInteraction,
   fetchInteractionsList,
-  searchCompounds,
+  searchNames,
   searchDocuments,
 } from '../api'
 import type {
@@ -59,6 +60,11 @@ export function parseStackData(apiData: any, userCompounds: string[]) {
 
 // The API answers 404 for a name outside the assessed compound list. Say what that means
 // instead of leaving a bare "not found".
+function suggestionsOf(error: unknown): Suggestions {
+  const value = (error as { suggestions?: unknown } | null)?.suggestions
+  return value && typeof value === 'object' ? (value as Suggestions) : {}
+}
+
 function explainLookupError(message: string): string {
   if (/not found|not recognised/i.test(message)) {
     return `${message.replace(/\.$/, '')}. Check the spelling: a name SuppTracker does not recognise cannot be checked, so nothing was assessed. This does not mean the combination is safe.`
@@ -419,6 +425,9 @@ export default function App(): React.JSX.Element {
   const [query, setQuery] = useState('')
   const [searchStatus, setSearchStatus] = useState<AsyncStatus>('idle')
   const [searchResults, setSearchResults] = useState<Compound[]>([])
+  const [labelNames, setLabelNames] = useState<LabelName[]>([])
+  const [searchSuggestions, setSearchSuggestions] = useState<Suggestions>({})
+  const [searchLookup, setSearchLookup] = useState<{ name: string; id: number }>({ name: '', id: 0 })
   const [searchError, setSearchError] = useState<string | null>(null)
 
   const [docQuery, setDocQuery] = useState('')
@@ -431,18 +440,19 @@ export default function App(): React.JSX.Element {
   const [pairB, setPairB] = useState('')
   const [pairStatus, setPairStatus] = useState<AsyncStatus>('idle')
   const [pairError, setPairError] = useState<string | null>(null)
+  const [pairSuggestions, setPairSuggestions] = useState<Suggestions>({})
   const [pairData, setPairData] = useState<InteractionResponse | null>(null)
 
   const [stackText, setStackText] = useState(DEFAULT_STACK_EXAMPLE)
   const [stackStatus, setStackStatus] = useState<AsyncStatus>('idle')
   const [stackError, setStackError] = useState<string | null>(null)
+  const [stackSuggestions, setStackSuggestions] = useState<Suggestions>({})
   const [stackInteractions, setStackInteractions] = useState<StackInteraction[] | null>(null)
   const [stackCompounds, setStackCompounds] = useState<string[]>([])
   const [stackCoverage, setStackCoverage] = useState<{ total_pairs: number; assessed_pairs: number; not_assessed_pairs: number } | null>(null)
 
   const [pairLookup, setPairLookup] = useState<{ names: string[]; id: number }>({ names: [], id: 0 })
   const [stackLookup, setStackLookup] = useState<{ names: string[]; id: number }>({ names: [], id: 0 })
-  const [searchLookup, setSearchLookup] = useState<{ name: string; id: number }>({ name: '', id: 0 })
   const [labelRequest, setLabelRequest] = useState<LabelStatementsRequest | null>(null)
   // Each check gets a number. A reply is ignored once a newer check has started or the
   // names it was made for have been edited.
@@ -536,6 +546,7 @@ export default function App(): React.JSX.Element {
     pairRequest.current += 1
     setPairStatus('idle')
     setPairError(null)
+    setPairSuggestions({})
     setPairData(null)
     setPairLookup((previous) =>
       previous.names.length === 0 ? previous : { names: [], id: previous.id + 1 }
@@ -546,6 +557,7 @@ export default function App(): React.JSX.Element {
     stackRequest.current += 1
     setStackStatus('idle')
     setStackError(null)
+    setStackSuggestions({})
     setStackInteractions(null)
     setStackCompounds((previous) => (previous.length === 0 ? previous : []))
     setStackCoverage(null)
@@ -560,6 +572,8 @@ export default function App(): React.JSX.Element {
     if (!trimmed) {
       searchRequest.current += 1
       setSearchResults([])
+      setLabelNames([])
+      setSearchSuggestions({})
       setSearchStatus('idle')
       setSearchError('Enter a compound name to search.')
       setSearchLookup((previous) => ({ name: '', id: previous.id + 1 }))
@@ -571,12 +585,19 @@ export default function App(): React.JSX.Element {
     setSearchStatus('loading')
     setSearchError(null)
     setSearchLookup((previous) => ({ name: trimmed, id: previous.id + 1 }))
+    setSearchResults([])
+    setLabelNames([])
+    setSearchSuggestions({})
     try {
-      const results = await searchCompounds(trimmed)
+      const data = await searchNames(trimmed)
       if (request !== searchRequest.current) return
+      const results = data.results ?? data.compounds ?? []
+      const names = data.label_names ?? []
       setSearchResults(results)
+      setLabelNames(names)
+      setSearchSuggestions(data.suggestions ?? {})
       setSearchStatus('success')
-      if (results.length === 0) {
+      if (results.length === 0 && names.length === 0) {
         setSearchError('No compounds matched your search.')
       }
     } catch (error) {
@@ -632,6 +653,7 @@ export default function App(): React.JSX.Element {
     const request = ++pairRequest.current
     setPairStatus('loading')
     setPairError(null)
+    setPairSuggestions({})
     // Label statements are looked up separately, so they still show when the names are not
     // in the assessed compound list.
     setPairLookup((previous) => ({ names: [a, b], id: previous.id + 1 }))
@@ -644,6 +666,8 @@ export default function App(): React.JSX.Element {
       if (request !== pairRequest.current) return
       setPairData(null)
       setPairStatus('error')
+      // Read suggestions off any error (an ApiError carries them) without relying on its class.
+      setPairSuggestions(suggestionsOf(error))
       setPairError(explainLookupError(error instanceof Error ? error.message : 'Interaction lookup failed'))
     }
   }
@@ -661,6 +685,7 @@ export default function App(): React.JSX.Element {
     const request = ++stackRequest.current
     setStackStatus('loading')
     setStackError(null)
+    setStackSuggestions({})
     setStackLookup((previous) => ({ names: compounds, id: previous.id + 1 }))
     try {
       const data = await checkStack(compounds)
@@ -670,6 +695,7 @@ export default function App(): React.JSX.Element {
       setStackInteractions(parsed.interactions)
       setStackCompounds(parsed.compounds)
       setStackCoverage(data.coverage ?? null)
+      setStackSuggestions(data.suggestions ?? {})
       setStackStatus('success')
       setStackError([
         data.unrecognised?.length ? `Not recognised, so not checked: ${data.unrecognised.join(', ')}` : '',
@@ -856,6 +882,12 @@ export default function App(): React.JSX.Element {
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value)
+                  searchRequest.current += 1
+                  setSearchResults([])
+                  setLabelNames([])
+                  setSearchSuggestions({})
+                  setSearchError(null)
+                  setSearchStatus('idle')
                   // The label-statement note below describes the name that was searched, not
                   // the one now being typed.
                   setSearchLookup((previous) =>
@@ -873,6 +905,8 @@ export default function App(): React.JSX.Element {
           {searchError && (
             <p className={`status ${searchStatus === 'error' ? 'status-error' : 'status-info'}`}>
               {searchError}
+              {Object.values(searchSuggestions).flat().length > 0 &&
+                ` Did you mean: ${Object.values(searchSuggestions).flat().join(', ')}?`}
             </p>
           )}
           {hasSearchResults && (
@@ -902,6 +936,8 @@ export default function App(): React.JSX.Element {
               })}
             </ul>
           )}
+          {/* label_names from /api/search only decide whether "No compounds matched" is shown;
+              this component (unchanged) lists the label-statement names and opens them. */}
           <LabelStatementNameHits
             name={searchLookup.name}
             requestId={searchLookup.id}
@@ -1013,6 +1049,8 @@ export default function App(): React.JSX.Element {
           {pairError && (
             <p className={`status ${/not recognised|not found/i.test(pairError) ? 'status-info' : 'status-error'}`}>
               {pairError}
+              {Object.values(pairSuggestions).flat().length > 0 &&
+                ` Did you mean: ${Object.values(pairSuggestions).flat().join(', ')}?`}
             </p>
           )}
           {pairData?.assessment === 'not_assessed' && (
@@ -1092,6 +1130,8 @@ export default function App(): React.JSX.Element {
           {stackError && (
             <p className={`status ${stackStatus === 'error' ? 'status-error' : 'status-info'}`}>
               {stackError}
+              {Object.values(stackSuggestions).flat().length > 0 &&
+                ` Did you mean: ${Object.values(stackSuggestions).flat().join(', ')}?`}
             </p>
           )}
           {shouldShowStackResults && (

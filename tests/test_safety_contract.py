@@ -447,9 +447,9 @@ def test_ambiguous_alias_fails_closed(monkeypatch):
         assert risk_api.resolve_compound("shared") is None
         assert risk_api.resolve_compound("alpha") == "alpha"
         assert risk_api.resolve_compound("beta") == "beta"
-        with pytest.raises(HTTPException) as captured:
-            risk_api.interaction("shared", "alpha")
-        assert captured.value.status_code == 404
+        # Since 2026-11-18 the 404 is a response that carries "did you mean" suggestions.
+        response = risk_api.interaction("shared", "alpha")
+        assert response.status_code == 404
     finally:
         risk_api.COMPOUNDS = original_compounds
         risk_api.INTERACTIONS = original_interactions
