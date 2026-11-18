@@ -400,8 +400,9 @@ def build(args: argparse.Namespace) -> dict[str, int]:
                     # was cut after "St." and the sentence lost its subject. Since 2026-11-18 the split is
                     # row-aware (scripts/label_text.py): a statement never runs from one table row into the
                     # next, and a name in a row's "Examples:" list yields that row's own text.
+                    long_units: set[int] = set()  # over-long rows count once, not once per supplement
                     for unit in split_units(text):
-                        limit = args.max_sentence_chars if unit.kind == "sentence" else args.max_row_chars
+                        limit =args.max_sentence_chars if unit.kind == "sentence" else args.max_row_chars
                         if unit.kind == "sentence" and len(unit.text) > limit:
                             counts["sentences_too_long"] += 1
                             continue
@@ -412,14 +413,23 @@ def build(args: argparse.Namespace) -> dict[str, int]:
                                 sentence = unit.text
                                 match = entry["match_re"].search(sentence)
                             else:
-                                match = entry["match_re"].search(unit.text, unit.list_start)
-                                sentence = (
-                                    examples_statement(unit, match.start(), match.end()) if match else None
-                                )
+                                # Every hit in the list is tried: the first may not be a list item.
+                                match, sentence, too_long = None, None, False
+                                for hit in entry["match_re"].finditer(unit.text, unit.list_start):
+                                    quoted = examples_statement(unit, hit.start(), hit.end())
+                                    if quoted is None:
+                                        continue
+                                    if len(quoted) > limit:
+                                        too_long = True
+                                        continue
+                                    if any(pattern.search(quoted) for pattern in entry["exclude_re"]):
+                                        continue
+                                    match, sentence = hit, quoted
+                                    break
                                 if sentence is None:
-                                    continue
-                                if len(sentence) > limit:
-                                    counts["sentences_too_long"] += 1
+                                    if too_long and id(unit) not in long_units:
+                                        long_units.add(id(unit))
+                                        counts["sentences_too_long"] += 1
                                     continue
                             if match is None or any(pattern.search(sentence) for pattern in entry["exclude_re"]):
                                 continue

@@ -25,12 +25,16 @@ SENTENCE_SPLIT_RE = re.compile(
     r"(?<!\bSt\.)(?<!\bST\.)(?<!\be\.g\.)(?<!\bi\.e\.)(?<!\bvs\.)(?<!\bDr\.)(?<!\bNo\.)"
     r"(?<=[.;])\s+(?=[A-Z0-9(])"
 )
-# Some labels lose their spaces ("ClinicalImpact:"), so the gap inside the label is optional.
-ROW_LABEL_RE = re.compile(r"\b(Clinical\s*Impact|Interventions?|Examples?)\s*:", re.IGNORECASE)
-# A full stop, semicolon, ! or ? that ends a sentence (not "St." or "e.g.").
-_TERMINATOR_RE = re.compile(
-    r"(?<!\bSt)(?<!\bST)(?<!\be\.g)(?<!\bi\.e)(?<!\bvs)(?<!\bDr)(?<!\bNo)[.;!?](?=\s|$)"
+# Row labels are capitalised table cells; prose such as "has a clinical impact:" is not one. Some labels
+# lose their spaces ("ClinicalImpact:", even "WortClinical Impact:"), so no word boundary is required.
+ROW_LABEL_RE = re.compile(
+    r"(Clinical\s*Impact|CLINICAL\s*IMPACT|Interventions?|INTERVENTIONS?|Examples?|EXAMPLES?)\s*:"
 )
+# A sentence end, allowing closing brackets or quotes after it ("(see 5.1.)"); not "St." or "e.g.".
+_TERMINATOR_RE = re.compile(
+    r"(?<!\bSt)(?<!\bST)(?<!\be\.g)(?<!\bi\.e)(?<!\bvs)(?<!\bDr)(?<!\bNo)[.!?][)\]\"'’”]*(?=\s|$)"
+)
+_ROW_ORDER = {"clinical impact": 0, "intervention": 1, "example": 2}
 # A merged statement: an Examples or Intervention block followed by a later row's Clinical Impact.
 CROSSED_ROWS_RE = re.compile(r"(Examples?|Interventions?)\s*:[\s\S]*Clinical\s*Impact\s*:", re.IGNORECASE)
 
@@ -55,7 +59,11 @@ def _label_name(match: re.Match[str]) -> str:
 
 
 def _drop_trailing_header(block: str) -> str:
-    """Remove the next row's header from the end of a block (text after its last sentence end)."""
+    """Remove the next row's header from the end of a block (text after its last sentence end).
+
+    A semicolon does not count as an end here: a header such as "St. John's Wort; Other Inducers" must
+    not leave "St. John's Wort;" behind. A block with no sentence end is dropped whole (fail closed).
+    """
     ends = list(_TERMINATOR_RE.finditer(block))
     if not ends:
         return ""
@@ -70,23 +78,25 @@ def split_units(text: str) -> list[Unit]:
     starts = [0] + [item.start() for item in labels]
     ends = [item.start() for item in labels] + [len(text)]
     kinds = [None] + [_label_name(item) for item in labels]
+    # A label starts a new row when the order Clinical Impact < Intervention < Examples does not go up:
+    # a row may lack any of the three, but its labels never repeat or go backwards.
+    new_row = [False] + [
+        position == 1 or _ROW_ORDER[kinds[position]] <= _ROW_ORDER[kinds[position - 1]]
+        for position in range(1, len(kinds))
+    ]
     units: list[Unit] = []
-    row_start: int | None = None  # where the current row's "Clinical Impact:" begins
+    row_start = 0
     for position, (start, end, kind) in enumerate(zip(starts, ends, kinds)):
-        block = text[start:end].strip()
-        next_kind = kinds[position + 1] if position + 1 < len(kinds) else None
-        if kind == "clinical impact":
+        if new_row[position]:
             row_start = start
+        block = text[start:end].strip()
+        next_starts_row = position + 1 < len(kinds) and new_row[position + 1]
         if kind == "example":
-            context_start = row_start if row_start is not None else start
-            context = text[context_start:end].strip()
-            units.append(Unit("examples", context, list_start=start - context_start))
-            row_start = None
+            context = text[row_start:end].strip()
+            units.append(Unit("examples", context, list_start=start - row_start))
             continue
-        if next_kind == "clinical impact":
+        if next_starts_row:
             block = _drop_trailing_header(block)
-            if kind != "clinical impact":
-                row_start = None
         for piece in SENTENCE_SPLIT_RE.split(block):
             if piece.strip():
                 units.append(Unit("sentence", piece.strip()))
@@ -96,6 +106,9 @@ def split_units(text: str) -> list[Unit]:
 _ITEM_BEFORE_RE = re.compile(r"(?:^|[,;(]\s*|\b(?:and|or)\s+|:\s*)$", re.IGNORECASE)
 _ITEM_AFTER_RE = re.compile(r"^(?:\s*[,;)]|\s+(?:and|or)\b)", re.IGNORECASE)
 _LAST_ITEM_RE = re.compile(r"\b(?:and|or)\s+$", re.IGNORECASE)
+_LIST_CONTINUES_RE = re.compile(r"^\s*(?:[,;]|(?:and|or)\b)", re.IGNORECASE)
+# ", and " / ", or " closes a list: anything after the item it introduces is the next row's header.
+_LIST_CLOSER_RE = re.compile(r",\s+(?:and|or)\s+", re.IGNORECASE)
 
 
 def examples_statement(unit: Unit, match_start: int, match_end: int) -> str | None:
@@ -105,14 +118,30 @@ def examples_statement(unit: Unit, match_start: int, match_end: int) -> str | No
     """
     if unit.kind != "examples" or match_start < unit.list_start:
         return None
+    text = unit.text
     end = match_end
-    while end < len(unit.text) and (unit.text[end].isalnum() or unit.text[end] in "'’-"):
-        end += 1  # finish the word ("St. John's Wort" matched as "St. John's W" never happens, but be safe)
-    before = unit.text[unit.list_start:match_start]
-    after = unit.text[end:]
-    is_item_start = bool(_ITEM_BEFORE_RE.search(before))
-    has_next_item = bool(_ITEM_AFTER_RE.match(after)) or not after.strip()
-    is_last_item = bool(_LAST_ITEM_RE.search(before))
-    if not is_item_start or not (has_next_item or is_last_item):
+    while end < len(text) and (text[end].isalnum() or text[end] in "'’-"):
+        end += 1  # finish the word
+    before = text[unit.list_start:match_start]
+    after = text[end:]
+    if not _ITEM_BEFORE_RE.search(before):
         return None
-    return unit.text[:end].strip()
+    # After ", and X" the list is over; a later match sits in the next row's header.
+    closers = list(_LIST_CLOSER_RE.finditer(before))
+    if closers and closers[-1].end() != len(before):
+        return None
+    depth = before.count("(") - before.count(")")
+    if depth > 0:
+        # Inside brackets: accept only when the list visibly carries on after them, and quote the
+        # whole bracket so the statement stays balanced.
+        close = end
+        while close < len(text) and depth > 0:
+            depth += {"(": 1, ")": -1}.get(text[close], 0)
+            close += 1
+        if depth > 0 or not _LIST_CONTINUES_RE.match(text[close:]):
+            return None
+        return text[:close].strip()
+    has_next_item = bool(_ITEM_AFTER_RE.match(after)) or not after.strip()
+    if not (has_next_item or _LAST_ITEM_RE.search(before)):
+        return None
+    return text[:end].strip()

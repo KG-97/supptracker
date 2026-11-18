@@ -87,6 +87,56 @@ def test_plain_text_still_splits_into_sentences():
     ]
 
 
+# Cases from Antigravity's review (18 Nov 2026).
+ROW1 = (
+    "Clinical Impact: Increases risk of serotonin syndrome. Intervention: Monitor patients. "
+    "Examples: selegiline, tranylcypromine, and linezolid "
+)
+
+
+def test_name_inside_next_row_header_after_a_closed_list_is_rejected():
+    for header in ("CYP3A4 Inducers (e.g., St. John's Wort)", "Strong Inducers and St. John's Wort"):
+        text = ROW1 + header + " Clinical Impact: Decreased exposure."
+        assert _statements(text, SJW) == [], header
+
+
+def test_row_without_clinical_impact_starts_a_new_row():
+    text = (
+        "MAOIs Clinical Impact: Risk of serotonin syndrome. Intervention: Contraindicated. "
+        "Bleeding Risk Agents Intervention: Monitor for bleeding. Examples: aspirin, St. John's Wort, warfarin"
+    )
+    [statement] = _statements(text, SJW)
+    assert statement == "Intervention: Monitor for bleeding. Examples: aspirin, St. John's Wort"
+
+
+def test_lower_case_prose_is_not_a_row_label():
+    text = "Co-administration with St. John's Wort has a clinical impact: reduced exposure. Monitor levels."
+    assert _statements(text, SJW) == ["Co-administration with St. John's Wort has a clinical impact: reduced exposure."]
+
+
+def test_closing_bracket_ends_a_sentence_and_semicolon_header_is_dropped():
+    text = (
+        "Clinical Impact: Serotonin syndrome. Intervention: Avoid St. John's Wort (see Section 5.1.) "
+        "Next Row Clinical Impact: Bleeding. Intervention: Monitor patients. "
+        "St. John's Wort; Other Inducers Clinical Impact: Reduced exposure."
+    )
+    assert _statements(text, SJW) == ["Intervention: Avoid St. John's Wort (see Section 5.1.)"]
+
+
+def test_bracketed_item_counts_only_when_the_list_continues():
+    good = "Clinical Impact: Lower exposure. Examples: strong inducers (e.g., rifampin, St. John's Wort), and carbamazepine"
+    [statement] = _statements(good, SJW)
+    assert statement.endswith("St. John's Wort)")
+    bad = "Clinical Impact: Lower exposure. Examples: rifampin, carbamazepine Inducers (e.g., St. John's Wort) Clinical Impact: X."
+    assert _statements(bad, SJW) == []
+
+
+def test_last_item_without_and_before_a_header_is_skipped():
+    # Fail closed: "St. John's wort Digoxin and Phenytoin" cannot be split into item and header.
+    text = "Clinical Impact: Lower exposure. Examples: rifampin, phenytoin, St. John's wort Digoxin and Phenytoin Clinical Impact: Narrow index."
+    assert _statements(text, SJW) == []
+
+
 def test_corpus_has_no_statement_spanning_two_table_rows():
     path = PROJECT_ROOT / "data" / "openfda_supplement_statements" / "statements.csv"
     with path.open(encoding="utf-8", newline="") as handle:

@@ -509,7 +509,7 @@ export default function App(): React.JSX.Element {
   }, [stackCompounds, datasetCompoundLookup, compoundLookup])
 
   const shouldShowStackResults =
-    stackStatus === 'success' && (stackInteractions !== null || stackCompoundLabels.length > 0)
+    stackStatus === 'success' && stackCompoundLabels.length >= 2
 
   const topInteractions = useMemo(() => {
     const severityRanking: Record<string, number> = {
@@ -674,6 +674,7 @@ export default function App(): React.JSX.Element {
       setStackError([
         data.unrecognised?.length ? `Not recognised, so not checked: ${data.unrecognised.join(', ')}` : '',
         data.duplicates_removed?.length ? `Duplicates removed: ${data.duplicates_removed.join(', ')}` : '',
+        parsed.compounds.length < 2 ? 'Fewer than two recognised items remained, so nothing was checked' : '',
       ].filter(Boolean).join('. ') || null)
     } catch (error) {
       if (request !== stackRequest.current) return

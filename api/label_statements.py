@@ -612,24 +612,28 @@ def _resolve_drugs(normalised: str, index: Dict[str, Any]) -> List[str]:
     return matched
 
 
-def is_recognised_name(name: str) -> bool:
-    """Apply the lookup endpoint's name matching rules without changing its results."""
+def recognised_name_key(name: str) -> Optional[tuple]:
+    """Return the label lookup identities for a recognised name."""
     if LABEL_STATEMENTS["status"] != "available":
-        return False
+        return None
     name = " ".join(str(name).split())
     normalised = _normalise_name(name)
     if not normalised or len(name) > LOOKUP_MAX_NAME_CHARS:
-        return False
+        return None
     index = _lookup_index()
     if len(normalised) >= 3:
-        return bool(
-            _resolve_supplements(name, normalised, index)
-            or _resolve_drugs(normalised, index)
+        supplements = _resolve_supplements(name, normalised, index)
+        drugs = _resolve_drugs(normalised, index)
+    else:
+        supplements = sorted(
+            supplement_id
+            for supplement_id, supplement in index["supplements"].items()
+            if normalised in supplement["keys"]
         )
-    return any(
-        normalised in supplement["keys"]
-        for supplement in index["supplements"].values()
-    )
+        drugs = []
+    if not supplements and not drugs:
+        return None
+    return (tuple(sorted(supplements)), tuple(sorted(drugs)))
 
 
 # response_model=None: the function can return a JSONResponse, which FastAPI cannot turn into

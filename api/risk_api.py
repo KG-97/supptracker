@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -45,9 +47,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    # Validation errors must not reflect arbitrarily large submitted values.
+    errors = [
+        {key: value for key, value in error.items() if key != "input"}
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
-    if request.url.path == "/metrics" and os.getenv("SUPPTRACKER_METRICS") != "1":
+    if request.url.path in {"/metrics", "/metrics/"} and os.getenv("SUPPTRACKER_METRICS") != "1":
         response = JSONResponse(status_code=404, content={"detail": "Not Found"})
     else:
         response = await call_next(request)
@@ -1573,25 +1585,32 @@ def resolve_compound(identifier: str) -> Optional[str]:
         "stearate", "benzoate", "carbonate", "gluconate", "hydroxide",
         "pamoate", "tosylate", "edisylate", "ethanolate", "hydrate",
         "hcl", "hbr", "dihydrochloride", "hyclate", "monohydrate", "dihydrate",
-        "trihydrate", "anhydrous", "disodium", "dipotassium",
+        "trihydrate", "anhydrous", "disodium", "dipotassium", "oxide",
     }
 
-    def base_name(value: str) -> str:
-        words = _normalise_token(value).split()
-        while len(words) > 1 and words[-1] in suffixes:
-            words.pop()
-        return " ".join(words)
+    wanted = _normalise_token(raw_identifier)
+    if not wanted or any(word in suffixes for word in wanted.split()):
+        return None
 
-    wanted = base_name(raw_identifier)
     matches = set()
     for compound_id, compound in COMPOUNDS.items():
         names = [compound.get("name", "")]
         names.extend(parse_synonyms([compound.get("synonyms"), compound.get("aliases")]))
-        if any(base_name(str(name)) == wanted for name in names if name):
+        if any(
+            normalised == wanted or normalised.startswith(wanted + " ")
+            for normalised in (_normalise_token(str(name)) for name in names if name)
+        ):
             matches.add(compound_id)
+
     if len(matches) == 1:
-        return next(iter(matches))
-    if len(matches) > 1:
+        compound_id = next(iter(matches))
+        name = _normalise_token(str(COMPOUNDS[compound_id].get("name", "")))
+        if name == wanted or (
+            name.startswith(wanted + " ")
+            and all(word in suffixes for word in name[len(wanted):].split())
+        ):
+            return compound_id
+    if matches:
         logger.warning("Ambiguous compound base name %r matches %s", raw_identifier, sorted(matches))
     return None
 
@@ -2028,17 +2047,22 @@ def search_documents(
     return {"results": results, "meta": meta}
 
 @app.get("/api/interaction")
-def interaction(a: str, b: str):
+def interaction(
+    a: str = Query(..., min_length=1, max_length=100),
+    b: str = Query(..., min_length=1, max_length=100),
+):
     """Get interaction details between two compounds by id or name."""
     a_id = resolve_compound(a)
     b_id = resolve_compound(b)
+    a_label = label_statements.recognised_name_key(a)
+    b_label = label_statements.recognised_name_key(b)
     unknown = [
-        name for name, cid in ((a, a_id), (b, b_id))
-        if not cid and not label_statements.is_recognised_name(name)
+        name for name, cid, label in ((a, a_id, a_label), (b, b_id, b_label))
+        if not cid and not label
     ]
     if unknown:
         raise HTTPException(status_code=404, detail=f"Not recognised: {', '.join(unknown)}")
-    if a_id and b_id and a_id == b_id:
+    if (a_id and b_id and a_id == b_id) or (a_label and a_label == b_label):
         raise HTTPException(
             status_code=422,
             detail="An interaction requires two different compounds",
@@ -2109,6 +2133,8 @@ class StackRequest(BaseModel):
             raise ValueError("compounds must be provided as a list of strings")
         if any(not isinstance(item, str) for item in value):
             raise ValueError("compounds must contain strings only")
+        if any(len(item) > 100 for item in value):
+            raise ValueError("Each compound must be at most 100 characters")
         cleaned = [item.strip() for item in value if item.strip()]
         if len(cleaned) < 2:
             raise ValueError("Provide at least two compounds to analyse a stack")
@@ -2147,14 +2173,19 @@ def check_stack(payload: StackRequest):
     seen = set()
     for ident in input_items:
         cid = resolve_compound(ident)
-        if not cid and not label_statements.is_recognised_name(ident):
+        label_key = label_statements.recognised_name_key(ident)
+        if not cid and not label_key:
             unrecognised.append(ident)
             continue
-        key = ("compound", cid) if cid else ("label", ident.casefold())
-        if key in seen:
+        keys = set()
+        if cid:
+            keys.add(("compound", cid))
+        if label_key:
+            keys.add(("label", label_key))
+        if keys & seen:
             duplicates_removed.append(ident)
             continue
-        seen.add(key)
+        seen.update(keys)
         evaluated_items.append(ident)
         resolved_ids.append(cid)
 
@@ -2204,7 +2235,7 @@ def check_stack(payload: StackRequest):
     assessed_pairs = len(interactions_out)
     if assessed_pairs == 0:
         assessment = "not_assessed"
-    elif assessed_pairs < total_pairs:
+    elif assessed_pairs < total_pairs or unrecognised:
         assessment = "partial"
     else:
         assessment = "assessed"
@@ -2226,7 +2257,7 @@ def check_stack(payload: StackRequest):
         "cells": interactions_out,
         "interactions": interactions_out,
     }
-    if not_assessed_pairs_detail or length < 2:
+    if not_assessed_pairs_detail or length < 2 or unrecognised:
         response["message"] = (
             "No assessed interaction record is available for one or more pairs. "
             "This does not mean the combination is safe."

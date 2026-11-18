@@ -112,3 +112,73 @@ async def test_long_search_query_is_rejected(client):
 async def test_label_count_is_an_integer(client):
     body = (await client.get("/api/label-statements", params={"limit": 3})).json()
     assert body["items"] and all(isinstance(item["label_count"], int) for item in body["items"])
+
+
+def test_base_fallback_rejects_salts_and_ambiguous_prefixes(salt_compounds):
+    salt_compounds.update({
+        "sodium-other": {"id": "sodium-other", "name": "SODIUM BICARBONATE"},
+        "magnesium-citrate": {"id": "magnesium-citrate", "name": "MAGNESIUM CITRATE"},
+        "magnesium-oxide": {"id": "magnesium-oxide", "name": "MAGNESIUM OXIDE"},
+    })
+    assert risk_api.resolve_compound("warfarin potassium") is None
+    assert risk_api.resolve_compound("sodium chloride") is None
+    assert risk_api.resolve_compound("magnesium") is None
+    assert risk_api.resolve_compound("---") is None
+    assert risk_api.resolve_compound("sertraline") == "sertraline-hydrochloride"
+
+
+@pytest.mark.anyio("asyncio")
+async def test_label_aliases_cannot_be_paired_with_themselves(client, salt_compounds):
+    response = await client.get(
+        "/api/interaction",
+        params={"a": "St. John's Wort", "b": "St John's wort"},
+    )
+    assert response.status_code == 422
+
+
+def test_stack_deduplicates_label_aliases(salt_compounds):
+    result = risk_api.check_stack(
+        risk_api.StackRequest(compounds=["St. John's Wort", "St John's wort"])
+    )
+    assert result["evaluated_items"] == ["St. John's Wort"]
+    assert result["duplicates_removed"] == ["St John's wort"]
+
+
+def test_unknown_makes_otherwise_assessed_stack_partial(monkeypatch):
+    compounds = {
+        "caffeine": {"id": "caffeine", "name": "caffeine"},
+        "aspirin": {"id": "aspirin", "name": "aspirin"},
+    }
+    monkeypatch.setattr(risk_api, "COMPOUNDS", compounds)
+    monkeypatch.setattr(risk_api, "_ensure_interaction_lookup", lambda: None)
+    monkeypatch.setattr(
+        risk_api, "_INTERACTION_LOOKUP",
+        {("caffeine", "aspirin"): {"severity": "moderate", "evidence": "A"}},
+    )
+    monkeypatch.setattr(risk_api, "compute_risk", lambda interaction: 2.0)
+    result = risk_api.check_stack(
+        risk_api.StackRequest(compounds=["caffeine", "aspirin", "magnesum"])
+    )
+    assert result["coverage"]["assessed_pairs"] == 1
+    assert result["assessment"] == "partial"
+    assert "does not mean the combination is safe" in result["message"]
+
+
+@pytest.mark.anyio("asyncio")
+async def test_long_pair_and_stack_values_are_not_reflected(client):
+    long_value = "x" * 101
+    pair = await client.get(
+        "/api/interaction", params={"a": long_value, "b": "caffeine"}
+    )
+    stack = await client.post(
+        "/api/stack/check", json={"compounds": ["caffeine", long_value]}
+    )
+    assert pair.status_code == stack.status_code == 422
+    assert long_value not in pair.text
+    assert long_value not in stack.text
+
+
+@pytest.mark.anyio("asyncio")
+async def test_metrics_trailing_slash_is_hidden(client, monkeypatch):
+    monkeypatch.delenv("SUPPTRACKER_METRICS", raising=False)
+    assert (await client.get("/metrics/")).status_code == 404
