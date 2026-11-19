@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """Repair statements that run from one label-table row into the next (see scripts/label_text.py).
 
-Added by Claude Code 2026-11-18. For each statement matching ``CROSSED_ROWS_RE`` it fetches the cited label
+Added by Claude Code 2026-11-18. Since 2026-11-19 it also repairs statements that run past the end of their
+Examples list into another sentence (``runs_past_list``). For each statement matching ``CROSSED_ROWS_RE``
+or ``runs_past_list`` it fetches the cited label
 from openFDA, splits the drug-interaction text with ``label_text.split_units`` and replaces the sentence with
 the matched row's own text. A statement that cannot be repaired exactly is dropped (fail closed). The new
 sentence must be a verbatim substring of the label text, pass the dictionary's match and exclude rules and fit
 the length limit. label_count is kept: it counts the labels that carried the original passage, whose rows are
 the same text. pairs.csv and the manifest counts are recomputed.
+
+openFDA serves only a label's current version, so a row whose cited version (label_id, effective_time) is no
+longer the one served is dropped rather than re-quoted from a later version it does not cite (cloud review
+2026-11-19).
 
 Usage: python scripts/repair_crossed_rows.py [--dir data/openfda_supplement_statements] [--write]
 """
@@ -26,7 +32,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from label_text import CROSSED_ROWS_RE, examples_statement, split_units  # noqa: E402
+from label_text import CROSSED_ROWS_RE, examples_statement, runs_past_list, split_units  # noqa: E402
 
 MAX_CHARS = 1300  # a whole table row; plain sentences keep the builder's 700 limit
 
@@ -35,18 +41,35 @@ def compact(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
-def fetch_text(url: str) -> str:
+def fetch_label(url: str) -> dict[str, str]:
+    """The drug-interaction text and version (label_id, effective_time) of the label openFDA serves now."""
     request = Request(url, headers={"User-Agent": "SuppTracker-openfda-statements/1.0"})
     for attempt in range(4):
         try:
             with urlopen(request, timeout=60) as response:
                 payload = json.load(response)
             results = payload.get("results") or []
-            items = results[0].get("drug_interactions") or [] if results else []
-            return compact(" ".join(item for item in items if isinstance(item, str)))
+            label = results[0] if results else {}
+            items = label.get("drug_interactions") or []
+            return {
+                "text": compact(" ".join(item for item in items if isinstance(item, str))),
+                "label_id": compact(str(label.get("id") or "")),
+                "effective_time": compact(str(label.get("effective_time") or "")),
+            }
         except Exception:  # noqa: BLE001 - retried, then reported
             time.sleep(2 + 2 * attempt)
     raise RuntimeError(f"could not fetch {url}")
+
+
+def same_version(row: dict[str, str], label: dict[str, str]) -> bool:
+    """True when the served label is the version the row cites (both fields must be known and equal)."""
+    return bool(row["label_id"]) and (row["label_id"], row["effective_time"]) == (
+        label["label_id"], label["effective_time"]
+    )
+
+
+def needs_repair(sentence: str) -> bool:
+    return bool(CROSSED_ROWS_RE.search(sentence)) or runs_past_list(sentence)
 
 
 def statement_id(row: dict[str, str]) -> str:
@@ -75,7 +98,7 @@ def repair(row: dict[str, str], text: str, entry: dict) -> tuple[str, str] | Non
                 continue
             if any(pattern.search(sentence) for pattern in entry["exclude"]):
                 continue
-            if CROSSED_ROWS_RE.search(sentence):
+            if needs_repair(sentence):
                 continue
             return sentence, entry["match"].search(sentence).group(0)  # first match: the validator's rule
     return None
@@ -101,20 +124,31 @@ def main() -> int:
         for item in terms["entries"]
     }
 
-    texts: dict[str, str] = {}
+    labels: dict[str, dict[str, str]] = {}
     kept: list[dict[str, str]] = []
-    report = {"crossed": 0, "repaired": 0, "dropped": 0, "merged": 0, "changes": []}
+    report = {"crossed": 0, "repaired": 0, "dropped": 0, "version_changed": 0, "merged": 0, "changes": []}
     for row in rows:
-        if not CROSSED_ROWS_RE.search(row["sentence"]):
+        if not needs_repair(row["sentence"]):
             kept.append(row)
             continue
         report["crossed"] += 1
         url = row["source_url"]
-        if url not in texts:
-            texts[url] = fetch_text(url)
+        if url not in labels:
+            labels[url] = fetch_label(url)
             time.sleep(0.5)
-        fixed = repair(row, texts[url], entries[row["supplement_id"]])
         change = {"supplement_id": row["supplement_id"], "drug_id": row["drug_id"], "old": row["sentence"]}
+        if not same_version(row, labels[url]):
+            # The cited version is gone: its row text cannot be checked, so drop the row (fail closed).
+            report["dropped"] += 1
+            report["version_changed"] += 1
+            change["new"] = None
+            change["reason"] = (
+                f'label revised: cites {row["label_id"]} ({row["effective_time"]}), '
+                f'openFDA serves {labels[url]["label_id"]} ({labels[url]["effective_time"]})'
+            )
+            report["changes"].append(change)
+            continue
+        fixed = repair(row, labels[url]["text"], entries[row["supplement_id"]])
         if fixed is None:
             report["dropped"] += 1
             change["new"] = None
@@ -154,6 +188,8 @@ def main() -> int:
     print(json.dumps({key: value for key, value in report.items() if key != "changes"}))
     for change in report["changes"]:
         print(f'\n[{change["supplement_id"]} + {change["drug_id"]}]\n  OLD: {change["old"]}\n  NEW: {change["new"]}')
+        if change.get("reason"):
+            print(f'  WHY: {change["reason"]}')
     if not args.write:
         print("\n(dry run: nothing written; pass --write)")
         return 0
@@ -191,9 +227,10 @@ def main() -> int:
         "crossed_rows_found": report["crossed"],
         "repaired": report["repaired"],
         "dropped": report["dropped"],
+        "dropped_label_revised": report["version_changed"],
         "merged": report["merged"],
-        "note": "Statements that ran from one table row into the next were cut back to their own row; "
-        "label_count counts the labels that carried the original passage.",
+        "note": "Statements that ran from one table row into the next, or past the end of their Examples list, "
+        "were cut back to their own row; label_count counts the labels that carried the original passage.",
     })
     manifest["row_repairs"] = runs
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

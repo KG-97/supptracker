@@ -1,5 +1,6 @@
 """Fixes from the live test of 18 Nov 2026: names people type, stack reporting, hardening."""
 
+import logging
 from pathlib import Path
 
 import httpx
@@ -56,11 +57,11 @@ def test_ambiguous_base_name_resolves_to_nothing(salt_compounds):
 def test_different_compounds_sharing_a_label_key_are_not_duplicates():
     # Antigravity review 2026-11-19: two amlodipine combination products share one label key.
     shared = ((), ("amlodipine",))
-    assert risk_api._item_key("amlodipine-and-atorvastatin", shared) != risk_api._item_key("amlodipine-and-benazepril", shared)
-    assert not risk_api._same_item("amlodipine-and-atorvastatin", shared, "amlodipine-and-benazepril", shared)
-    assert risk_api._same_item("warfarin-sodium", None, "warfarin-sodium", shared)
-    assert risk_api._same_item(None, (("st-johns-wort",), ()), None, (("st-johns-wort",), ()))
-    assert not risk_api._same_item("sertraline-hydrochloride", shared, None, shared)
+    key = risk_api._item_key
+    assert key("amlodipine-and-atorvastatin", shared) != key("amlodipine-and-benazepril", shared)
+    assert key("warfarin-sodium", None) == key("warfarin-sodium", shared)
+    assert key(None, (("st-johns-wort",), ())) == key(None, (("st-johns-wort",), ()))
+    assert key("sertraline-hydrochloride", shared) != key(None, shared)
 
 
 @pytest.mark.anyio("asyncio")
@@ -245,3 +246,58 @@ async def test_search_label_names_agree_with_the_lookup(client):
     assert partial["label_names"] == []
     whole = (await client.get("/api/search", params={"q": "melatonin"})).json()
     assert [item["id"] for item in whole["label_names"] if item["kind"] == "supplement"] == ["melatonin"]
+
+
+@pytest.fixture
+def base_compounds(monkeypatch):
+    # The assessed dataset (data/compounds.csv) names drugs by their base: "Warfarin", "Levothyroxine".
+    compounds = {
+        "warfarin": {"id": "warfarin", "name": "Warfarin", "synonyms": ["coumadin"]},
+        "levothyroxine": {"id": "levothyroxine", "name": "Levothyroxine"},
+        "calcium": {"id": "calcium", "name": "Calcium"},
+        "fish-oil": {"id": "fish-oil", "name": "Fish Oil (Omega-3)", "synonyms": ["fish oil"]},
+    }
+    monkeypatch.setattr(risk_api, "COMPOUNDS", compounds)
+    yield compounds
+
+
+def test_label_salt_spelling_resolves_to_the_base_compound(base_compounds):
+    # Cloud review 2026-11-19: "levothyroxine sodium" fell through to the label-only path and was reported
+    # as having no assessed record, though "Levothyroxine" has one.
+    assert risk_api.resolve_compound("warfarin sodium") == "warfarin"
+    assert risk_api.resolve_compound("LEVOTHYROXINE SODIUM") == "levothyroxine"
+    assert risk_api.resolve_compound("coumadin sodium") == "warfarin"
+    assert risk_api.resolve_compound("calcium") == "calcium"
+    assert risk_api.resolve_compound("calcium magnesium") is None  # the base is itself a salt word
+    assert risk_api.resolve_compound("sodium chloride") is None
+    assert risk_api.resolve_compound("warfarin sodium tablets") is None  # salt words only at the end
+
+
+@pytest.mark.anyio("asyncio")
+async def test_salt_spelling_reaches_the_assessed_record(client, monkeypatch, base_compounds):
+    monkeypatch.setattr(risk_api, "_ensure_interaction_lookup", lambda: None)
+    monkeypatch.setattr(
+        risk_api, "_INTERACTION_LOOKUP",
+        {("calcium", "levothyroxine"): {"severity": "Moderate", "evidence": "B", "sources": []}},
+    )
+    monkeypatch.setattr(risk_api, "compute_risk", lambda interaction: 2.0)
+    body = (await client.get("/api/interaction", params={"a": "levothyroxine sodium", "b": "calcium"})).json()
+    assert body["assessment"] == "assessed"
+    assert body["pair"] == {"a": "levothyroxine", "b": "calcium"}
+
+
+def test_stack_treats_a_salt_spelling_as_its_base_compound(base_compounds):
+    result = risk_api.check_stack(risk_api.StackRequest(compounds=["Warfarin", "warfarin sodium", "fish oil"]))
+    assert result["duplicates_removed"] == ["warfarin sodium"]
+    assert result["evaluated_items"] == ["Warfarin", "fish oil"]
+
+
+def test_only_a_real_ambiguity_is_logged(base_compounds, salt_compounds, caplog):
+    # Cloud review 2026-11-19: "fish" matches one compound and is rejected; that is not an ambiguity.
+    salt_compounds.update(base_compounds)
+    with caplog.at_level(logging.WARNING, logger=risk_api.logger.name):
+        assert risk_api.resolve_compound("fish") is None
+    assert "Ambiguous" not in caplog.text
+    with caplog.at_level(logging.WARNING, logger=risk_api.logger.name):
+        assert risk_api.resolve_compound("metoprolol") is None
+    assert "Ambiguous compound base name 'metoprolol'" in caplog.text

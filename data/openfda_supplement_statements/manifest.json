@@ -492,6 +492,16 @@
       "dropped": 0,
       "merged": 0,
       "note": "Statements that ran from one table row into the next were cut back to their own row; label_count counts the labels that carried the original passage."
+    },
+    {
+      "date": "2026-11-19",
+      "script": "scripts/repair_crossed_rows.py",
+      "crossed_rows_found": 3,
+      "repaired": 3,
+      "dropped": 0,
+      "dropped_label_revised": 0,
+      "merged": 0,
+      "note": "Statements that ran from one table row into the next, or past the end of their Examples list, were cut back to their own row; label_count counts the labels that carried the original passage."
     }
   ]
 }

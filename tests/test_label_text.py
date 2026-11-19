@@ -8,7 +8,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from label_text import CROSSED_ROWS_RE, examples_statement, split_units  # noqa: E402
+from label_text import CROSSED_ROWS_RE, examples_statement, runs_past_list, split_units  # noqa: E402
 
 SJW = re.compile(r"St\.? John'?s Wort", re.IGNORECASE)
 
@@ -238,3 +238,62 @@ def test_corpus_has_no_statement_spanning_two_table_rows():
     with path.open(encoding="utf-8", newline="") as handle:
         crossed = [row["statement_id"] for row in csv.DictReader(handle) if CROSSED_ROWS_RE.search(row["sentence"])]
     assert crossed == []
+
+
+# Cloud review 2026-11-19: everything after the last "Examples:" label used to be one examples unit, so prose
+# after the table was never split into sentences and a name in it was quoted under the last row's Clinical
+# Impact ("Clinical Impact: Increased bleeding risk. ... Products containing aluminum, calcium").
+PROSE_AFTER_TABLE = (
+    "Antiplatelets Clinical Impact: Increased bleeding risk. Intervention: Monitor closely. "
+    "Examples: aspirin, clopidogrel, heparin, warfarin 7.2 Other Drugs Avoid St. John's Wort. "
+    "Products containing aluminum, calcium, or magnesium may reduce absorption."
+)
+
+
+def test_prose_after_the_last_row_is_split_into_sentences():
+    units = split_units(PROSE_AFTER_TABLE)
+    assert [unit.text[unit.list_start:] for unit in units if unit.kind == "examples"] == [
+        "Examples: aspirin, clopidogrel, heparin, warfarin"
+    ]
+    sentences = [unit.text for unit in units if unit.kind == "sentence"]
+    assert "7.2 Other Drugs Avoid St. John's Wort." in sentences
+    assert "Products containing aluminum, calcium, or magnesium may reduce absorption." in sentences
+
+
+def test_name_in_prose_after_the_last_row_is_not_quoted_under_its_clinical_impact():
+    assert _statements(PROSE_AFTER_TABLE, CALCIUM) == [
+        "Products containing aluminum, calcium, or magnesium may reduce absorption."
+    ]
+    assert _statements(PROSE_AFTER_TABLE, SJW) == ["7.2 Other Drugs Avoid St. John's Wort."]
+
+
+def test_last_list_stops_at_its_full_stop_or_a_likely_header():
+    stopped = "Clinical Impact: Reduced absorption. Examples: aluminum, and calcium. Avoid St. John's Wort here."
+    assert _statements(stopped, CALCIUM) == ["Clinical Impact: Reduced absorption. Examples: aluminum, and calcium"]
+    assert _statements(stopped, SJW) == ["Avoid St. John's Wort here."]
+    header = "Clinical Impact: Reduced absorption. Examples: aluminum, iron Products containing calcium may interfere."
+    assert _statements(header, CALCIUM) == ["Products containing calcium may interfere."]
+
+
+def test_last_list_running_to_the_end_keeps_its_last_item():
+    text = "Clinical Impact: Reduced absorption. Examples: aluminum, calcium, and magnesium"
+    [unit] = [unit for unit in split_units(text) if unit.kind == "examples"]
+    assert not unit.followed_by_row
+    assert _statements(text, re.compile("magnesium")) == [text]
+
+
+def test_runs_past_list_flags_only_text_after_the_list():
+    # The three niacin statements built by the old splitter, repaired 2026-11-19.
+    assert runs_past_list(
+        "Examples: phenytoin, nicotinic acid, and isoniazid. • Carbonic anhydrase inhibitors may increase risk."
+    )
+    assert not runs_past_list("Clinical Impact: Lower exposure. Examples: Rifampin, avasimibe, St. John's wort")
+    assert not runs_past_list("Examples: aluminum, and calcium.")
+    assert not runs_past_list("St. John's Wort may lower exposure.")
+
+
+def test_corpus_has_no_statement_running_past_its_list():
+    path = PROJECT_ROOT / "data" / "openfda_supplement_statements" / "statements.csv"
+    with path.open(encoding="utf-8", newline="") as handle:
+        long = [row["statement_id"] for row in csv.DictReader(handle) if runs_past_list(row["sentence"])]
+    assert long == []
