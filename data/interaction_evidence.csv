@@ -1,0 +1,128 @@
+compound_a,compound_b,source_id,quote,checked
+vitamin-k2-mk7,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,The following factors may be responsible for decreased INR response: increased vitamin K intake or hereditary warfarin resistance.,2026-11-19
+vitamin-k2-mk7,warfarin,pubmed:23530987,Eighteen healthy men and women were anticoagulated for 4 weeks with acenocoumarol,2026-11-19
+vitamin-k2-mk7,warfarin,pubmed:23530987,"subjects were given increasing doses of MK-7 (10, 20 and 45 μg day(-1) )",2026-11-19
+vitamin-k2-mk7,warfarin,pubmed:23530987,MK-7 supplementation at doses as low as 10 μg (lower than the usual retail dose of 45 μg) significantly influenced anticoagulation sensitivity in some individuals.,2026-11-19
+warfarin,vitamin-k,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,competitive antagonism (vitamin K),2026-11-19
+warfarin,vitamin-k,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"Advise patients taking warfarin sodium to eat a normal, balanced diet maintaining a consistent amount of vitamin K.",2026-11-19
+warfarin,vitamin-k,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,The following factors may be responsible for decreased INR response: increased vitamin K intake or hereditary warfarin resistance.,2026-11-19
+warfarin,vitamin-k,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"The following factors may be responsible for increased INR response: diarrhea, hepatic disorders, poor nutritional state, steatorrhea, or vitamin K deficiency.",2026-11-19
+warfarin,vitamin-k1,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,competitive antagonism (vitamin K),2026-11-19
+warfarin,vitamin-k1,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"Leafy, green vegetables contain vitamin K.",2026-11-19
+warfarin,vitamin-k1,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"Patients taking warfarin sodium should avoid drastic changes in dietary habits, such as eating large amounts of green leafy vegetables.",2026-11-19
+warfarin,vitamin-k1,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,The following factors may be responsible for decreased INR response: increased vitamin K intake or hereditary warfarin resistance.,2026-11-19
+chlorella,warfarin,pubmed:8777808,"TT values had been well controlled until intake of chlorella, but they rose above the therapeutic limit after its intake.",2026-11-19
+chlorella,warfarin,pubmed:8777808,Warfarin therapy was started to prevent the recurrence of embolic stroke.,2026-11-19
+chlorella,warfarin,pubmed:8777808,Chlorella is one of vitamin K-rich foods.,2026-11-19
+chlorella,warfarin,pubmed:8777808,"Thus, it may inhibit the anticoagulant effect of warfarin.",2026-11-19
+chlorella,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,The following factors may be responsible for decreased INR response: increased vitamin K intake or hereditary warfarin resistance.,2026-11-19
+aspirin,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,Table 3: Drugs that Can Increase the Risk of Bleeding,2026-11-19
+aspirin,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"Antiplatelet Agents aspirin, cilostazol, clopidogrel",2026-11-19
+ibuprofen,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,Table 3: Drugs that Can Increase the Risk of Bleeding,2026-11-19
+ibuprofen,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"Nonsteroidal Anti-Inflammatory Agents celecoxib, diclofenac, diflunisal, fenoprofen, ibuprofen",2026-11-19
+acetaminophen,warfarin,pubmed:21191575,Interaction between acetaminophen and warfarin in adults receiving long-term oral anticoagulants: a randomized controlled trial.,2026-11-19
+acetaminophen,warfarin,pubmed:21191575,"Acetaminophen, at 2 g/day or 3 g/day, enhanced the anticoagulant effect of warfarin in stable patients, thus requiring close INR monitoring in the clinical setting.",2026-11-19
+acetaminophen,warfarin,pubmed:17145598,"Interaction between paracetamol and warfarin in patients: a double-blind, placebo-controlled, randomized study.",2026-11-19
+acetaminophen,warfarin,pubmed:17145598,Mean INR rose rapidly after the start of paracetamol and was significantly increased within one week of paracetamol intake compared to placebo,2026-11-19
+acetaminophen,warfarin,pubmed:17145598,Paracetamol at 4 g daily (a dose higher than that used in clinical practice) potentiates the anticoagulant response produced by warfarin.,2026-11-19
+acetaminophen,warfarin,pubmed:17145598,paracetamol (or its metabolites) interfere with enzymes involved in vitamin K-dependent coagulation factor synthesis,2026-11-19
+fish-oil,warfarin,pubmed:10767122,Fish oil supplementation in doses of 3-6 grams per day does not seem to create a statistically significant effect on the anticoagulation status of patients receiving chronic warfarin therapy.,2026-11-19
+fish-oil,warfarin,pubmed:14742793,This fatty acid may affect platelet aggregation and/or vitamin K-dependent coagulation factors.,2026-11-19
+fish-oil,warfarin,pubmed:14742793,This case reveals a significant rise in INR after the dose of concomitant fish oil was doubled.,2026-11-19
+garlic,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"Some botanicals may cause bleeding events when taken alone (e.g., garlic and Ginkgo biloba) and may have anticoagulant, antiplatelet, and/or fibrinolytic properties.",2026-11-19
+garlic,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,These effects would be expected to be additive to the anticoagulant effects of warfarin sodium.,2026-11-19
+garlic,warfarin,nccih:garlic,Taking garlic supplements may increase the risk of bleeding.,2026-11-19
+garlic,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,More frequent INR monitoring should be performed when starting or stopping botanicals.,2026-11-19
+ginkgo,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"Some botanicals may cause bleeding events when taken alone (e.g., garlic and Ginkgo biloba) and may have anticoagulant, antiplatelet, and/or fibrinolytic properties.",2026-11-19
+ginkgo,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"Some botanicals and foods can interact with warfarin sodium through CYP450 interactions (e.g., echinacea, grapefruit juice, ginkgo",2026-11-19
+ginkgo,warfarin,nccih:ginkgo,"Ginkgo may increase the risk of bleeding in people who are taking anticoagulant drugs, such as warfarin.",2026-11-19
+ginkgo,warfarin,pubmed:15801937,"Ginkgo and ginger at recommended doses do not significantly affect clotting status, the pharmacokinetics or pharmacodynamics of warfarin in healthy subjects.",2026-11-19
+st-johns-wort,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"Conversely, some botanicals may decrease the effects of warfarin sodium (e.g., co-enzyme Q 10 , St. John's wort, ginseng).",2026-11-19
+st-johns-wort,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,"Some botanicals and foods can interact with warfarin sodium through CYP450 interactions (e.g., echinacea, grapefruit juice, ginkgo, goldenseal, St. John's wort).",2026-11-19
+st-johns-wort,warfarin,nccih:st-johns-wort,John's wort can weaken the effects of many medicines,2026-11-19
+st-johns-wort,warfarin,nccih:st-johns-wort,"Warfarin, an anticoagulant (blood thinner)",2026-11-19
+cranberry,warfarin,nccih:cranberry,There is conflicting evidence about whether cranberry interacts with the anticoagulant (blood thinner) warfarin.,2026-11-19
+cranberry,warfarin,dailymed:7b3b6f89-1feb-4939-a95b-7ad0707f4d76,More frequent INR monitoring should be performed when starting or stopping botanicals.,2026-11-19
+vitamin-e,warfarin,pubmed:8629604,None of the subjects who received vitamin E had a significant change in the international normalized ratio,2026-11-19
+vitamin-e,warfarin,pubmed:25225959,"Consumption of high-dose vitamin E supplements ( ≥ 300 mg/d), however, may lead to interactions with the drugs aspirin, warfarin, tamoxifen and cyclosporine A that may alter their activities.",2026-11-19
+vitamin-e,aspirin,pubmed:25225959,"Consumption of high-dose vitamin E supplements ( ≥ 300 mg/d), however, may lead to interactions with the drugs aspirin, warfarin, tamoxifen and cyclosporine A that may alter their activities.",2026-11-19
+aspirin,ibuprofen,dailymed:701ee488-c57f-a82c-e053-2991aa0af403,"Pharmacodynamic studies have demonstrated interference with the antiplatelet activity of aspirin when ibuprofen 400 mg, given three times daily, is administered with enteric coated low-dose aspirin.",2026-11-19
+aspirin,ibuprofen,dailymed:701ee488-c57f-a82c-e053-2991aa0af403,"The interaction is alleviated if immediate-release low-dose aspirin is dosed at least 2 hours prior to a once daily regimen of ibuprofen; however, this finding cannot be extended to enteric-coated low-dose aspirin",2026-11-19
+aspirin,ibuprofen,dailymed:701ee488-c57f-a82c-e053-2991aa0af403,Because there may be an increased risk of cardiovascular events due to the interference of ibuprofen with the antiplatelet effect of aspirin,2026-11-19
+sertraline,aspirin,dailymed:687ebdc4-6946-454e-8d46-3207488ccf32,"Increased Risk of Bleeding: Concomitant use of aspirin, nonsteroidal anti-inflammatory drugs (NSAIDs), other antiplatelet drugs, warfarin, and other anticoagulants may increase this risk.",2026-11-19
+sertraline,aspirin,dailymed:687ebdc4-6946-454e-8d46-3207488ccf32,"Concomitant use of aspirin, nonsteroidal anti-inflammatory drugs (NSAIDs), other antiplatelet drugs, warfarin, and other anticoagulants may add to this risk.",2026-11-19
+sertraline,aspirin,dailymed:687ebdc4-6946-454e-8d46-3207488ccf32,the combined use has been associated with an increased risk of bleeding.,2026-11-19
+citalopram,aspirin,dailymed:31a18cdf-b0aa-18f5-e054-00144ff8d46c,"Concomitant use of aspirin, nonsteroidal anti-inflammatory drugs (NSAIDS), other antiplatelet drugs, warfarin, and other anticoagulants may add to this risk.",2026-11-19
+citalopram,aspirin,dailymed:31a18cdf-b0aa-18f5-e054-00144ff8d46c,"Inform patients about the concomitant use of citalopram with aspirin, NSAIDs, other antiplatelet drugs, warfarin, or other anticoagulants because the combined use has been associated with an increased risk of bleeding.",2026-11-19
+fluoxetine,aspirin,dailymed:77d5c10a-0cfc-4b89-942c-0fb5c67ae409,"Use with NSAIDs, aspirin, warfarin, or other drugs that affect coagulation may potentiate the risk of gastrointestinal or other bleeding",2026-11-19
+fluoxetine,aspirin,dailymed:77d5c10a-0cfc-4b89-942c-0fb5c67ae409,Serotonin release by platelets plays an important role in hemostasis.,2026-11-19
+prednisone,aspirin,dailymed:0062fcc7-aa08-4990-9d33-d798725907f1,Concomitant use of aspirin (or other nonsteroidal anti-inflammatory agents ) and corticosteroids increases the risk of gastrointestinal side effects.,2026-11-19
+prednisone,aspirin,dailymed:0062fcc7-aa08-4990-9d33-d798725907f1,Aspirin should be used cautiously in conjunction with corticosteroids in hypoprothrombinemia.,2026-11-19
+lisinopril,potassium,dailymed:dd015c18-1ea6-44e3-9186-8d2f8444d874,"Risk factors for the development of hyperkalemia include renal insufficiency, diabetes mellitus, and the concomitant use of potassium-sparing diuretics, potassium supplements and/or potassium-containing salt substitutes",2026-11-19
+lisinopril,potassium,dailymed:dd015c18-1ea6-44e3-9186-8d2f8444d874,Serum potassium should be monitored periodically in patients receiving lisinopril.,2026-11-19
+lisinopril,potassium,dailymed:dd015c18-1ea6-44e3-9186-8d2f8444d874,"hyperkalemia (serum potassium greater than 5.7 mEq/L) occurred in 2.2% and 4.8% of lisinopril-treated patients with hypertension and heart failure, respectively",2026-11-19
+losartan,potassium,dailymed:6286ea54-2350-49fc-8f37-4b979bd7f986,Advise patients receiving losartan potassium tablets not to use potassium supplements or salt substitutes containing potassium without consulting their healthcare provider,2026-11-19
+losartan,potassium,dailymed:6286ea54-2350-49fc-8f37-4b979bd7f986,Monitor serum potassium periodically and treat appropriately.,2026-11-19
+losartan,potassium,dailymed:6286ea54-2350-49fc-8f37-4b979bd7f986,Concomitant use of other drugs that may increase serum potassium may lead to hyperkalemia,2026-11-19
+alprazolam,diphenhydramine,dailymed:0ffcdbab-17e4-4395-8155-5b6ad00be6c2,"The benzodiazepines, including alprazolam, produce additive CNS depressant effects when coadministered with other CNS depressants.",2026-11-19
+alprazolam,diphenhydramine,dailymed:0ffcdbab-17e4-4395-8155-5b6ad00be6c2,"Psychotropic medications, anticonvulsants, antihistaminics, ethanol, and other drugs which themselves produce CNS depression.",2026-11-19
+alprazolam,diphenhydramine,dailymed:9d6b5ec1-3aa4-4a19-936e-c44b04b2f3fa,Ask a doctor or pharmacist before use if you are taking sedatives or tranquilizers.,2026-11-19
+lorazepam,diphenhydramine,dailymed:1f79a5a1-0c40-45cf-8994-51f5ba3a5938,"The benzodiazepines, including lorazepam, produce increased CNS-depressant effects when administered with other CNS depressants such as alcohol, barbiturates, antipsychotics, sedative/hypnotics, anxiolytics, antidepressants, narcotic analgesics, sedative antihistamines, anticonvulsants, and anesthetics.",2026-11-19
+lorazepam,diphenhydramine,dailymed:9d6b5ec1-3aa4-4a19-936e-c44b04b2f3fa,Ask a doctor or pharmacist before use if you are taking sedatives or tranquilizers.,2026-11-19
+zolpidem,diphenhydramine,dailymed:625fad5b-8817-4773-a2fc-20b662140e6e,combined with other CNS-depressant drugs because of the potentially additive effects,2026-11-19
+zolpidem,diphenhydramine,dailymed:625fad5b-8817-4773-a2fc-20b662140e6e,"CNS-Depressant Effects: Impaired alertness and motor coordination, including risk of morning impairment.",2026-11-19
+zolpidem,diphenhydramine,dailymed:625fad5b-8817-4773-a2fc-20b662140e6e,Risk increases with dose and use with other CNS depressants and alcohol.,2026-11-19
+zolpidem,diphenhydramine,dailymed:9d6b5ec1-3aa4-4a19-936e-c44b04b2f3fa,Ask a doctor or pharmacist before use if you are taking sedatives or tranquilizers.,2026-11-19
+kava,alprazolam,nccih:kava,"Kava should not be used together with other substances that have sedative effects, such as benzodiazepines or alcohol.",2026-11-19
+kava,alprazolam,pubmed:8967683,Coma from the health food store: interaction between kava and alprazolam.,2026-11-19
+kava,alprazolam,nccih:kava,"Various kava products have been linked to rare cases of liver injury, some of which have been serious or even fatal.",2026-11-19
+kava,lorazepam,nccih:kava,"Kava should not be used together with other substances that have sedative effects, such as benzodiazepines or alcohol.",2026-11-19
+valerian,alprazolam,nccih:valerian,"Because it is possible (though not proven) that valerian might have a sleep-inducing effect, it should not be taken along with alcohol or sedatives.",2026-11-19
+valerian,zolpidem,nccih:valerian,"Because it is possible (though not proven) that valerian might have a sleep-inducing effect, it should not be taken along with alcohol or sedatives.",2026-11-19
+simvastatin,red-yeast-rice,nccih:red-yeast-rice,"Depending on the strain used and the conditions of fermentation, the fungus can enrich the rice with substances known as monacolins, including monacolin K.",2026-11-19
+simvastatin,red-yeast-rice,nccih:red-yeast-rice,Monacolin K is structurally identical to the medicine lovastatin.,2026-11-19
+simvastatin,red-yeast-rice,dailymed:c85d6d02-6cf6-4995-a590-cfca302ea0c9,Your chances of getting muscle problems are higher if you: are taking certain other medicines while you take simvastatin tablets. are 65 years of age or older. are female. have thyroid problems (hypothyroidism) that are not controlled. have kidney problems. are taking higher doses of simvastatin tablets.,2026-11-19
+atorvastatin,red-yeast-rice,nccih:red-yeast-rice,"Depending on the strain used and the conditions of fermentation, the fungus can enrich the rice with substances known as monacolins, including monacolin K.",2026-11-19
+atorvastatin,red-yeast-rice,nccih:red-yeast-rice,Monacolin K is structurally identical to the medicine lovastatin.,2026-11-19
+atorvastatin,red-yeast-rice,nccih:red-yeast-rice,"Lovastatin, like other statin drugs, helps slow the production of cholesterol in the body",2026-11-19
+simvastatin,grapefruit,dailymed:c85d6d02-6cf6-4995-a590-cfca302ea0c9,Grapefruit juice can raise the plasma levels of simvastatin and may increase the risk of myopathy and rhabdomyolysis.,2026-11-19
+simvastatin,grapefruit,dailymed:c85d6d02-6cf6-4995-a590-cfca302ea0c9,Avoid grapefruit juice when taking simvastatin.,2026-11-19
+niacin,simvastatin,dailymed:c85d6d02-6cf6-4995-a590-cfca302ea0c9,Cases of myopathy and rhabdomyolysis have been observed with concomitant use of lipid modifying dosages of niacin-containing products (≥1 gram/day niacin) with simvastatin.,2026-11-19
+niacin,simvastatin,dailymed:c85d6d02-6cf6-4995-a590-cfca302ea0c9,Concomitant use of simvastatin with lipid-modifying dosages of niacin is not recommended in Chinese patients,2026-11-19
+niacin,simvastatin,dailymed:c85d6d02-6cf6-4995-a590-cfca302ea0c9,"For non-Chinese patients, consider if the benefit of using lipid-modifying doses of niacin concomitantly with simvastatin outweighs the increased risk of myopathy and rhabdomyolysis.",2026-11-19
+niacin,atorvastatin,dailymed:8cc6240a-58d3-4bca-aa1e-662228957f75,Cases of myopathy and rhabdomyolysis have been observed with concomitant use of lipid modifying dosages of niacin (≥1 gram/day niacin) with atorvastatin calcium.,2026-11-19
+niacin,atorvastatin,dailymed:8cc6240a-58d3-4bca-aa1e-662228957f75,Consider if the benefit of using lipid modifying dosages of niacin concomitantly with atorvastatin calcium outweighs the increased risk of myopathy and rhabdomyolysis.,2026-11-19
+calcium,iron,pubmed:21462112,"Studies on human subjects have shown that calcium (Ca) can inhibit iron (Fe) absorption, regardless of whether it is given as Ca salts or in dairy products.",2026-11-19
+calcium,iron,pubmed:21462112,"However, a thorough review of studies on humans in which Ca intake was substantially increased for long periods shows no changes in hematological measures or indicators of iron status.",2026-11-19
+calcium,iron,pubmed:21462112,"Thus, the effect of Ca on Fe absorption may be of short duration and adaptation may occur with time.",2026-11-19
+calcium,levothyroxine,dailymed:0db62c57-d020-4ddb-b24a-ecb349ce3850,Inform patients that agents such as iron and calcium supplements and antacids can decrease the absorption of levothyroxine.,2026-11-19
+calcium,levothyroxine,dailymed:0db62c57-d020-4ddb-b24a-ecb349ce3850,Administer levothyroxine sodium tablets at least 4 hours before or after drugs known to interfere with levothyroxine sodium absorption,2026-11-19
+calcium,levothyroxine,dailymed:0db62c57-d020-4ddb-b24a-ecb349ce3850,"Phosphate Binders (e.g., calcium carbonate, ferrous sulfate, sevelamer, lanthanum) Phosphate binders may bind to levothyroxine.",2026-11-19
+iron,levothyroxine,dailymed:0db62c57-d020-4ddb-b24a-ecb349ce3850,Inform patients that agents such as iron and calcium supplements and antacids can decrease the absorption of levothyroxine.,2026-11-19
+iron,levothyroxine,dailymed:0db62c57-d020-4ddb-b24a-ecb349ce3850,Administer levothyroxine sodium tablets at least 4 hours before or after drugs known to interfere with levothyroxine sodium absorption,2026-11-19
+iron,levothyroxine,dailymed:0db62c57-d020-4ddb-b24a-ecb349ce3850,"Phosphate Binders (e.g., calcium carbonate, ferrous sulfate, sevelamer, lanthanum) Phosphate binders may bind to levothyroxine.",2026-11-19
+omeprazole,iron,dailymed:e235ef89-3592-4ca1-8c13-d7ce84b1001c,"Like with other drugs that decrease the intragastric acidity, the absorption of drugs such as ketoconazole, atazanavir, iron salts, erlotinib, and mycophenolate mofetil (MMF) can decrease",2026-11-19
+metformin,vitamin-b12,dailymed:ec43efb2-8a50-4bac-9576-f4303841a497,Metformin may lower vitamin B 12 levels.,2026-11-19
+metformin,vitamin-b12,dailymed:ec43efb2-8a50-4bac-9576-f4303841a497,possibly due to interference with B 12 absorption from the B 12 -intrinsic factor complex,2026-11-19
+metformin,vitamin-b12,dailymed:ec43efb2-8a50-4bac-9576-f4303841a497,a decrease to subnormal levels of previously normal serum vitamin B 12 levels was observed in approximately 7% of patients.,2026-11-19
+metformin,vitamin-b12,dailymed:ec43efb2-8a50-4bac-9576-f4303841a497,Measure hematological parameters annually and vitamin B 12 at 2 to 3 year intervals and manage any abnormalities.,2026-11-19
+fexofenadine,grapefruit,dailymed:c5d58d74-da08-eb72-e053-2a95a90adc27,do not take with fruit juices,2026-11-19
+fexofenadine,grapefruit,pubmed:11823753,"Grapefruit, orange, and apple juices decreased the fexofenadine area under the plasma concentration-time curve (AUC)",2026-11-19
+fexofenadine,grapefruit,pubmed:11823753,to 30% to 40% of those with water,2026-11-19
+fexofenadine,grapefruit,pubmed:11823753,Fruit juices inhibit organic anion transporting polypeptide-mediated drug uptake to decrease the oral availability of fexofenadine.,2026-11-19
+zinc,copper,pubmed:8172183,The mechanism appears to be zinc-induced copper deficiency,2026-11-19
+zinc,copper,pubmed:8172183,the syndrome of severe anemia associated with excessive and prolonged intake of oral zinc.,2026-11-19
+zinc,copper,pubmed:8172183,"The syndrome is characterized by anemia, granulocytopenia, and bone marrow findings of vacuolated precursors and ringed sideroblasts.",2026-11-19
+zinc,copper,pubmed:8172183,"Importantly, the syndrome is totally reversible with cessation of zinc intake.",2026-11-19
+albuterol,metoprolol,dailymed:5d62969b-2ad9-6cf0-e063-6394a90ac2f0,Beta-receptor blocking agents and albuterol inhibit the effect of each other.,2026-11-19
+albuterol,metoprolol,dailymed:00de1f16-f979-4dbf-aa60-246ffac8d410,"Patients with bronchospastic disease, should in general, not receive beta-blockers, including metoprolol.",2026-11-19
+montelukast,aspirin,dailymed:c9ec1996-6a54-4622-b8a6-57dea49f6b35,Patients with known aspirin sensitivity should continue to avoid aspirin or non-steroidal anti-inflammatory agents while taking montelukast sodium,2026-11-19
+montelukast,aspirin,dailymed:c9ec1996-6a54-4622-b8a6-57dea49f6b35,it has not been shown to truncate bronchoconstrictor response to aspirin and other non-steroidal anti-inflammatory drugs in aspirin-sensitive asthmatic patients,2026-11-19
+fenugreek,metformin,nccih:fenugreek,"Research has suggested that fenugreek may help lower blood sugar levels in people with type 2 diabetes, but many of the studies were not of high quality.",2026-11-19
+fenugreek,metformin,nccih:fenugreek,Large doses may cause a harmful drop in blood sugar.,2026-11-19
+vitamin-b6,levodopa,dailymed:5217a6ec-cc26-4acc-b2da-17f6545c3b60,"in oral doses of 10 mg to 25 mg, may reverse the effects of levodopa by increasing the rate of aromatic amino acid decarboxylation.",2026-11-19
+vitamin-b6,levodopa,dailymed:5217a6ec-cc26-4acc-b2da-17f6545c3b60,Carbidopa inhibits this action of pyridoxine.,2026-11-19
+vitamin-b6,levodopa,dailymed:5217a6ec-cc26-4acc-b2da-17f6545c3b60,carbidopa and levodopa extended-release can be given to patients receiving supplemental pyridoxine,2026-11-19
+vitamin-b9,methotrexate,dailymed:96e931f5-51ae-4bdf-a441-bb0dd26d4c0e,Neoplastic Diseases Products containing folic acid or its derivatives may decrease the clinical effectiveness of methotrexate.,2026-11-19
+vitamin-b9,methotrexate,dailymed:96e931f5-51ae-4bdf-a441-bb0dd26d4c0e,"Non-neoplastic Diseases Folate deficiency may increase methotrexate adverse reactions. Administer folic acid or folinic acid for patients with rheumatoid arthritis, pJIA, and psoriasis",2026-11-19
+vitamin-b9,methotrexate,dailymed:96e931f5-51ae-4bdf-a441-bb0dd26d4c0e,instruct patients not to take products containing folic acid or folinic acid unless directed to do so by their healthcare provider.,2026-11-19
