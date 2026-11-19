@@ -19,13 +19,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install pydantic
-      - name: Check the legacy interaction list (quarantined, not served)
-        # data/interactions.csv has 103 known integrity errors (unknown source ids and
-        # compounds, duplicate pairs). The application does not load or score it. The number
-        # is a ratchet: this step fails if it rises, and also if it falls without the number
-        # below being lowered to match.
+      - name: Check the assessed interaction list
+        # data/interactions.csv had 103 known integrity errors until 2026-11-19, when its
+        # unsourced rows were re-sourced or removed. Any new error now fails this step.
         run: |
-          python scripts/validate_data.py --known-errors 103
+          python scripts/validate_data.py
 
   frontend-build:
     runs-on: ubuntu-latest
