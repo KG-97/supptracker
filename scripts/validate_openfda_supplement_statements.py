@@ -162,6 +162,14 @@ def main() -> int:
         ]
         if any(later <= earlier for earlier, later in zip(order, order[1:])):
             fail(failures, "sentence_row_labels_out_of_order", f"row {row_number}")
+        # Added by Claude Code 2026-11-19: nor run on past the end of its Examples list into another sentence
+        # ("Examples: ..., and isoniazid. • Carbonic anhydrase inhibitors may increase risk of lactic
+        # acidosis."). Abbreviations that end in a full stop inside lists are not sentence ends.
+        examples = re.split(r"Examples?\s*:", sentence, flags=re.IGNORECASE)
+        if len(examples) > 1:
+            tail = re.sub(r"\b(?:St|ST|e\.g|i\.e|etc|vs|Dr|No|L)\.", "", examples[-1])
+            if re.search(r"[.!?][\"')\]]*\s+\S", tail):
+                fail(failures, "sentence_runs_past_examples_list", f"row {row_number}")
         if not UUID_RE.fullmatch(row["set_id"]):
             fail(failures, "set_id_uuid", f"row {row_number}")
         if not re.fullmatch(r"\d{8}", row["effective_time"]):

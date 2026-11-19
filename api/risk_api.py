@@ -8,7 +8,7 @@ import unicodedata
 from collections.abc import Iterable
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -1230,6 +1230,10 @@ def _compound_external_ids(compound: Dict[str, Any]) -> List[str]:
 
 
 _COMPOUND_TOKEN_INDEX: Dict[str, List[Tuple[int, str]]] = {}
+# Every leading run of whole words of a compound's name, synonyms and aliases (normalised), mapped to the
+# compounds that have it: "warfarin" -> {"warfarin-sodium"}. Built once with the token index so the
+# base-name fallback in resolve_compound does not rescan every compound per request (cloud review 2026-11-19).
+_COMPOUND_WORD_PREFIX_INDEX: Dict[str, Set[str]] = {}
 _COMPOUND_SEARCH_CACHE: Dict[str, Dict[str, Any]] = {}
 _COMPOUND_INDEX_STATE: Dict[str, Any] = {"source_id": None, "size": None}
 
@@ -1304,9 +1308,17 @@ def build_compound_indexes() -> None:
     """
 
     _COMPOUND_TOKEN_INDEX.clear()
+    _COMPOUND_WORD_PREFIX_INDEX.clear()
     _COMPOUND_SEARCH_CACHE.clear()
 
     for compound_id, compound in COMPOUNDS.items():
+        names = [compound.get("name", "")]
+        names.extend(parse_synonyms([compound.get("synonyms"), compound.get("aliases")]))
+        for value in names:
+            words = _normalise_token(str(value)).split() if value else []
+            for count in range(1, len(words) + 1):
+                _COMPOUND_WORD_PREFIX_INDEX.setdefault(" ".join(words[:count]), set()).add(compound_id)
+
         name = str(compound.get("name", "") or "").strip()
         name_lower = name.lower()
         entry_tokens: List[Dict[str, Any]] = []
@@ -1524,6 +1536,37 @@ def load_data() -> None:
 # Helper functions
 
 
+_SALT_SUFFIXES = frozenset({
+    "hydrochloride", "hydrobromide", "sodium", "potassium", "calcium",
+    "magnesium", "sulfate", "sulphate", "mesylate", "besylate",
+    "maleate", "fumarate", "tartrate", "succinate", "citrate", "acetate",
+    "phosphate", "bromide", "chloride", "nitrate", "lactate", "oxalate",
+    "stearate", "benzoate", "carbonate", "gluconate", "hydroxide",
+    "pamoate", "tosylate", "edisylate", "ethanolate", "hydrate",
+    "hcl", "hbr", "dihydrochloride", "hyclate", "monohydrate", "dihydrate",
+    "trihydrate", "anhydrous", "disodium", "dipotassium", "oxide",
+})
+
+
+def _token_index_lookup(raw_identifier: str) -> Tuple[bool, Optional[str]]:
+    """Look a name up in the token index: (found, compound_id); found with None means ambiguous."""
+
+    candidates: List[Tuple[int, str]] = []
+    for key in {raw_identifier.lower(), _normalise_token(raw_identifier)}:
+        if key:
+            candidates.extend(_COMPOUND_TOKEN_INDEX.get(key, []))
+    if not candidates:
+        return False, None
+    best_priority = min(priority for priority, _ in candidates)
+    best_matches = sorted(
+        {compound_id for priority, compound_id in candidates if priority == best_priority}
+    )
+    if len(best_matches) == 1:
+        return True, best_matches[0]
+    logger.warning("Ambiguous compound identifier %r matches %s", raw_identifier, best_matches)
+    return True, None
+
+
 def resolve_compound(identifier: str) -> Optional[str]:
     """Resolve compound by ID, name, synonym, alias, or external identifier."""
 
@@ -1545,73 +1588,43 @@ def resolve_compound(identifier: str) -> Optional[str]:
 
     _ensure_compound_indexes()
 
-    identifier_normalised = _normalise_token(raw_identifier)
-
-    candidates: List[Tuple[int, str]] = []
-    for key in {identifier_lower, identifier_normalised}:
-        if not key:
-            continue
-        matches = _COMPOUND_TOKEN_INDEX.get(key, [])
-        if matches:
-            candidates.extend(matches)
-
-    if candidates:
-        best_priority = min(priority for priority, _ in candidates)
-        best_matches = sorted(
-            {
-                compound_id
-                for priority, compound_id in candidates
-                if priority == best_priority
-            }
-        )
-        if len(best_matches) == 1:
-            return best_matches[0]
-        logger.warning(
-            "Ambiguous compound identifier %r matches %s",
-            raw_identifier,
-            best_matches,
-        )
-        return None
+    found, compound_id = _token_index_lookup(raw_identifier)
+    if found:
+        return compound_id
 
     for compound_id, compound in COMPOUNDS.items():
         for ext_id in _compound_external_ids(compound):
             if ext_id.lower() == identifier_lower:
                 return compound_id
 
-    suffixes = {
-        "hydrochloride", "hydrobromide", "sodium", "potassium", "calcium",
-        "magnesium", "sulfate", "sulphate", "mesylate", "besylate",
-        "maleate", "fumarate", "tartrate", "succinate", "citrate", "acetate",
-        "phosphate", "bromide", "chloride", "nitrate", "lactate", "oxalate",
-        "stearate", "benzoate", "carbonate", "gluconate", "hydroxide",
-        "pamoate", "tosylate", "edisylate", "ethanolate", "hydrate",
-        "hcl", "hbr", "dihydrochloride", "hyclate", "monohydrate", "dihydrate",
-        "trihydrate", "anhydrous", "disodium", "dipotassium", "oxide",
-    }
-
     wanted = _normalise_token(raw_identifier)
-    if not wanted or any(word in suffixes for word in wanted.split()):
+    if not wanted:
         return None
+    words = wanted.split()
+    if any(word in _SALT_SUFFIXES for word in words):
+        # A label's salt spelling of a base-named compound: "warfarin sodium" -> "Warfarin". Only a compound
+        # whose own name or synonym is exactly the base counts, so "warfarin potassium" never becomes a
+        # different salt ("WARFARIN SODIUM"), and a base that is itself a salt word ("sodium chloride",
+        # "calcium magnesium") is not cut down. (Cloud review 2026-11-19: the label path otherwise accepted
+        # the name and reported "no assessed record" for a pair whose base compounds have one.)
+        base = list(words)
+        while len(base) > 1 and base[-1] in _SALT_SUFFIXES:
+            base.pop()
+        if len(base) == len(words) or any(word in _SALT_SUFFIXES for word in base):
+            return None
+        return _token_index_lookup(" ".join(base))[1]
 
-    matches = set()
-    for compound_id, compound in COMPOUNDS.items():
-        names = [compound.get("name", "")]
-        names.extend(parse_synonyms([compound.get("synonyms"), compound.get("aliases")]))
-        if any(
-            normalised == wanted or normalised.startswith(wanted + " ")
-            for normalised in (_normalise_token(str(name)) for name in names if name)
-        ):
-            matches.add(compound_id)
-
+    # A base name of a single salt-named compound: "sertraline" -> "SERTRALINE HYDROCHLORIDE".
+    matches = _COMPOUND_WORD_PREFIX_INDEX.get(wanted, set())
     if len(matches) == 1:
         compound_id = next(iter(matches))
-        name = _normalise_token(str(COMPOUNDS[compound_id].get("name", "")))
+        name = _COMPOUND_SEARCH_CACHE[compound_id]["name_normalised"]
         if name == wanted or (
             name.startswith(wanted + " ")
-            and all(word in suffixes for word in name[len(wanted):].split())
+            and all(word in _SALT_SUFFIXES for word in name[len(wanted):].split())
         ):
             return compound_id
-    if matches:
+    elif len(matches) > 1:
         logger.warning("Ambiguous compound base name %r matches %s", raw_identifier, sorted(matches))
     return None
 
@@ -2099,17 +2112,11 @@ def _item_key(compound_id: Optional[str], label_key: Optional[tuple]) -> tuple:
 
     A recognised compound is identified by its id alone. A label key can be shared by different compounds
     ("amlodipine and atorvastatin" and "amlodipine and benazepril" both name amlodipine products), so it
-    only identifies names that resolve to no compound. (Antigravity review, 2026-11-19.)
+    only identifies names that resolve to no compound. (Antigravity review, 2026-11-19.) A compound and a
+    label-only name never share a key: they cannot be shown to be the same, so their pair is checked.
+    Used by both /api/interaction and /api/stack/check so the two cannot disagree (cloud review 2026-11-19).
     """
     return ("compound", compound_id) if compound_id else ("label", label_key)
-
-
-def _same_item(a_id: Optional[str], a_label: Optional[tuple], b_id: Optional[str], b_label: Optional[tuple]) -> bool:
-    if a_id and b_id:
-        return a_id == b_id
-    if not a_id and not b_id:
-        return bool(a_label) and a_label == b_label
-    return False  # one is a compound and one is label-only: cannot be shown to be the same, so check the pair
 
 
 @app.get("/api/interaction")
@@ -2134,7 +2141,8 @@ def interaction(
                 "suggestions": {name: _suggest_names(name) for name in unknown},
             },
         )
-    if _same_item(a_id, a_label, b_id, b_label):
+    # The guard keeps two names with neither a compound nor a label key from matching on ("label", None).
+    if (a_id or a_label) and _item_key(a_id, a_label) == _item_key(b_id, b_label):
         raise HTTPException(
             status_code=422,
             detail="An interaction requires two different compounds",

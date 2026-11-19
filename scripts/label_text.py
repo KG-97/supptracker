@@ -17,6 +17,10 @@ Rules:
   hiding in it; a closing citation bracket "]" counts as a sentence end. In an Examples block followed by
   another row, a match at the very end of the block, or at/after a "lower-case word + Title-case word" join
   (where the next header most likely starts), gives no statement.
+- (2026-11-19, after the cloud review) An Examples list that no later row follows stops at its first sentence
+  end, subsection number ("7.2 Other Drugs") or likely header start, whichever comes first. The prose after
+  it is split into ordinary sentences, and the list keeps the end-of-block and header guards, so a name in
+  that prose is never quoted under the row's Clinical Impact.
 - Known limit: a next-row header made of capitalised, comma-separated names after a capitalised last item
   ("Examples: Tramadol Antacids, Calcium, Iron <next row>") is not detected; no current label shows it.
 Every statement returned is a verbatim substring of the input text.
@@ -47,6 +51,8 @@ _TERMINATOR_RE = re.compile(
 # "carbamazepine Moderate CYP3A4 Inducers"). Acronyms ("other SSRIs") and single capitals ("vitamin K") do
 # not count. Added 2026-11-19 after Codex's review.
 _HEADER_START_RE = re.compile(r"(?<![\w'’-])([a-z][\w'’-]*)\s+(?=[A-Z][a-z])")
+# A label subsection number starting a heading: "7.2 Other Drugs". Added 2026-11-19 (cloud review).
+_SECTION_START_RE = re.compile(r"(?<![\w.])\d+(?:\.\d+)+\s+(?=[A-Z])")
 _ROW_ORDER = {"clinical impact": 0, "intervention": 1, "example": 2}
 # A merged statement: an Examples or Intervention block followed by a later row's Clinical Impact.
 CROSSED_ROWS_RE = re.compile(r"(Examples?|Interventions?)\s*:[\s\S]*Clinical\s*Impact\s*:", re.IGNORECASE)
@@ -110,6 +116,40 @@ def _header_start(list_text: str) -> int:
     return len(list_text)
 
 
+def _in_brackets(text: str, offset: int) -> bool:
+    return text.count("(", 0, offset) > text.count(")", 0, offset)
+
+
+def _last_list_end(block: str) -> int:
+    """Offset in an Examples block that ends the text where its list stops (len(block) if it runs to the end).
+
+    The list stops at the first of: a sentence end, a subsection number ("7.2 Other Drugs") or the likely
+    start of a heading (see ``_header_start``), each outside brackets. Added 2026-11-19 after the cloud
+    review: the whole remainder used to be one examples unit, so prose after the table was never split into
+    sentences and a name in it was quoted under the last row's Clinical Impact.
+    """
+    label = ROW_LABEL_RE.match(block)
+    list_from = label.end() if label else 0
+    cuts = [len(block), list_from + _header_start(block[list_from:])]
+    for pattern, edge in ((_TERMINATOR_RE, "end"), (_SECTION_START_RE, "start")):
+        for match in pattern.finditer(block, list_from):
+            if not _in_brackets(block, match.start()):
+                cuts.append(match.end() if edge == "end" else match.start())
+                break
+    return min(cuts)
+
+
+def runs_past_list(sentence: str) -> bool:
+    """True when a statement goes on past the end of its last Examples list into further text
+    ("Examples: ..., and isoniazid. • Carbonic anhydrase inhibitors ..."): built by the old sentence splitter,
+    which ``split_units`` no longer produces. Added 2026-11-19."""
+    labels = [item for item in ROW_LABEL_RE.finditer(sentence) if _label_name(item) == "example"]
+    if not labels:
+        return False
+    block = sentence[labels[-1].start():]
+    return bool(block[_last_list_end(block):].strip())
+
+
 def split_units(text: str) -> list[Unit]:
     # A label inside brackets is prose ("(see Clinical Impact: Section 7)"), not a table cell.
     labels = [
@@ -141,8 +181,17 @@ def split_units(text: str) -> list[Unit]:
         block = text[start:end].strip()
         next_starts_row = position + 1 < len(kinds) and new_row[position + 1]
         if kind == "example":
-            context = text[row_start:end].strip()
-            units.append(Unit("examples", context, list_start=start - row_start, followed_by_row=next_starts_row))
+            list_end = end
+            if position == len(kinds) - 1:  # no later row: the list may be followed by plain prose
+                list_end = start + _last_list_end(text[start:end])
+            prose = text[list_end:end].strip()
+            context = text[row_start:list_end].strip()
+            units.append(Unit(
+                "examples", context, list_start=start - row_start,
+                # Prose after the list is joined to it with no separator, just like a next row's header.
+                followed_by_row=next_starts_row or bool(prose),
+            ))
+            units.extend(Unit("sentence", piece.strip()) for piece in SENTENCE_SPLIT_RE.split(prose) if piece.strip())
             continue
         if next_starts_row:
             block = _drop_trailing_header(block)

@@ -655,25 +655,32 @@ def _resolve_drugs(normalised: str, index: Dict[str, Any]) -> List[str]:
     return matched
 
 
+def _resolve_name(name: str, index: Dict[str, Any]) -> tuple[List[str], List[str]]:
+    """(supplement ids, drug ids) for one typed name: the single rule shared by the lookup endpoint and
+    ``recognised_name_key``, so the note under the inputs and the search, interaction and stack endpoints
+    cannot disagree (cloud review 2026-11-19).
+    """
+    normalised = _normalise_name(" ".join(str(name).split()))
+    if len(normalised) >= 3:
+        return _resolve_supplements(name, normalised, index), _resolve_drugs(normalised, index)
+    # Too short to match by wording. An exact key such as "K2" or "B6" is still unambiguous;
+    # anything else resolves to nothing.
+    supplement_ids = [
+        supplement_id
+        for supplement_id, supplement in sorted(index["supplements"].items())
+        if normalised and normalised in supplement["keys"]
+    ]
+    return supplement_ids, []
+
+
 def recognised_name_key(name: str) -> Optional[tuple]:
     """Return the label lookup identities for a recognised name."""
     if LABEL_STATEMENTS["status"] != "available":
         return None
     name = " ".join(str(name).split())
-    normalised = _normalise_name(name)
-    if not normalised or len(name) > LOOKUP_MAX_NAME_CHARS:
+    if not _normalise_name(name) or len(name) > LOOKUP_MAX_NAME_CHARS:
         return None
-    index = _lookup_index()
-    if len(normalised) >= 3:
-        supplements = _resolve_supplements(name, normalised, index)
-        drugs = _resolve_drugs(normalised, index)
-    else:
-        supplements = sorted(
-            supplement_id
-            for supplement_id, supplement in index["supplements"].items()
-            if normalised in supplement["keys"]
-        )
-        drugs = []
+    supplements, drugs = _resolve_name(name, _lookup_index())
     if not supplements and not drugs:
         return None
     return (tuple(sorted(supplements)), tuple(sorted(drugs)))
@@ -724,22 +731,7 @@ def label_statements_lookup(
         }
 
     index = _lookup_index()
-    resolved = []
-    for name in cleaned:
-        normalised = _normalise_name(name)
-        if len(normalised) >= 3:
-            supplement_ids = _resolve_supplements(name, normalised, index)
-            drug_ids = _resolve_drugs(normalised, index)
-        else:
-            # Too short to match by wording. An exact key such as "K2" or "B6" is still
-            # unambiguous; anything else resolves to nothing.
-            supplement_ids = [
-                supplement_id
-                for supplement_id, supplement in sorted(index["supplements"].items())
-                if normalised and normalised in supplement["keys"]
-            ]
-            drug_ids = []
-        resolved.append((name, supplement_ids, drug_ids))
+    resolved = [(name, *_resolve_name(name, index)) for name in cleaned]
 
     groups: Dict[tuple[str, str], Dict[str, Any]] = {}
     for position, (supplement_input, supplement_ids, _) in enumerate(resolved):
